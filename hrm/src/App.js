@@ -36,11 +36,6 @@ const LoadingFallback = () => (
   </div>
 );
 
-const HRDashboard = () => <div className="p-6 text-sm">HR Dashboard — coming soon.</div>;
-const PayrollDashboard = () => <div className="p-6 text-sm">Payroll Dashboard — coming soon.</div>;
-const RecruitmentDashboard = () => <div className="p-6 text-sm">Recruitment Dashboard — coming soon.</div>;
-const Organcogram = () => <div className="p-6 text-sm">Organcogram — coming soon.</div>;
-
 /**
  * PublicOnly:
  * If authenticated, redirect to /dashboard (prevents seeing login while signed in)
@@ -99,17 +94,9 @@ export default function App() {
               {/* Dashboard + tabs */}
               <Route path="/dashboard/*" element={<DashboardTabsLayout />}>
                 <Route index element={<Dashboard />} />
-                <Route path="hr" element={<HRDashboard />} />
-                <Route path="payroll" element={<PayrollDashboard />} />
-                <Route path="recruitment" element={<RecruitmentDashboard />} />
-                <Route path="organcogram" element={<Organcogram />} />
                 <Route path="news" element={<NewsPage />} />
-
-                {/* Sensitive management routes */}
-                <Route element={<ProtectedRoute requireRoles={["super_admin", "admin", "hr", "developer"]} />}>
-                  <Route path="permissions" element={<PermissionsPage />} />
-                  <Route path="logs" element={<LogsPage />} />
-                </Route>
+                <Route path="permissions" element={<PermissionsPage />} />
+                <Route path="logs" element={<LogsPage />} />
               </Route>
 
               {/* Other top-level pages */}

@@ -12,13 +12,9 @@ export default function DashboardTabsLayout() {
 
   const allTabs = [
     { label: "Home", to: "/dashboard" },
-    { label: "HR Dashboard", to: "/dashboard/hr", code: "hr_dashboard" },
-    { label: "Payroll Dashboard", to: "/dashboard/payroll", code: "payroll_dashboard" },
-    { label: "Recruitment Dashboard", to: "/dashboard/recruitment", code: "recruitment_dashboard" },
-    { label: "Organcogram", to: "/dashboard/organcogram", code: "organogram_view" },
-    { label: "News", to: "/dashboard/news" },
-    { label: "Permissions", to: "/dashboard/permissions", code: "permissions_view" },
-    { label: "Logs", to: "/dashboard/logs", code: "audit_logs_view" },
+    { label: "News", to: "/dashboard/news", code: "news_manage" },
+    { label: "Permissions", to: "/dashboard/permissions", code: "permissions_edit" },
+    { label: "Logs", to: "/dashboard/logs", code: "audit_view" },
   ];
 
   // Filter tabs: Show if Admin OR has the specific feature code
