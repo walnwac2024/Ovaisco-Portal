@@ -24,13 +24,13 @@ import api, { BASE_URL } from "../../../utils/api";
 const TAB_META = {
   dashboard: { to: "/dashboard", Icon: FaHome, label: "Dashboard" },
   organization: { to: "/organization", Icon: FaCog, label: "Organization" },
-  recruitment: { to: "/recruitment", Icon: FaUsers, label: "Recruitment" },
+  recruitment: { to: "/recruitment", Icon: FaUsers, label: "Recruitment", isComingSoon: true },
   employee: { to: "/employees", Icon: FaUser, label: "Employee" },
-  timesheet: { to: "/timesheet", Icon: FaCalendarAlt, label: "Timesheet" },
+  timesheet: { to: "/timesheet", Icon: FaCalendarAlt, label: "Timesheet", isComingSoon: true },
   leave: { to: "/leave", Icon: FaCalendarCheck, label: "Leave" },
   attendance: { to: "/attendance", Icon: FaClock, label: "Attendance" },
-  performance: { to: "/performance", Icon: FaChartLine, label: "Performance" },
-  payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll" },
+  performance: { to: "/performance", Icon: FaChartLine, label: "Performance", isComingSoon: true },
+  payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll", isComingSoon: true },
   reports: { to: "/reports", Icon: FaChartBar, label: "Reports" },
   permissions: { to: "/dashboard/permissions", Icon: FaShieldAlt, label: "Permissions" },
 };
@@ -146,6 +146,7 @@ export default function Topbar({ logoSrc }) {
         label: t.label || meta.label || t.key,
         to: meta.to || `/${t.key}`,
         Icon: meta.Icon || FaHome,
+        isComingSoon: meta.isComingSoon || false,
       };
     })
     .filter((m) => m.key !== "permissions");

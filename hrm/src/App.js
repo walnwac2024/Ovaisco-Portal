@@ -24,6 +24,8 @@ const PermissionsPage = lazy(() => import("./features/permissions/PermissionsPag
 const NewsPage = lazy(() => import("./features/news/NewsPage"));
 const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
 const LogsPage = lazy(() => import("./features/audit/LogsPage"));
+const LookupManagementPage = lazy(() => import("./features/admin/LookupManagementPage"));
+const ComingSoon = lazy(() => import("./components/common/ComingSoon"));
 const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
 
 // Loading component
@@ -111,11 +113,11 @@ export default function App() {
 
               {/* Organization / Departments */}
               <Route path="/organization" element={<OrganizationPage />} />
-              <Route path="/recruitment" element={<div className="p-4">Recruitment</div>} />
-              <Route path="/timesheet" element={<div className="p-4">Timesheet</div>} />
+              <Route path="/recruitment" element={<ComingSoon title="Recruitment" />} />
+              <Route path="/timesheet" element={<ComingSoon title="Timesheet" />} />
               <Route path="/leave" element={<LeavePage />} />
-              <Route path="/performance" element={<div className="p-4">Performance</div>} />
-              <Route path="/payroll" element={<div className="p-4">Payroll</div>} />
+              <Route path="/performance" element={<ComingSoon title="Performance" />} />
+              <Route path="/payroll" element={<ComingSoon title="Payroll" />} />
               <Route path="/reports" element={<ReportsPage />} />
 
               {/* 👇 NEW: profile route */}
