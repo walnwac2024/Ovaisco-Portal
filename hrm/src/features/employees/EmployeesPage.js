@@ -6,7 +6,8 @@ import ActionsBar from "./components/ActionsBar";
 import ExportModal from "./components/ExportModal";
 import EmployeesTable from "./components/EmployeesTable";
 import UploadExcelModal from "./components/UploadExcelModal";
-import SendCredentialsModal from "./components/SendCredentialsModal";
+// import SendCredentialsModal from "./components/SendCredentialsModal";
+
 import AddEmployeeModal from "./components/AddEmployeeModal";
 import useEmployees from "./hooks/useEmployees";
 import useEmployeeFilterOptions from "./hooks/useEmployeeFilterOptions";
@@ -17,6 +18,8 @@ import EmployeeProfileRequest from "./components/EmployeeProfileRequest";
 import EmployeeTransfer from "./components/EmployeeTransfer";
 import EmployeeInfoRequest from "./components/EmployeeInfoRequest";
 import EmployeeApprovals from "./components/EmployeeApprovals";
+import EmployeeTimeline from "./components/EmployeeTimeline";
+
 
 // Employee Role screens
 import EmployeeRoleMainView from "./components/EmployeeRoleMainView";
@@ -29,8 +32,19 @@ import EmployeeSettings from "./components/EmployeeSettings";
 import EditEmployeeModal from "./components/EditEmployeeModal";
 import api from "../../utils/api";
 
+import { useAuth } from "../../context/AuthContext";
+
 export default function EmployeesPage() {
-  const [active, setActive] = useState("employee-list");
+  const { user } = useAuth();
+  const features = user?.features || [];
+  const canViewList = features.includes("employee_view");
+  const canViewTimeline = features.includes("timeline_view");
+
+  const [active, setActive] = useState(() => {
+    if (canViewList) return "employee-list";
+    if (canViewTimeline) return "employee-timeline";
+    return "employee-list";
+  });
   const navigate = useNavigate();
 
   const {
@@ -178,8 +192,19 @@ export default function EmployeesPage() {
     if (active === "employee-transfer") return <EmployeeTransfer />;
     if (active === "employee-info-request") return <EmployeeInfoRequest />;
     if (active === "employee-approvals") return <EmployeeApprovals />;
+    if (active === "employee-timeline") return <EmployeeTimeline />;
 
     if (active === "employee-settings") return <EmployeeSettings />;
+
+    // Default: Employee List (only if permitted)
+    if (active === "employee-list" && !canViewList) {
+      return (
+        <div className="p-10 text-center">
+          <div className="text-slate-400 mb-2">Access Restricted</div>
+          <div className="text-sm text-slate-500">You do not have permission to view the employee list.</div>
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-6">

@@ -1,0 +1,290 @@
+[
+  {
+    "id": 1,
+    "module": "dashboard",
+    "action": "view",
+    "code": "dashboard_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 2,
+    "module": "organization",
+    "action": "view",
+    "code": "org_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 3,
+    "module": "organization",
+    "action": "edit",
+    "code": "org_edit",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 4,
+    "module": "recruitment",
+    "action": "view",
+    "code": "recruitment_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 5,
+    "module": "recruitment",
+    "action": "post_job",
+    "code": "recruitment_post_job",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 6,
+    "module": "recruitment",
+    "action": "manage_candidates",
+    "code": "recruitment_manage_candidates",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 7,
+    "module": "employee",
+    "action": "view",
+    "code": "employee_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 8,
+    "module": "employee",
+    "action": "edit",
+    "code": "employee_edit",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 9,
+    "module": "timesheet",
+    "action": "view",
+    "code": "timesheet_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 10,
+    "module": "timesheet",
+    "action": "submit",
+    "code": "timesheet_submit",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 11,
+    "module": "timesheet",
+    "action": "approve",
+    "code": "timesheet_approve",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 12,
+    "module": "leave",
+    "action": "view",
+    "code": "leave_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 13,
+    "module": "leave",
+    "action": "request",
+    "code": "leave_request",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 14,
+    "module": "leave",
+    "action": "approve",
+    "code": "leave_approve",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 15,
+    "module": "attendance",
+    "action": "view",
+    "code": "attendance_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 16,
+    "module": "attendance",
+    "action": "mark",
+    "code": "attendance_mark",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 17,
+    "module": "attendance",
+    "action": "edit",
+    "code": "attendance_edit",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 18,
+    "module": "performance",
+    "action": "view",
+    "code": "performance_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 19,
+    "module": "performance",
+    "action": "review",
+    "code": "performance_review",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 20,
+    "module": "performance",
+    "action": "approve",
+    "code": "performance_approve",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 21,
+    "module": "payroll",
+    "action": "view",
+    "code": "payroll_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 22,
+    "module": "payroll",
+    "action": "process",
+    "code": "payroll_process",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 23,
+    "module": "payroll",
+    "action": "approve",
+    "code": "payroll_approve",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 24,
+    "module": "reports",
+    "action": "view",
+    "code": "reports_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 25,
+    "module": "profile",
+    "action": "edit_basic",
+    "code": "profile_edit_basic",
+    "created_at": "2025-11-26T09:11:42.000Z",
+    "updated_at": "2025-11-26T09:11:42.000Z"
+  },
+  {
+    "id": 26,
+    "module": "profile",
+    "action": "change_password",
+    "code": "profile_change_password",
+    "created_at": "2025-11-26T09:11:42.000Z",
+    "updated_at": "2025-11-26T09:11:42.000Z"
+  },
+  {
+    "id": 27,
+    "module": "leave",
+    "action": "settings",
+    "code": "leave_settings",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 28,
+    "module": "attendance",
+    "action": "settings",
+    "code": "attendance_settings",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 29,
+    "module": "employee",
+    "action": "settings",
+    "code": "employee_settings",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 30,
+    "module": "Dashboard",
+    "action": "View HR Dashboard",
+    "code": "hr_dashboard",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 31,
+    "module": "Dashboard",
+    "action": "View Payroll Dashboard",
+    "code": "payroll_dashboard",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 32,
+    "module": "Dashboard",
+    "action": "View Recruitment Dashboard",
+    "code": "recruitment_dashboard",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 33,
+    "module": "Dashboard",
+    "action": "View Organogram",
+    "code": "organogram_view",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 34,
+    "module": "Reports",
+    "action": "Monthly Report",
+    "code": "attendance_report",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 35,
+    "module": "Reports",
+    "action": "Print",
+    "code": "reports_print",
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 36,
+    "module": "Reports",
+    "action": "Export",
+    "code": "reports_export",
+    "created_at": null,
+    "updated_at": null
+  }
+]

@@ -12,13 +12,14 @@ export default function DashboardTabsLayout() {
 
   const allTabs = [
     { label: "Home", to: "/dashboard" },
-    { label: "News", to: "/dashboard/news", code: "news_manage" },
-    { label: "Permissions", to: "/dashboard/permissions", code: "permissions_edit" },
-    { label: "Logs", to: "/dashboard/logs", code: "audit_view" },
+    { label: "News", to: "/dashboard/news" },
+    { label: "Permissions", to: "/dashboard/permissions", adminOnly: true },
+    { label: "Logs", to: "/dashboard/logs", adminOnly: true },
+    { label: "Branding", to: "/dashboard/branding", adminOnly: true },
   ];
 
   // Filter tabs: Show if Admin OR has the specific feature code
-  const tabs = allTabs.filter(t => !t.code || isAdmin || feats.has(t.code.toLowerCase()));
+  const tabs = allTabs.filter(t => !t.adminOnly || isAdmin);
 
   return (
     <>

@@ -1,6 +1,7 @@
 // src/features/attendance/components/AddRequestModal.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { createAttendanceRequest, getSignInTimeForDate } from "../services/requestApi";
+import SharedDropdown from "../../../components/common/SharedDropdown";
 
 const required = (v) => (v === undefined || v === null || String(v).trim() === "" ? "Required" : "");
 
@@ -104,17 +105,20 @@ export default function AddRequestModal({ open, onClose, onSaved }) {
               <label className="form-label">
                 Employee <span className="text-customRed">*</span>
               </label>
-              <select
-                className={fieldClass("employee")}
+              <SharedDropdown
                 value={employee}
-                onChange={(e) => setEmployee(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, employee: true }))}
-              >
-                <option value="">Select One</option>
-                {/* TODO: replace with real employees */}
-                <option value="E-1001">E-1001 • Sumitha Thomas</option>
-                <option value="E-1002">E-1002 • Ahmed Khan</option>
-              </select>
+                onChange={(val) => {
+                  setEmployee(val);
+                  setTouched((t) => ({ ...t, employee: true }));
+                }}
+                options={[
+                  { value: "E-1001", label: "E-1001 • Sumitha Thomas" },
+                  { value: "E-1002", label: "E-1002 • Ahmed Khan" }
+                ]}
+                placeholder="Select One"
+                searchable={true}
+                className={fieldClass("employee")}
+              />
             </div>
 
             {/* Attendance Date */}
@@ -174,11 +178,14 @@ export default function AddRequestModal({ open, onClose, onSaved }) {
             {/* Attendance Type */}
             <div>
               <label className="form-label">Attendance Type</label>
-              <select className="select" value={attendanceType} onChange={(e) => setAttendanceType(e.target.value)}>
-                <option value="Other">Other</option>
-                <option value="In/Out Adjust">In/Out Adjust</option>
-                <option value="Shift Correction">Shift Correction</option>
-              </select>
+              <SharedDropdown
+                value={attendanceType}
+                onChange={(val) => setAttendanceType(val)}
+                options={["Other", "In/Out Adjust", "Shift Correction"]}
+                placeholder="Select Type"
+                searchable={true}
+                className="select"
+              />
             </div>
 
             {/* spacer for grid balance */}

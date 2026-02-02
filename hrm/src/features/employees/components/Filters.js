@@ -109,6 +109,7 @@ function Filters({ filters, onChange, options }) {
         value={filters.employee_group}
         onChange={onChange}
         options={asSimpleOptions(groups)}
+        searchable
       />
 
       <LabeledSelect
@@ -153,6 +154,7 @@ function Filters({ filters, onChange, options }) {
         value={filters.status}
         onChange={onChange}
         options={asSimpleOptions(statuses)}
+        searchable
       />
 
       {/* Row 3 */}
@@ -163,6 +165,7 @@ function Filters({ filters, onChange, options }) {
         value={filters.documents_attached}
         onChange={onChange}
         options={["ALL", "YES", "NO"].map((v) => ({ value: v, label: v }))}
+        searchable
       />
 
       <LabeledSelect
@@ -190,6 +193,7 @@ function Filters({ filters, onChange, options }) {
         value={filters.flag}
         onChange={onChange}
         options={["ALL", "YES", "NO"].map((v) => ({ value: v, label: v }))}
+        searchable
       />
     </div>
   );

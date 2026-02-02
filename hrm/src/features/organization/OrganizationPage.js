@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../../utils/api";
-import { Users, Building2, Gift, PartyPopper, ChevronDown, ChevronRight, Search } from "lucide-react";
+import { Users, Building2, Gift, PartyPopper, ChevronDown, ChevronRight, Search, Network } from "lucide-react"; // Added Network icon if available, else fallback
 import { BASE_URL } from "../../utils/api";
 import BirthdayCelebration from "../../components/common/BirthdayCelebration";
+import OrgTree from "./components/OrgTree";
 
 const BACKEND_URL = BASE_URL;
 
@@ -10,8 +11,10 @@ export default function OrganizationPage() {
     const [departments, setDepartments] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedDepts, setExpandedDepts] = useState(new Set());
+    // Changed from Set to string | null for accordion behavior
+    const [expandedDept, setExpandedDept] = useState(null);
     const [search, setSearch] = useState("");
+    const [viewMode, setViewMode] = useState('directory'); // 'directory' | 'chart'
 
     const fetchData = useCallback(async () => {
         try {
@@ -34,10 +37,7 @@ export default function OrganizationPage() {
     }, [fetchData]);
 
     const toggleDept = (dept) => {
-        const next = new Set(expandedDepts);
-        if (next.has(dept)) next.delete(dept);
-        else next.add(dept);
-        setExpandedDepts(next);
+        setExpandedDept(prev => prev === dept ? null : dept);
     };
 
     // Helper: Birthday check (robust)
@@ -126,15 +126,35 @@ export default function OrganizationPage() {
                     <p className="text-sm text-slate-500 font-medium">Manage and view all departments and team members.</p>
                 </div>
 
-                <div className="relative w-full md:w-80 group">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-customRed transition-colors" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search department or name..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-customRed/5 focus:border-customRed outline-none transition-all text-sm font-medium shadow-sm bg-white/80 backdrop-blur-sm"
-                    />
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {/* View Toggle */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+                        <button
+                            onClick={() => setViewMode('directory')}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'directory' ? 'bg-white text-customRed shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            title="List View"
+                        >
+                            <Users size={18} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('chart')}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'chart' ? 'bg-white text-customRed shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            title="Chart View"
+                        >
+                            <Network size={18} />
+                        </button>
+                    </div>
+
+                    <div className="relative w-full md:w-80 group">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-customRed transition-colors" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search department or name..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-customRed/5 focus:border-customRed outline-none transition-all text-sm font-medium shadow-sm bg-white/80 backdrop-blur-sm"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -145,7 +165,28 @@ export default function OrganizationPage() {
                         <div className="absolute top-0 left-0 h-12 w-12 border-4 border-customRed border-t-transparent rounded-full animate-spin" />
                     </div>
                 </div>
+            ) : viewMode === 'chart' ? (
+                // CHART VIEW
+                <div className="grid grid-cols-1 gap-8">
+                    {filteredData.length === 0 ? (
+                        <div className="bg-white/50 backdrop-blur-sm border-2 border-dashed border-slate-200 rounded-[2rem] text-center py-24">
+                            <Network size={56} className="mx-auto text-slate-200 mb-6" />
+                            <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-sm">No departments found for chart</p>
+                        </div>
+                    ) : (
+                        filteredData.map(dept => (
+                            <OrgTree
+                                key={dept.name}
+                                department={dept.name}
+                                members={dept.members}
+                                isExpanded={expandedDept === dept.name}
+                                onToggle={() => toggleDept(dept.name)}
+                            />
+                        ))
+                    )}
+                </div>
             ) : (
+                // DIRECTORY VIEW (Original)
                 <div className="grid grid-cols-1 gap-6">
                     {filteredData.length === 0 ? (
                         <div className="bg-white/50 backdrop-blur-sm border-2 border-dashed border-slate-200 rounded-[2rem] text-center py-24">
@@ -159,7 +200,7 @@ export default function OrganizationPage() {
                                 <div
                                     onClick={() => toggleDept(dept.name)}
                                     className={`px-8 py-6 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all
-                                        ${expandedDepts.has(dept.name) ? 'bg-slate-50/50 border-b border-slate-100' : ''}`}
+                                        ${expandedDept === dept.name ? 'bg-slate-50/50 border-b border-slate-100' : ''}`}
                                 >
                                     <div className="flex items-center gap-5">
                                         <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-br from-customRed to-red-600 flex items-center justify-center text-white shadow-lg shadow-red-500/20">
@@ -189,14 +230,14 @@ export default function OrganizationPage() {
                                                 <span className="text-[10px] font-black uppercase tracking-wider">Department Party</span>
                                             </div>
                                         )}
-                                        <div className={`p-2 rounded-xl transition-all ${expandedDepts.has(dept.name) ? 'bg-slate-100 text-slate-600 rotate-180' : 'bg-slate-50 text-slate-400'}`}>
+                                        <div className={`p-2 rounded-xl transition-all ${expandedDept === dept.name ? 'bg-slate-100 text-slate-600 rotate-180' : 'bg-slate-50 text-slate-400'}`}>
                                             <ChevronDown size={20} />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Department Content */}
-                                {expandedDepts.has(dept.name) && (
+                                {expandedDept === dept.name && (
                                     <div className="p-8">
                                         {dept.birthdaysToday.length > 0 && (
                                             <div className="mb-8 space-y-4">

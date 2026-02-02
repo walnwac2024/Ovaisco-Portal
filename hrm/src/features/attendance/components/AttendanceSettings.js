@@ -8,6 +8,7 @@ import {
   bulkAssignAttendanceShift,
 } from "../services/attendanceService";
 import { useAuth } from "../../../context/AuthContext";
+import SharedDropdown from "../../../components/common/SharedDropdown";
 
 function toInputDate(v) {
   if (!v) return "";
@@ -243,16 +244,17 @@ export default function AttendanceSettings() {
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
               <div className="w-full sm:max-w-xs">
                 <label className="form-label">Select Shift to Apply Everywhere</label>
-                <select
+                <SharedDropdown
                   value={bulkShiftId}
-                  onChange={(e) => setBulkShiftId(e.target.value)}
+                  onChange={(val) => setBulkShiftId(val)}
+                  options={shifts.filter(s => !!Number(s.is_active)).map(s => ({
+                    value: s.id,
+                    label: `${s.name} (${s.start_time.slice(0, 5)} - ${s.end_time.slice(0, 5)})`
+                  }))}
+                  placeholder="-- Choose Shift --"
+                  searchable={true}
                   className="input"
-                >
-                  <option value="">-- Choose Shift --</option>
-                  {shifts.filter(s => !!Number(s.is_active)).map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)})</option>
-                  ))}
-                </select>
+                />
               </div>
               <p className="text-[11px] font-medium text-slate-500 italic pb-2">
                 This will automatically update the shift assignment for all active employees starting from today.

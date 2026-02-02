@@ -46,11 +46,18 @@ const icons = {
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-1.45 2.51-.1-.03a1.65 1.65 0 0 0-1.54.45l-.06.06-2.51-1.45-.1.08a1.65 1.65 0 0 0-1.82 0l-.1-.08-2.51 1.45-.06-.06a1.65 1.65 0 0 0-1.54-.45l-.1.03-1.45-2.51.06-.06a1.65 1.65 0 0 0 .33-1.82V12a1.65 1.65 0 0 0-.33-1.82l-.06-.06 1.45-2.51.1.03a1.65 1.65 0 0 0 1.54-.45l.06-.06 2.51 1.45.1-.08a1.65 1.65 0 0 0 1.82 0l.1.08 2.51-1.45.06.06a1.65 1.65 0 0 0 1.54.45l.1-.03 1.45 2.51-.06.06a1.65 1.65 0 0 0-.33 1.82V12z" />
     </svg>
+  ),
+  timeline: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
   )
 };
 
 const MENU_ITEMS = [
   { id: "employee-list", label: "Employee List", permission: "employee_view", icon: icons.list },
+  { id: "employee-timeline", label: "Timeline", permission: "timeline_view", icon: icons.timeline },
   { id: "employee-profile-request", label: "Profile Request", permission: "employee_view", status: "working", icon: icons.profile },
   { id: "employee-transfer", label: "Employee Transfer", permission: "employee_edit", status: "working", icon: icons.transfer },
   {

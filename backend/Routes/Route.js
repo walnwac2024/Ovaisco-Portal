@@ -18,10 +18,14 @@ const Role = require("../Controller/UserDeatils/Role");
 const Attendance = require("../Controller/Attendance/Attendance");
 const AttendanceSettings = require("../Controller/Attendance/AttendanceSettings");
 const Leave = require("../Controller/Leaves/Leave");
+const Performance = require("./PerformanceRoutes");
 const News = require("../Controller/News/NewsController");
 const Notifications = require("../Controller/UserDeatils/NotificationController");
 const Chat = require("../Controller/UserDeatils/ChatController");
 const Audit = require("../Controller/Audit/AuditController");
+const Timeline = require("../Controller/Employees/TimelineController");
+const Settings = require("../Controller/Settings/SettingsController");
+
 
 const {
     listEmployees,
@@ -60,7 +64,7 @@ const {
 } = require("../Controller/UserDeatils/PermissionController");
 
 // Middleware
-const { isAuthenticated, requireRole } = require("../middlewares/middleware");
+const { isAuthenticated, requireRole, requireFeatures } = require("../middlewares/middleware");
 
 // Multer storage for documents
 const docsDir = path.join(__dirname, "..", "uploads", "documents");
@@ -115,6 +119,15 @@ router.post("/permissions/type/:typeId", isAuthenticated, requireRole("super_adm
 // Audit routes
 router.get("/audit/logs", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Audit.listLogs);
 router.get("/audit/filters", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Audit.listLogFilters);
+
+// Settings routes
+router.get("/settings/branding", isAuthenticated, Settings.getBranding);
+router.post("/settings/branding", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.single("logo"), Settings.updateBranding);
+
+// Timeline routes
+router.get("/employees/:id/timeline", isAuthenticated, Timeline.getTimeline);
+router.post("/employees/:id/timeline", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Timeline.addEvent);
+
 
 // Employee routes
 router.get("/employees", isAuthenticated, listEmployees);
@@ -176,6 +189,15 @@ router.post("/leaves/apply", isAuthenticated, Leave.applyLeave);
 router.get("/leaves/my", isAuthenticated, Leave.getMyLeaves);
 router.get("/leaves/admin/all", isAuthenticated, requireRole("super_admin", "admin", "hr", "manager", "developer"), Leave.getAllLeaves);
 router.patch("/leaves/approve/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "manager", "developer"), Leave.approveLeave);
+// Lookup Management
+// Lookup Management (Controller not found yet)
+// router.get("/lookups/:type", isAuthenticated, requireFeatures("permissions_edit"), Lookups.listLookups);
+// router.post("/lookups/:type", isAuthenticated, requireFeatures("permissions_edit"), Lookups.addLookup);
+// router.patch("/lookups/:type/:id", isAuthenticated, requireFeatures("permissions_edit"), Lookups.updateLookup);
+// router.delete("/lookups/:type/:id", isAuthenticated, requireFeatures("permissions_edit"), Lookups.deleteLookup);
+
+// Performance
+router.use("/performance", Performance);
 router.post("/leaves/types", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Leave.createLeaveType);
 router.patch("/leaves/types/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Leave.updateLeaveType);
 router.delete("/leaves/types/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Leave.deleteLeaveType);

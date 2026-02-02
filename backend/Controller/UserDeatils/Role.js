@@ -28,7 +28,9 @@ function buildTabs(roleName, features) {
   add('dashboard', 'Dashboard', 'dashboard_view');
   add('organization', 'Organization', 'org_view');
   add('recruitment', 'Recruitment', 'recruitment_view');
-  add('employee', 'Employee', 'employee_view');
+  if (can('employee_view') || can('timeline_view')) {
+    tabs.push({ key: 'employee', label: 'Employee' });
+  }
   add('timesheet', 'Timesheet', 'timesheet_view');
   add('leave', 'Leave', 'leave_view');
   add('attendance', 'Attendance', 'attendance_view');

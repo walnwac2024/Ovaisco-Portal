@@ -161,6 +161,7 @@ export default function Filters({
                   value={vals.flagType}
                   onChange={set('flagType')}
                   options={FLAG_TYPES}
+                  searchable
                 />
               ) : (
                 // Show Employee Code for Attendance AND Shift; hide for Exemption/Remote
@@ -195,6 +196,7 @@ export default function Filters({
                 value={vals.year}
                 onChange={set('year')}
                 options={WORKSHEET_YEARS}
+                searchable
               />
 
               <SharedDropdown
@@ -202,6 +204,7 @@ export default function Filters({
                 value={vals.month}
                 onChange={set('month')}
                 options={WORKSHEET_MONTHS}
+                searchable
               />
             </>
           )}
@@ -236,15 +239,13 @@ export default function Filters({
 
           {/* Attendance-only control */}
           {!isExemption && !isWorksheet && !isRemote && !isShift && (
-            <Field label="Is Mark From Dashboard">
-              <select
-                className="select"
-                value={vals.isMarkFromDashboard}
-                onChange={set('isMarkFromDashboard')}
-              >
-                {MARK_FROM_DASHBOARD.map((x) => <option key={x}>{x}</option>)}
-              </select>
-            </Field>
+            <SharedDropdown
+              label="Is Mark From Dashboard"
+              value={vals.isMarkFromDashboard}
+              onChange={set('isMarkFromDashboard')}
+              options={MARK_FROM_DASHBOARD}
+              searchable
+            />
           )}
 
           {isWorksheet && (
@@ -253,6 +254,7 @@ export default function Filters({
               value={vals.action}
               onChange={set('action')}
               options={WORKSHEET_ACTIONS}
+              searchable
             />
           )}
         </div>
@@ -265,6 +267,7 @@ export default function Filters({
               value={vals.type}
               onChange={set('type')}
               options={isExemption ? EXEMPTION_TYPES : ATTENDANCE_TYPES}
+              searchable
             />
           </div>
         )}

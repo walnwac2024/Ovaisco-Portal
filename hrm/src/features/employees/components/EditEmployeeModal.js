@@ -404,9 +404,9 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content max-w-6xl">
+      <div className="modal-content max-w-6xl flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="modal-header">
+        <div className="modal-header shrink-0">
           <div>
             <h2 className="h2 text-slate-900">Edit Employee</h2>
             <p className="mt-0.5 text-xs text-slate-500">
@@ -429,11 +429,11 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
           </div>
         </div>
 
-        {/* Body */}
-        <div className="modal-body min-h-[500px]">
+        {/* Body (Scrollable) */}
+        <div className="modal-body flex-1 overflow-y-auto min-h-0 p-6">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)]">
             {/* LEFT: Profile / general */}
-            <form onSubmit={handleSaveProfile} className="space-y-5">
+            <form onSubmit={handleSaveProfile} className="space-y-5 flex flex-col h-full">
               <div className="flex items-center gap-6 mb-4">
                 <div className="relative group">
                   <div className="h-16 w-16 rounded-full bg-slate-100 border-2 border-slate-200 overflow-hidden flex-shrink-0">
@@ -537,6 +537,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                     onChange={(val) => setProfileForm(p => ({ ...p, status: val }))}
                     options={statuses}
                     placeholder="Select Status"
+                    searchable={true}
                   />
                 </Field>
 
@@ -710,6 +711,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                                       onChange={(val) => updateDocLocal(doc.id, { type: val })}
                                       options={DOC_TYPES}
                                       placeholder="Select Type"
+                                      searchable={true}
                                     />
                                   </Field>
 
@@ -955,26 +957,28 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
               </div>
               {/* -------------------------------------------------------- */}
 
-              <div className="flex flex-wrap justify-center sm:justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => onClose(false)}
-                  className="btn-outline w-full sm:w-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingProfile}
-                  className="btn-primary w-full sm:w-auto px-6"
-                >
-                  {savingProfile ? "Saving…" : "Update Employee Info"}
-                </button>
+              <div className="mt-auto sticky bottom-0 bg-white/95 backdrop-blur-sm pt-4 pb-2 border-t border-slate-100 z-10 -mx-1 px-1">
+                <div className="flex flex-wrap justify-center sm:justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onClose(false)}
+                    className="btn-outline w-full sm:w-auto"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="btn-primary w-full sm:w-auto px-6"
+                  >
+                    {savingProfile ? "Saving…" : "Update Employee Info"}
+                  </button>
+                </div>
               </div>
             </form>
 
             {/* RIGHT: Vault / Login */}
-            <form onSubmit={handleSaveVault} className="space-y-5">
+            <form onSubmit={handleSaveVault} className="space-y-5 flex flex-col h-full">
               <div>
                 <h3 className="text-xs font-semibold tracking-wide text-slate-700 uppercase">
                   Vault / Login Info
@@ -1092,21 +1096,23 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                 </div>
               )}
 
-              <div className="flex flex-wrap justify-center sm:justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => onClose(false)}
-                  className="btn-outline w-full sm:w-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingVault || !canEditVault}
-                  className="btn-primary w-full sm:w-auto px-6"
-                >
-                  {savingVault ? "Updating…" : "Update Vault Info"}
-                </button>
+              <div className="mt-auto sticky bottom-0 bg-white/95 backdrop-blur-sm pt-4 pb-2 border-t border-slate-100 z-10 -mx-1 px-1">
+                <div className="flex flex-wrap justify-center sm:justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onClose(false)}
+                    className="btn-outline w-full sm:w-auto"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingVault || !canEditVault}
+                    className="btn-primary w-full sm:w-auto px-6"
+                  >
+                    {savingVault ? "Updating…" : "Update Vault Info"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

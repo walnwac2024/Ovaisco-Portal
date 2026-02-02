@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { EMPLOYEES } from "../constants";
+import SharedDropdown from "../../../components/common/SharedDropdown";
 
 const required = (v) =>
   v === undefined || v === null || String(v).trim() === "" ? "Required" : "";
@@ -96,17 +97,17 @@ export default function AddShiftModal({ open, onClose, onSaved, irregular = fals
           <div className="form-grid">
             <div>
               <label className="form-label">Employee <span className="text-customRed">*</span></label>
-              <select
-                className={select("employee")}
+              <SharedDropdown
                 value={employee}
-                onChange={(e) => setEmployee(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, employee: true }))}
-              >
-                <option value="">Select One</option>
-                {EMPLOYEES.filter((x) => x !== "--ALL--").map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+                onChange={(val) => {
+                  setEmployee(val);
+                  setTouched((t) => ({ ...t, employee: true }));
+                }}
+                options={EMPLOYEES.filter((x) => x !== "--ALL--")}
+                placeholder="Select One"
+                searchable={true}
+                className={select("employee")}
+              />
             </div>
 
             <div>

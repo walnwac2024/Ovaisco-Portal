@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { FaTimes, FaEye, FaEyeSlash, FaPlus, FaTrash } from "react-icons/fa";
 import { toast } from "react-toastify";
 import api from "../../../utils/api";
+import SharedDropdown from "../../../components/common/SharedDropdown";
 
 const DOC_TYPES = [
   "CNIC",
@@ -36,7 +37,6 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
         if (!form.shiftId) { toast.error("Default Shift is required." + suffix); return false; }
         break;
       case "personal":
-        if (!form.dateOfBirth) { toast.error("Date of Birth is required." + suffix); return false; }
         if (!form.gender) { toast.error("Gender is required." + suffix); return false; }
         break;
       case "contact":
@@ -400,50 +400,52 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                         <input type="text" className="input" value={form.fullName} onChange={(e) => updateField("fullName", e.target.value)} />
                       </Field>
                       <Field label="Designation" required>
-                        <select className="select" value={form.designation} onChange={(e) => updateField("designation", e.target.value)}>
-                          <option value="">Select Designation</option>
-                          {lookups.designations.map((d) => <option key={d} value={d}>{d}</option>)}
-                        </select>
+                        <SharedDropdown
+                          options={lookups.designations}
+                          value={form.designation}
+                          onChange={(val) => updateField("designation", val)}
+                          placeholder="Select Designation"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Department" required>
-                        <select className="select" value={form.department} onChange={(e) => updateField("department", e.target.value)}>
-                          <option value="">Select Department</option>
-                          {lookups.departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                        </select>
+                        <SharedDropdown
+                          options={lookups.departments}
+                          value={form.department}
+                          onChange={(val) => updateField("department", val)}
+                          placeholder="Select Department"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Station / Office" required>
-                        <select className="select" value={form.station} onChange={(e) => updateField("station", e.target.value)}>
-                          <option value="">Select Station</option>
-                          {lookups.stations.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        <SharedDropdown
+                          options={lookups.stations}
+                          value={form.station}
+                          onChange={(val) => updateField("station", val)}
+                          placeholder="Select Station"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Status" required>
-                        <select className="select" value={form.status} onChange={(e) => updateField("status", e.target.value)}>
-                          <option value="">Select Status</option>
-                          {lookups.statuses.length > 0 ? (
-                            lookups.statuses.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))
-                          ) : (
-                            <>
-                              <option value="Active">Active</option>
-                              <option value="Probation">Probation</option>
-                              <option value="Left">Left</option>
-                              <option value="On Hold">On Hold</option>
-                            </>
-                          )}
-                        </select>
+                        <SharedDropdown
+                          options={lookups.statuses.length > 0 ? lookups.statuses : ["Active", "Probation", "Left", "On Hold"]}
+                          value={form.status}
+                          onChange={(val) => updateField("status", val)}
+                          placeholder="Select Status"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Probation Period">
                         <input type="text" placeholder="e.g. 3 Months" className="input" value={form.probation} onChange={(e) => updateField("probation", e.target.value)} />
                       </Field>
                       <Field label="Default Shift" required>
-                        <select className="select" value={form.shiftId} onChange={(e) => updateField("shiftId", e.target.value)}>
-                          <option value="">Select Shift</option>
-                          {lookups.shifts.map((s) => (
-                            <option key={s.id} value={s.id}>{s.name} ({s.start_time} - {s.end_time})</option>
-                          ))}
-                        </select>
+                        <SharedDropdown
+                          options={lookups.shifts.map(s => ({ value: s.id, label: `${s.name} (${s.start_time} - ${s.end_time})` }))}
+                          value={form.shiftId}
+                          onChange={(val) => updateField("shiftId", val)}
+                          placeholder="Select Shift"
+                          searchable={true}
+                        />
                       </Field>
                     </div>
                   </section>
@@ -457,16 +459,17 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                       <h3 className="section-title">Personal Information</h3>
                     </div>
                     <div className="grid md:grid-cols-3 gap-6">
-                      <Field label="Date of Birth" required>
+                      <Field label="Date of Birth">
                         <input type="date" className="input" value={form.dateOfBirth} onChange={(e) => updateField("dateOfBirth", e.target.value)} />
                       </Field>
                       <Field label="Gender" required>
-                        <select className="select" value={form.gender} onChange={(e) => updateField("gender", e.target.value)}>
-                          <option value="">Select</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
+                        <SharedDropdown
+                          options={["Male", "Female", "Other"]}
+                          value={form.gender}
+                          onChange={(val) => updateField("gender", val)}
+                          placeholder="Select Gender"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Blood Group">
                         <input type="text" className="input" value={form.bloodGroup} onChange={(e) => updateField("bloodGroup", e.target.value)} />
@@ -475,10 +478,13 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                         <input type="text" className="input" value={form.religion} onChange={(e) => updateField("religion", e.target.value)} />
                       </Field>
                       <Field label="Marital Status">
-                        <select className="select" value={form.maritalStatus} onChange={(e) => updateField("maritalStatus", e.target.value)}>
-                          <option value="">Select</option>
-                          {MARITAL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
-                        </select>
+                        <SharedDropdown
+                          options={MARITAL_OPTIONS}
+                          value={form.maritalStatus}
+                          onChange={(val) => updateField("maritalStatus", val)}
+                          placeholder="Select Status"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="CNIC">
                         <input type="text" className="input" value={form.cnic} onChange={(e) => updateField("cnic", e.target.value)} />
@@ -519,18 +525,13 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                         <input type="text" className="h-9 w-full rounded border border-slate-300 px-3 text-sm focus:border-customRed focus:outline-none" value={form.emergencyRelation} onChange={(e) => updateField("emergencyRelation", e.target.value)} />
                       </Field>
                       <Field label="Reporting To">
-                        <select
-                          className="h-9 w-full rounded border border-slate-300 px-3 text-sm focus:border-customRed focus:outline-none bg-white"
+                        <SharedDropdown
+                          options={lookups.employees.map(emp => ({ value: emp.Employee_Name, label: `${emp.Employee_Name} (${emp.Employee_ID})` }))}
                           value={form.reportingTo}
-                          onChange={(e) => updateField("reportingTo", e.target.value)}
-                        >
-                          <option value="">Select (Optional)</option>
-                          {lookups.employees.map((emp) => (
-                            <option key={emp.id} value={emp.Employee_Name}>
-                              {emp.Employee_Name} ({emp.Employee_ID})
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(val) => updateField("reportingTo", val)}
+                          placeholder="Select Manager (Optional)"
+                          searchable={true}
+                        />
                       </Field>
                     </div>
                   </section>
@@ -600,16 +601,15 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                           </button>
                         </div>
                       </Field>
-                      <Field label="User Type / Permission Level">
-                        <select
-                          className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm focus:border-customRed focus:outline-none"
+                      <Field label="User Type / Permission Level" required>
+                        <SharedDropdown
+                          options={lookups.userTypes}
                           value={form.userType}
-                          onChange={(e) => updateField("userType", e.target.value)}
+                          onChange={(val) => updateField("userType", val)}
+                          placeholder="Select User Type"
                           disabled={!form.allowPortalLogin}
-                        >
-                          <option value="">Select user type</option>
-                          {lookups.userTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
+                          searchable={true}
+                        />
                       </Field>
                     </div>
                     <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
@@ -656,16 +656,13 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                               </Field>
 
                               <Field label="Doc Type">
-                                <select
-                                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs focus:border-customRed focus:outline-none shadow-sm"
+                                <SharedDropdown
+                                  options={DOC_TYPES}
                                   value={doc.type}
-                                  onChange={(e) => updateDocumentField(idx, "type", e.target.value)}
-                                >
-                                  <option value="">Select</option>
-                                  {DOC_TYPES.map((t) => (
-                                    <option key={t} value={t}>{t}</option>
-                                  ))}
-                                </select>
+                                  onChange={(val) => updateDocumentField(idx, "type", val)}
+                                  placeholder="Select Type"
+                                  searchable={true}
+                                />
                               </Field>
 
                               <Field label="File Upload">

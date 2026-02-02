@@ -18,6 +18,7 @@ import {
   FaShieldAlt,
 } from "react-icons/fa";
 import { useAuth } from "../../../context/AuthContext";
+import { useTheme } from "../../../context/ThemeContext";
 import api, { BASE_URL } from "../../../utils/api";
 
 // Map backend keys -> route + icon + fallback label
@@ -54,6 +55,7 @@ export default function Topbar({ logoSrc }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, tabs, logout } = useAuth();
+  const { logo: brandLogo } = useTheme();
 
   // ✅ Notification State
   const [notifications, setNotifications] = useState([]);
@@ -134,7 +136,8 @@ export default function Topbar({ logoSrc }) {
 
   // resolve logo
   const fallbackLogo = `${process.env.PUBLIC_URL}/logo192.png`;
-  const logo = logoSrc || hrmLogo;
+  const contextLogoUrl = brandLogo ? (brandLogo.startsWith('http') ? brandLogo : `${BASE_URL}${brandLogo}`) : null;
+  const logo = logoSrc || contextLogoUrl || hrmLogo;
 
   // Build menu
   const safeTabs = Array.isArray(tabs) ? tabs : [];

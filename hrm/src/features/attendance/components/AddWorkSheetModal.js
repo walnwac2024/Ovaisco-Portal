@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { EMPLOYEES } from "../constants"; // already in your constants
+import SharedDropdown from "../../../components/common/SharedDropdown";
 // If you have a real list of projects, replace this with your source
 const WORKSHEET_PROJECTS = ["Select One", "Website Revamp", "Payroll Cleanup", "Infra Upgrade"];
 
@@ -107,18 +108,17 @@ export default function AddWorkSheetModal({ open, onClose, onSaved }) {
               <label className="form-label">
                 Employee <span className="text-customRed">*</span>
               </label>
-              <select
-                className={select("employee")}
+              <SharedDropdown
                 value={employee}
-                onChange={(e) => setEmployee(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, employee: true }))}
-              >
-                <option value="">Select One</option>
-                {/* If you store codes, change the value accordingly */}
-                {EMPLOYEES.filter((x) => x !== "--ALL--").map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+                onChange={(val) => {
+                  setEmployee(val);
+                  setTouched((t) => ({ ...t, employee: true }));
+                }}
+                options={EMPLOYEES.filter((x) => x !== "--ALL--")}
+                placeholder="Select One"
+                searchable={true}
+                className={select("employee")}
+              />
             </div>
 
             <div>
@@ -167,17 +167,16 @@ export default function AddWorkSheetModal({ open, onClose, onSaved }) {
                     <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 text-slate-500 font-medium">{i + 1}</td>
                       <td className="px-4 py-3">
-                        <select
-                          className="w-full h-9 rounded border border-slate-300 px-2 text-xs focus:ring-1 focus:ring-customRed focus:border-customRed outline-none"
+                        <SharedDropdown
                           value={ln.project}
-                          onChange={(e) => changeLine(i, "project", e.target.value)}
-                        >
-                          {WORKSHEET_PROJECTS.map((p) => (
-                            <option key={p} value={p === "Select One" ? "" : p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(val) => changeLine(i, "project", val)}
+                          options={WORKSHEET_PROJECTS.map((p) => ({
+                            value: p === "Select One" ? "" : p,
+                            label: p,
+                          }))}
+                          placeholder="Select"
+                          searchable={true}
+                        />
                       </td>
                       <td className="px-4 py-3">
                         <input

@@ -33,3 +33,7 @@ Thumbs.db
 
 # Cache
 **/.cache/
+
+# WhatsApp session data and cache (service level)
+whatsapp-service/.wwebjs_auth/
+whatsapp-service/.wwebjs_cache/
