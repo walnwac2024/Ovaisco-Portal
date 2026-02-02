@@ -92,6 +92,13 @@ function safeUnlink(absPath) {
  * CREATE EMPLOYEE  (POST /api/v1/employees)
  * ------------------------------------------------------------------ */
 async function createEmployee(req, res) {
+  // Debug Log
+  const fs = require('fs');
+  const path = require('path');
+  try {
+    fs.appendFileSync(path.join(__dirname, '..', '..', 'leave_debug.log'), `[${new Date().toISOString()}] createEmployee CALLED\n`);
+  } catch (e) { console.error("Log failed", e); }
+
   const {
     // employment
     employeeCode,
@@ -297,6 +304,35 @@ async function createEmployee(req, res) {
           // In this case, let's keep it atomic if it fits the flow.
           throw shiftErr;
         }
+      }
+
+      // --- ✅ NEW: Auto-create Leave Balances for Current Year ---
+      try {
+        const [activeTypes] = await conn.execute(
+          "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1"
+        );
+        const currentYear = new Date().getFullYear();
+
+        for (const type of activeTypes) {
+          await conn.execute(
+            `INSERT INTO leave_balances (employee_id, leave_type_id, year, entitlement, balance, used, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, 0, NOW(), NOW())`,
+            [newEmployeeId, type.id, currentYear, type.entitlement_days, type.entitlement_days]
+          );
+        }
+
+        // Log success for debugging
+        const fs = require('fs');
+        const path = require('path');
+        fs.appendFileSync(path.join(__dirname, '..', '..', 'leave_debug.log'),
+          `[${new Date().toISOString()}] Created balances for EmpID ${newEmployeeId}\n`);
+
+      } catch (leaveErr) {
+        console.error("createEmployee: could not create leave balances", leaveErr);
+        const fs = require('fs');
+        const path = require('path');
+        fs.appendFileSync(path.join(__dirname, '..', '..', 'leave_debug.log'),
+          `[${new Date().toISOString()}] ERROR creating balances for EmpID ${newEmployeeId}: ${leaveErr.message}\n`);
       }
 
       await conn.commit();

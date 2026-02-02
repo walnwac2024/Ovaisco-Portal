@@ -1,6 +1,12 @@
 // backend/middlewares/middleware.js
+const fs = require('fs');
+const path = require('path');
+
 function isAuthenticated(req, res, next) {
   const user = req.session?.user;
+  const logMsg = `[AUTH DEBUG] ${new Date().toISOString()} - ${req.method} ${req.originalUrl} - User: ${user?.id || 'none'}\n`;
+  fs.appendFileSync(path.join(__dirname, '..', 'auth_debug.log'), logMsg);
+
   if (!user) {
     return res.status(401).json({ message: "Unauthenticated" });
   }
@@ -65,15 +71,37 @@ function requireFeatures(...neededCodes) {
 
 function requireFeaturesOrSelf(featureCode, idParam = "id") {
   return (req, res, next) => {
+    // DEBUG LOGGING
+    console.log("⚠️ requireFeaturesOrSelf CALLED:", {
+      url: req.originalUrl,
+      method: req.method,
+      featureCode,
+      idParam,
+      params: req.params,
+      userId: req.session?.user?.id
+    });
+
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
     if (hasFullAccess(user)) return next();
 
     const requestedId = String(req.params[idParam]);
+    console.log("⚠️ requireFeaturesOrSelf CHECK:", {
+      requestedId,
+      userId: String(user.id),
+      match: String(user.id) === requestedId
+    });
+
     if (String(user.id) === requestedId) return next();
 
     const feats = new Set(user.features || []);
     if (feats.has(featureCode)) return next();
+
+    console.log("⚠️ requireFeaturesOrSelf DENIED:", {
+      url: req.originalUrl,
+      featureCode,
+      userFeatures: user.features
+    });
 
     return res.status(403).json({ message: "Forbidden (access denied)" });
   };
