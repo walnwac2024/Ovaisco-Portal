@@ -31,7 +31,7 @@ export default function DashboardTabsLayout() {
               to={to}
               end={to === "/dashboard"}
               className={({ isActive }) =>
-                `px-5 py-2.5 text-[12px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap 
+                `px-3 sm:px-5 py-2.5 text-[11px] sm:text-[12px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap 
                  ${isActive
                   ? "bg-customRed text-white shadow-lg shadow-customRed/20 scale-[1.02]"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`

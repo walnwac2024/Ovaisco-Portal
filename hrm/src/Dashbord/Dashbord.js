@@ -576,15 +576,15 @@ export default function Dashboard() {
                   Missing Attendance
                 </div>
               </div>
-              <div className="p-2.5 sm:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div className="table-scroll border rounded">
-                  <table className="min-w-[400px] w-full text-[11px] sm:text-[12px]">
+              <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                <div className="table-scroll border-0 sm:border rounded-none sm:rounded-lg">
+                  <table className="min-w-full sm:min-w-[400px] w-full text-[10px] sm:text-[12px]">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
-                        <th className="p-2 text-left">Date</th>
-                        <th className="p-2 text-left">In</th>
-                        <th className="p-2 text-left">Out</th>
-                        <th className="p-2 text-left">Status</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Date</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">In</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Out</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -597,10 +597,10 @@ export default function Dashboard() {
                       ) : (
                         missingAttendance.map((m, idx) => (
                           <tr key={idx} className="border-t">
-                            <td className="p-2">{new Date(m.date).toLocaleDateString()}</td>
-                            <td className="p-2">{m.in ? formatTime(m.in) : "—"}</td>
-                            <td className="p-2">{m.out ? formatTime(m.out) : "—"}</td>
-                            <td className="p-2">{badge(m.status)}</td>
+                            <td className="p-1.5 sm:p-2">{new Date(m.date).toLocaleDateString()}</td>
+                            <td className="p-1.5 sm:p-2">{m.in ? formatTime(m.in) : "—"}</td>
+                            <td className="p-1.5 sm:p-2">{m.out ? formatTime(m.out) : "—"}</td>
+                            <td className="p-1.5 sm:p-2">{badge(m.status)}</td>
                           </tr>
                         ))
                       )}
@@ -616,9 +616,9 @@ export default function Dashboard() {
                   Attendance Summary
                 </div>
               </div>
-              <div className="p-2.5 sm:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div className="table-scroll border rounded">
-                  <table className="min-w-[320px] w-full text-[11px] sm:text-[12px]">
+              <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                <div className="table-scroll border-0 sm:border rounded-none sm:rounded-lg">
+                  <table className="min-w-full sm:min-w-[320px] w-full text-[10px] sm:text-[12px]">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
                         <th className="p-2 text-left">Title</th>
@@ -635,9 +635,9 @@ export default function Dashboard() {
                       ) : (
                         attendanceSummary.map((r) => (
                           <tr key={r.status} className="border-t">
-                            <td className="p-2">{r.status}</td>
-                            <td className="p-2 text-right">
-                              <span className="px-2 py-0.5 rounded bg-gray-100">
+                            <td className="p-1.5 sm:p-2">{r.status}</td>
+                            <td className="p-1.5 sm:p-2 text-right">
+                              <span className="px-1.5 sm:px-2 py-0.5 rounded bg-gray-100">
                                 {r.count}
                               </span>
                             </td>
@@ -672,9 +672,9 @@ export default function Dashboard() {
                 <tbody>
                   {kpiRows.map((row) => (
                     <tr key={row} className="border-t">
-                      <td className="p-2">{row}</td>
-                      <td className="p-2">
-                        <span className="inline-block h-3 w-24 sm:w-28 bg-gray-100 rounded" />
+                      <td className="p-2 sm:p-2">{row}</td>
+                      <td className="p-2 sm:p-2">
+                        <span className="inline-block h-2.5 sm:h-3 w-16 sm:w-28 bg-gray-100 rounded" />
                       </td>
                     </tr>
                   ))}
