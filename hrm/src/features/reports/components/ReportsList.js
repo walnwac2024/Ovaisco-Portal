@@ -162,7 +162,7 @@ export default function ReportsList({ onView }) {
                                     alert("Failed to download bulk report.");
                                 }
                             }}
-                            className="btn-primary w-full h-11 flex items-center justify-center gap-2 shadow-md shadow-red-500/20 text-[11px] font-black uppercase tracking-widest whitespace-nowrap"
+                            className="btn-primary w-full sm:w-auto h-11 flex items-center justify-center gap-2 shadow-md shadow-red-500/20 text-[11px] font-black uppercase tracking-widest whitespace-nowrap px-6"
                         >
                             <FaFileDownload className="text-sm" /> Export All Data
                         </button>

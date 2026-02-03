@@ -6,15 +6,28 @@ import EvaluationList from "./Evaluations/EvaluationList";
 import SalesMetricsList from "./Sales/SalesMetricsList";
 
 // Sub-components (Placeholders for now)
-const PerformanceDashboard = () => <div className="card p-10 flex items-center justify-center text-slate-400 font-medium italic min-h-[400px]">Dashboard & Analytics — Coming Soon</div>;
+const ComingSoon = ({ title }) => (
+    <div className="card min-h-[400px] flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100 shadow-sm">
+            <span className="text-2xl">🚧</span>
+        </div>
+        <h3 className="text-lg font-bold text-slate-700 mb-2">{title}</h3>
+        <p className="text-sm text-slate-400 max-w-xs mx-auto">This feature is currently under development and will be available in a future update.</p>
+        <span className="mt-6 px-3 py-1 bg-customRed/5 text-customRed text-[10px] font-black uppercase tracking-widest rounded-full border border-customRed/10">
+            Coming Soon
+        </span>
+    </div>
+);
+
+const PerformanceDashboard = () => <ComingSoon title="Dashboard & Analytics" />;
 const KPITemplates = () => <TemplateList />;
 const PerformanceCycles = () => <CycleList />;
 const Evaluations = () => <EvaluationList />;
-const GoalsOKRs = () => <div className="card p-10 flex items-center justify-center text-slate-400 font-medium italic min-h-[400px]">Goals & OKRs Tracking — Coming Soon</div>;
+const GoalsOKRs = () => <ComingSoon title="Goals & OKRs Tracking" />;
 const SalesPerformance = () => <SalesMetricsList />;
-const PIPPlans = () => <div className="card p-10 flex items-center justify-center text-slate-400 font-medium italic min-h-[400px]">PIP (Performance Improvement Plans) — Coming Soon</div>;
-const Reports = () => <div className="card p-10 flex items-center justify-center text-slate-400 font-medium italic min-h-[400px]">Performance Reports — Coming Soon</div>;
-const Settings = () => <div className="card p-10 flex items-center justify-center text-slate-400 font-medium italic min-h-[400px]">Module Settings — Coming Soon</div>;
+const PIPPlans = () => <ComingSoon title="Performance Improvement Plans" />;
+const Reports = () => <ComingSoon title="Performance Reports" />;
+const Settings = () => <ComingSoon title="Module Settings" />;
 
 export default function PerformancePage() {
     const [activeTab, setActiveTab] = useState("dashboard");

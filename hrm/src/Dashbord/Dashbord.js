@@ -577,8 +577,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div className="table-scroll border-0 sm:border rounded-none sm:rounded-lg">
-                  <table className="min-w-full sm:min-w-[400px] w-full text-[10px] sm:text-[12px]">
+                {/* FIX: Removed table-scroll class effectively to avoid negative margin issues on p-0 container */}
+                <div className="w-full overflow-x-auto border-0 sm:border rounded-none sm:rounded-lg scrollbar-hide">
+                  <table style={{ minWidth: '600px' }} className="w-full text-[10px] sm:text-[12px] table-auto">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
                         <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Date</th>
@@ -590,7 +591,7 @@ export default function Dashboard() {
                     <tbody>
                       {missingAttendance.length === 0 ? (
                         <tr className="border-t">
-                          <td colSpan="4" className="p-2 text-center text-gray-400">
+                          <td colSpan="4" className="p-4 sm:p-6 text-center text-gray-400 text-xs sm:text-sm italic bg-gray-50/20">
                             No missing attendance found
                           </td>
                         </tr>
@@ -617,8 +618,8 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div className="table-scroll border-0 sm:border rounded-none sm:rounded-lg">
-                  <table className="min-w-full sm:min-w-[320px] w-full text-[10px] sm:text-[12px]">
+                <div className="w-full overflow-x-auto border-0 sm:border rounded-none sm:rounded-lg scrollbar-hide">
+                  <table style={{ minWidth: '350px' }} className="w-full text-[10px] sm:text-[12px] table-auto">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
                         <th className="p-2 text-left">Title</th>
@@ -628,7 +629,7 @@ export default function Dashboard() {
                     <tbody>
                       {attendanceSummary.length === 0 ? (
                         <tr className="border-t">
-                          <td colSpan="2" className="p-2 text-center text-gray-400">
+                          <td colSpan="2" className="p-4 sm:p-6 text-center text-gray-400 text-xs sm:text-sm italic bg-gray-50/20">
                             No data for current month
                           </td>
                         </tr>

@@ -121,7 +121,7 @@ router.get("/audit/logs", isAuthenticated, requireRole("super_admin", "admin", "
 router.get("/audit/filters", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Audit.listLogFilters);
 
 // Settings routes
-router.get("/settings/branding", isAuthenticated, Settings.getBranding);
+router.get("/settings/branding", Settings.getBranding);
 router.post("/settings/branding", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.single("logo"), Settings.updateBranding);
 
 // Timeline routes

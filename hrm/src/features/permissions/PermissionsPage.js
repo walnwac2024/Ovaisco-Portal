@@ -99,9 +99,9 @@ export default function PermissionsPage() {
                                     } relative overflow-hidden`}
                             >
                                 {selectedType?.id === t.id && (
-                                    <span className="absolute left-0 top-2.5 bottom-2.5 w-[4px] bg-customRed rounded-r-full shadow-[2px_0_8px_rgba(239,68,68,0.4)]" />
+                                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[60%] w-[4px] bg-customRed rounded-r-full shadow-[2px_0_8px_rgba(239,68,68,0.4)]" />
                                 )}
-                                <span className={selectedType?.id === t.id ? "ml-2" : ""}>{t.type}</span>
+                                <span className={selectedType?.id === t.id ? "ml-3" : ""}>{t.type}</span>
                             </button>
                         ))}
                     </div>

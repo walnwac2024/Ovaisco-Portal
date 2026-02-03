@@ -235,9 +235,9 @@ export default function AttendanceSettings() {
               <button
                 onClick={handleBulkAssign}
                 disabled={savingBulk || loading || !bulkShiftId}
-                className="btn-primary shadow-red-500/20"
+                className="btn-primary shadow-red-500/20 whitespace-normal h-auto py-2 text-center"
               >
-                {savingBulk ? "Processing..." : "Assign to All Employees"}
+                {savingBulk ? "Processing..." : "Assign to ALL"}
               </button>
             </div>
 
@@ -282,13 +282,13 @@ export default function AttendanceSettings() {
               <table className="min-w-[1000px] w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
-                    <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest">Shift Name</th>
-                    <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Start<br /><span className="text-[9px] opacity-70">Time</span></th>
-                    <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">End<br /><span className="text-[9px] opacity-70">Time</span></th>
-                    <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Effective<br /><span className="text-[9px] opacity-70">From</span></th>
-                    <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Effective<br /><span className="text-[9px] opacity-70">To</span></th>
-                    <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest">Active</th>
-                    <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-500 uppercase tracking-widest">Action</th>
+                    <th className="px-3 sm:px-6 py-4 text-left text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest">Shift Name</th>
+                    <th className="px-2 sm:px-6 py-4 text-left text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight w-[100px]">Start<br /><span className="text-[9px] opacity-70">Time</span></th>
+                    <th className="px-2 sm:px-6 py-4 text-left text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight w-[100px]">End<br /><span className="text-[9px] opacity-70">Time</span></th>
+                    <th className="px-2 sm:px-6 py-4 text-left text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight min-w-[130px]">Effective<br /><span className="text-[9px] opacity-70">From</span></th>
+                    <th className="px-2 sm:px-6 py-4 text-left text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight min-w-[130px]">Effective<br /><span className="text-[9px] opacity-70">To</span></th>
+                    <th className="px-2 sm:px-6 py-4 text-left text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest">Active</th>
+                    <th className="px-3 sm:px-6 py-4 text-right text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest">Action</th>
                   </tr>
                 </thead>
 
@@ -310,7 +310,7 @@ export default function AttendanceSettings() {
                       <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-bold text-slate-800">{s.name}</td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-2 sm:px-6 py-4">
                           <input
                             type="time"
                             value={String(s.start_time).slice(0, 5)}
@@ -319,11 +319,11 @@ export default function AttendanceSettings() {
                                 start_time: e.target.value + ":00",
                               })
                             }
-                            className="input h-9 py-1 px-2 text-xs w-[120px]"
+                            className="input h-9 py-1 px-2 text-xs w-full sm:w-[120px]"
                           />
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-2 sm:px-6 py-4">
                           <input
                             type="time"
                             value={String(s.end_time).slice(0, 5)}
@@ -332,11 +332,11 @@ export default function AttendanceSettings() {
                                 end_time: e.target.value + ":00",
                               })
                             }
-                            className="input h-9 py-1 px-2 text-xs w-[120px]"
+                            className="input h-9 py-1 px-2 text-xs w-full sm:w-[120px]"
                           />
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-2 sm:px-6 py-4">
                           <input
                             type="date"
                             value={toInputDate(s.effective_from)}
@@ -345,7 +345,7 @@ export default function AttendanceSettings() {
                                 effective_from: e.target.value,
                               })
                             }
-                            className="input h-9 py-1 px-2 text-xs w-[140px]"
+                            className="input h-9 py-1 px-2 text-xs w-full sm:w-[140px]"
                           />
                         </td>
 

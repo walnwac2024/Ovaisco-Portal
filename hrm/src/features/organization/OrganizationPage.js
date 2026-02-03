@@ -213,7 +213,7 @@ export default function OrganizationPage() {
                                                     <Users size={12} className="text-slate-300" />
                                                     {dept.members.length} Members
                                                 </p>
-                                                <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                                                <span className="w-1 h-1 bg-slate-200 rounded-full mx-1" />
                                                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1.5">
                                                     <Gift size={12} className={dept.birthdaysToday.length > 0 ? "text-amber-400" : "text-slate-300"} />
                                                     {dept.birthdaysToday.length > 0 ? `${dept.birthdaysToday.length} Celebrations` : 'No Birthdays'}
