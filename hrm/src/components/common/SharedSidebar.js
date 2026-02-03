@@ -37,11 +37,11 @@ export default function SharedSidebar({
 
     return (
         <aside className="w-full lg:sidebar">
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden lg:sticky lg:top-6">
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 lg:overflow-hidden sticky top-6">
                 <div className="hidden lg:block px-6 pt-5 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                     {title}
                 </div>
-                <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible px-2 pb-2 lg:pb-5 lg:space-y-1 no-scrollbar snap-x">
+                <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible px-6 py-2 pb-1 lg:p-3 lg:space-y-1 no-scrollbar snap-x">
                     {filteredItems.map((item) => {
                         const isActive = activeKey === item.id || (item.subItems && activeKey.startsWith(item.id));
                         const isWorking = item.status === "working";
@@ -53,15 +53,15 @@ export default function SharedSidebar({
                                     type="button"
                                     disabled={isWorking}
                                     onClick={() => !isWorking && onNavigate?.(item.id)}
-                                    className={`relative flex items-center lg:w-full gap-2 lg:gap-3 rounded-2xl px-5 lg:px-4 h-10 lg:h-11 text-[13px] lg:text-[14px] font-bold transition-all duration-200 whitespace-nowrap outline-none text-left ${isActive
+                                    className={`relative flex items-center lg:w-full gap-2 lg:gap-3 rounded-2xl px-5 lg:px-4 h-11 lg:h-11 text-[13px] lg:text-[14px] font-bold transition-all duration-200 whitespace-nowrap outline-none text-left shrink-0 overflow-visible ${isActive
                                         ? "bg-customRed/5 text-customRed"
                                         : isWorking
                                             ? "opacity-60 cursor-not-allowed text-slate-300"
                                             : "text-slate-600 lg:text-slate-600 hover:bg-slate-50 active:scale-95"
                                         }`}
                                 >
-                                    {isActive && <span className="hidden lg:block absolute left-0 top-3 h-5 w-[4px] rounded-r-full bg-customRed shadow-[2px_0_8px_rgba(239,68,68,0.4)]" />}
-                                    {isActive && <span className="lg:hidden absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-t-full bg-customRed shadow-[0_-2px_6px_rgba(239,68,68,0.4)]" />}
+                                    {isActive && <span className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[4px] rounded-r-full bg-customRed shadow-[2px_0_8px_rgba(239,68,68,0.4)]" />}
+                                    {isActive && <span className="lg:hidden absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-20 h-[3px] rounded-t-full bg-customRed shadow-[0_-2px_6px_rgba(239,68,68,0.4)]" />}
 
                                     {item.icon && (
                                         <span className="shrink-0">

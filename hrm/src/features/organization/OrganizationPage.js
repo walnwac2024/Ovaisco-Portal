@@ -199,35 +199,35 @@ export default function OrganizationPage() {
                                 {/* Department Header */}
                                 <div
                                     onClick={() => toggleDept(dept.name)}
-                                    className={`px-8 py-6 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-all
+                                    className={`px-5 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/80 transition-all
                                         ${expandedDept === dept.name ? 'bg-slate-50/50 border-b border-slate-100' : ''}`}
                                 >
-                                    <div className="flex items-center gap-5">
-                                        <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-br from-customRed to-red-600 flex items-center justify-center text-white shadow-lg shadow-red-500/20">
-                                            <Building2 size={24} />
+                                    <div className="flex items-center gap-4 sm:gap-5 flex-1 min-w-0">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-[1rem] bg-gradient-to-br from-customRed to-red-600 flex items-center justify-center text-white shadow-lg shadow-red-500/20 shrink-0">
+                                            <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
                                         </div>
-                                        <div>
-                                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">{dept.name}</h2>
-                                            <div className="flex items-center gap-3">
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                                        <div className="flex-1 min-w-0">
+                                            <h2 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-wider truncate leading-tight">{dept.name}</h2>
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
                                                     <Users size={12} className="text-slate-300" />
                                                     {dept.members.length} Members
                                                 </p>
-                                                <span className="w-1 h-1 bg-slate-200 rounded-full mx-1" />
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                                                <span className="hidden sm:inline w-1 h-1 bg-slate-200 rounded-full" />
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
                                                     <Gift size={12} className={dept.birthdaysToday.length > 0 ? "text-amber-400" : "text-slate-300"} />
                                                     {dept.birthdaysToday.length > 0 ? `${dept.birthdaysToday.length} Celebrations` : 'No Birthdays'}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:pl-0 pl-[3.25rem]">
                                         {dept.birthdaysToday.length > 0 && (
-                                            <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-amber-50 text-amber-600 rounded-full border border-amber-100 shadow-sm shadow-amber-500/5">
+                                            <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 bg-amber-50 text-amber-600 rounded-full border border-amber-100 shadow-sm shadow-amber-500/5 whitespace-nowrap">
                                                 <div className="relative">
                                                     <PartyPopper size={14} className="animate-bounce" />
                                                 </div>
-                                                <span className="text-[10px] font-black uppercase tracking-wider">Department Party</span>
+                                                <span className="text-[10px] font-black uppercase tracking-wider">Party</span>
                                             </div>
                                         )}
                                         <div className={`p-2 rounded-xl transition-all ${expandedDept === dept.name ? 'bg-slate-100 text-slate-600 rotate-180' : 'bg-slate-50 text-slate-400'}`}>
