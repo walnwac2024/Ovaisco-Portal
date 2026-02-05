@@ -377,6 +377,13 @@ export default function Topbar({ logoSrc }) {
                             key={n.id}
                             onClick={() => {
                               if (!n.is_read) markRead(n.id);
+
+                              if (isLeave) {
+                                navigate('/leave', { state: { activeTab: 'leave-approvals' } });
+                                setShowNotifications(false);
+                                return;
+                              }
+
                               if (n.title === "New Support Message") {
                                 const event = new CustomEvent("open-chat-auth");
                                 window.dispatchEvent(event);

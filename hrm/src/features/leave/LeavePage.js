@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import LeaveSidebar from "./components/LeaveSidebar";
 import SharedDropdown from "../../components/common/SharedDropdown";
@@ -35,6 +36,17 @@ export default function LeavePage() {
     // Leave Settings state
     const [showTypeForm, setShowTypeForm] = useState(false);
     const [typeFormData, setTypeFormData] = useState({ id: null, name: "", entitlement_days: "" });
+
+    const location = useLocation(); // Add hook
+
+    useEffect(() => {
+        if (location.state?.activeTab) {
+            setActiveKey(location.state.activeTab);
+            // Optional: Clear state so refresh doesn't stick? 
+            // Actually, keep it simple for now. 
+            // If we wanted to clear, we'd navigate matching current path with replace.
+        }
+    }, [location.state]);
 
     useEffect(() => {
         fetchInitialData();
