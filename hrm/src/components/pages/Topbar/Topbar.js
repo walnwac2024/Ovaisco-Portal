@@ -461,8 +461,9 @@ export default function Topbar({ logoSrc }) {
       </div>
 
       {/* Mobile Drawer (Refined) */}
-      <div className={`fixed top-0 left-0 h-full w-[300px] bg-white z-[1001] shadow-[30px_0_60px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden rounded-r-[32px] overflow-hidden ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative">
+      <div className={`fixed top-0 left-0 h-full w-[300px] bg-white z-[1001] shadow-[30px_0_60px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden rounded-r-[32px] overflow-hidden flex flex-col ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Header */}
+        <div className="shrink-0 p-6 border-b border-slate-100 flex items-center justify-between bg-white relative">
           <img src={logo} alt="Logo" className="h-8 w-auto" />
           <button
             onClick={() => setShowMobileMenu(false)}
@@ -475,7 +476,8 @@ export default function Topbar({ logoSrc }) {
           </button>
         </div>
 
-        <nav className="p-4 space-y-1.5 overflow-y-auto max-h-[calc(100vh-180px)] custom-scrollbar">
+        {/* Nav (Scrollable) */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar">
           {menu.map((item) => {
             const isActive = location.pathname.startsWith(item.to);
             const Icon = item.Icon;
@@ -500,7 +502,8 @@ export default function Topbar({ logoSrc }) {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 w-full p-6 border-t bg-slate-50/50 backdrop-blur-sm">
+        {/* Footer (Safe Area + Profile) */}
+        <div className="shrink-0 w-full px-6 pt-6 pb-[calc(1.5rem+var(--safe-area-bottom))] border-t bg-slate-50/50 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl bg-customRed flex items-center justify-center text-white font-black text-sm uppercase shadow-lg shadow-red-500/30">
               {initials}

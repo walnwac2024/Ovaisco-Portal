@@ -4,6 +4,7 @@ import Topbar from "../Topbar/Topbar";
 import { useAuth } from "../../../context/AuthContext";
 import ChatPopup from "../../common/ChatPopup";
 import api from "../../../utils/api";
+import PWAInstallPrompt from "../../PWAInstallPrompt";
 
 export default function Layout() {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <ChatPopup />
+      <PWAInstallPrompt />
     </>
   );
 }
