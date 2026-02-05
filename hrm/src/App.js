@@ -26,6 +26,7 @@ const NewsPage = lazy(() => import("./features/news/NewsPage"));
 const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
 const LogsPage = lazy(() => import("./features/audit/LogsPage"));
 const BrandingPage = lazy(() => import("./features/settings/BrandingPage"));
+const SystemSettingsPage = lazy(() => import("./features/settings/SystemSettingsPage"));
 
 const ComingSoon = lazy(() => import("./components/common/ComingSoon"));
 const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
@@ -127,6 +128,9 @@ export default function App() {
 
                 {/* 👇 NEW: profile route */}
                 <Route path="/profile" element={<ProfilePage />} />
+
+                {/* 👇 NEW: System Settings route */}
+                <Route path="/settings/system" element={<SystemSettingsPage />} />
               </Route>
 
               {/* Unauthorized placeholder (used if you add role guards) */}

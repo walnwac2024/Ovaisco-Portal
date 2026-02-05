@@ -577,6 +577,8 @@ async function getEmployeeById(req, res) {
 
       profile_img: emp.profile_img || null,
       probation: emp.Probation || "",
+      religion: emp.Relagion || "",
+      maritalStatus: emp["Status.2"] || "",
     };
 
     return res.json(normalized);
@@ -626,6 +628,8 @@ async function updateEmployee(req, res) {
       emergencyContact,
       address,
       probation,
+      religion,
+      maritalStatus,
     } = body;
 
     const fields = [];
@@ -698,6 +702,14 @@ async function updateEmployee(req, res) {
     if (probation !== undefined) {
       fields.push("Probation = ?");
       params.push(probation);
+    }
+    if (religion !== undefined) {
+      fields.push("Relagion = ?");
+      params.push(religion);
+    }
+    if (maritalStatus !== undefined) {
+      fields.push("`Status.2` = ?");
+      params.push(maritalStatus);
     }
 
     if (!fields.length) {
@@ -1316,35 +1328,62 @@ async function lookupUserTypes(req, res) {
 
 async function lookupStations(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `
+    // Try new system tables first
+    const [rows] = await pool.execute("SELECT name AS value FROM system_offices WHERE is_active = 1 ORDER BY name ASC");
+    if (rows.length > 0) return res.json(rows.map(r => r.value));
+
+    // Fallback to legacy
+    const [legacy] = await pool.execute(`
       SELECT DISTINCT TRIM(Office_Location) AS value
       FROM employee_records
       WHERE Office_Location IS NOT NULL AND Office_Location <> ''
       ORDER BY value
-      `
-    );
-    res.json(rows.map((r) => r.value));
+    `);
+    res.json(legacy.map((r) => r.value));
   } catch (err) {
-    console.error("lookupStations error:", err);
-    res.status(500).json({ message: "Server error" });
+    // If table doesn't exist, fallback to legacy
+    try {
+      const [legacy] = await pool.execute(`
+        SELECT DISTINCT TRIM(Office_Location) AS value
+        FROM employee_records
+        WHERE Office_Location IS NOT NULL AND Office_Location <> ''
+        ORDER BY value
+      `);
+      return res.json(legacy.map((r) => r.value));
+    } catch (e) {
+      console.error("lookupStations error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
   }
 }
 
 async function lookupDepartments(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `
+    // Try new system tables first
+    const [rows] = await pool.execute("SELECT name AS value FROM system_departments WHERE is_active = 1 ORDER BY name ASC");
+    if (rows.length > 0) return res.json(rows.map(r => r.value));
+
+    // Fallback
+    const [legacy] = await pool.execute(`
       SELECT DISTINCT TRIM(Department) AS value
       FROM employee_records
       WHERE Department IS NOT NULL AND Department <> ''
       ORDER BY value
-      `
-    );
-    res.json(rows.map((r) => r.value));
+    `);
+    res.json(legacy.map((r) => r.value));
   } catch (err) {
-    console.error("lookupDepartments error:", err);
-    res.status(500).json({ message: "Server error" });
+    try {
+      const [legacy] = await pool.execute(`
+        SELECT DISTINCT TRIM(Department) AS value
+        FROM employee_records
+        WHERE Department IS NOT NULL AND Department <> ''
+        ORDER BY value
+      `);
+      return res.json(legacy.map((r) => r.value));
+    } catch (e) {
+      console.error("lookupDepartments error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
   }
 }
 
@@ -1369,35 +1408,61 @@ async function lookupGroups(req, res) {
 
 async function lookupDesignations(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `
+    // Try new system tables first
+    const [rows] = await pool.execute("SELECT name AS value FROM system_designations WHERE is_active = 1 ORDER BY name ASC");
+    if (rows.length > 0) return res.json(rows.map(r => r.value));
+
+    // Fallback
+    const [legacy] = await pool.execute(`
       SELECT DISTINCT TRIM(Designations) AS value
       FROM employee_records
       WHERE Designations IS NOT NULL AND Designations <> ''
       ORDER BY value
-      `
-    );
-    res.json(rows.map((r) => r.value));
+    `);
+    res.json(legacy.map((r) => r.value));
   } catch (err) {
-    console.error("lookupDesignations error:", err);
-    res.status(500).json({ message: "Server error" });
+    try {
+      const [legacy] = await pool.execute(`
+        SELECT DISTINCT TRIM(Designations) AS value
+        FROM employee_records
+        WHERE Designations IS NOT NULL AND Designations <> ''
+        ORDER BY value
+      `);
+      return res.json(legacy.map((r) => r.value));
+    } catch (e) {
+      console.error("lookupDesignations error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
   }
 }
 
 async function lookupStatuses(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `
+    // Try new system tables first
+    const [rows] = await pool.execute("SELECT name AS value FROM system_employment_types WHERE is_active = 1 ORDER BY name ASC");
+    if (rows.length > 0) return res.json(rows.map(r => r.value));
+
+    // Fallback
+    const [legacy] = await pool.execute(`
       SELECT DISTINCT Status AS value
       FROM employee_records
       WHERE Status IS NOT NULL AND Status <> ''
       ORDER BY Status
-      `
-    );
-    res.json(rows.map((r) => r.value));
+    `);
+    res.json(legacy.map((r) => r.value));
   } catch (err) {
-    console.error("lookupStatuses error:", err);
-    res.status(500).json({ message: "Server error" });
+    try {
+      const [legacy] = await pool.execute(`
+        SELECT DISTINCT Status AS value
+        FROM employee_records
+        WHERE Status IS NOT NULL AND Status <> ''
+        ORDER BY Status
+      `);
+      return res.json(legacy.map((r) => r.value));
+    } catch (e) {
+      console.error("lookupStatuses error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
   }
 }
 

@@ -34,6 +34,7 @@ const TAB_META = {
   payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll", isComingSoon: true },
   reports: { to: "/reports", Icon: FaChartBar, label: "Reports" },
   permissions: { to: "/dashboard/permissions", Icon: FaShieldAlt, label: "Permissions" },
+  system_settings: { to: "/settings/system", Icon: FaCog, label: "Settings" },
 };
 
 function getInitials(nameOrEmail = "User") {
@@ -400,7 +401,7 @@ export default function Topbar({ logoSrc }) {
                       </Link>
 
                       <Link
-                        to="/settings"
+                        to="/settings/system"
                         onClick={() => setOpen(false)}
                         className="group flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 hover:text-customRed rounded-xl transition-all"
                         role="menuitem"
@@ -408,7 +409,7 @@ export default function Topbar({ logoSrc }) {
                         <div className="h-7 w-7 bg-slate-50 rounded-lg flex items-center justify-center transition-colors group-hover:bg-customRed/10">
                           <FaCog className="text-[14px] text-slate-400 group-hover:text-customRed" />
                         </div>
-                        Settings
+                        System Settings
                       </Link>
                     </div>
 

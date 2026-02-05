@@ -18,7 +18,7 @@ const DOC_TYPES = [
   "Other",
 ];
 
-const MARITAL_OPTIONS = ["Single", "Married", "Divorced", "Widowed"];
+
 
 export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
   const [activeTab, setActiveTab] = useState("employment");
@@ -97,6 +97,9 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
     shifts: [],
     statuses: [],
     employees: [],
+    bloodGroups: [],
+    religions: [],
+    maritalStatuses: [],
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -170,7 +173,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
   useEffect(() => {
     const fetchLookups = async () => {
       try {
-        const [statRes, deptRes, desRes, typeRes, shiftRes, stRes, empRes] = await Promise.all([
+        const [statRes, deptRes, desRes, typeRes, shiftRes, stRes, empRes, bgRes, relRes, msRes] = await Promise.all([
           api.get("/employees/lookups/stations"),
           api.get("/employees/lookups/departments"),
           api.get("/employees/lookups/designations"),
@@ -178,6 +181,9 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
           api.get("/attendance/settings/shifts"),
           api.get("/employees/lookups/statuses"),
           api.get("/employees/lookups/basic"),
+          api.get("/settings/blood-groups?active_only=true"),
+          api.get("/settings/religions?active_only=true"),
+          api.get("/settings/marital-statuses?active_only=true"),
         ]);
         setLookups({
           stations: statRes.data || [],
@@ -187,6 +193,9 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
           shifts: shiftRes.data?.shifts || [],
           statuses: stRes.data || [],
           employees: empRes.data || [],
+          bloodGroups: (bgRes.data || []).map(i => i.name),
+          religions: (relRes.data || []).map(i => i.name),
+          maritalStatuses: (msRes.data || []).map(i => i.name),
         });
       } catch (err) {
         console.error("Failed to fetch lookups", err);
@@ -472,14 +481,26 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                         />
                       </Field>
                       <Field label="Blood Group">
-                        <input type="text" className="input" value={form.bloodGroup} onChange={(e) => updateField("bloodGroup", e.target.value)} />
+                        <SharedDropdown
+                          options={lookups.bloodGroups}
+                          value={form.bloodGroup}
+                          onChange={(val) => updateField("bloodGroup", val)}
+                          placeholder="Select Blood Group"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Religion">
-                        <input type="text" className="input" value={form.religion} onChange={(e) => updateField("religion", e.target.value)} />
+                        <SharedDropdown
+                          options={lookups.religions}
+                          value={form.religion}
+                          onChange={(val) => updateField("religion", val)}
+                          placeholder="Select Religion"
+                          searchable={true}
+                        />
                       </Field>
                       <Field label="Marital Status">
                         <SharedDropdown
-                          options={MARITAL_OPTIONS}
+                          options={lookups.maritalStatuses}
                           value={form.maritalStatus}
                           onChange={(val) => updateField("maritalStatus", val)}
                           placeholder="Select Status"

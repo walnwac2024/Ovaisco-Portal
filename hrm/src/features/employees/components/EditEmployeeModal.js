@@ -67,6 +67,8 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
     address: "",
     profile_img: "",
     probation: "",
+    religion: "",
+    maritalStatus: "",
   });
 
   const [vaultForm, setVaultForm] = useState({
@@ -76,8 +78,16 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
     userType: "",
   });
 
-  const [userTypes, setUserTypes] = useState([]);
-  const [statuses, setStatuses] = useState([]);
+  const [lookups, setLookups] = useState({
+    userTypes: [],
+    statuses: [],
+    stations: [],
+    departments: [],
+    designations: [],
+    bloodGroups: [],
+    religions: [],
+    maritalStatuses: [],
+  });
 
   // ---------------- DOCUMENTS STATE (NEW) ----------------
   const [docsLoading, setDocsLoading] = useState(false);
@@ -131,17 +141,33 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
   };
 
   useEffect(() => {
-    Promise.all([
-      api.get("/employees/lookups/user-types"),
-      api.get("/employees/lookups/statuses")
-    ])
-      .then(([utRes, stRes]) => {
-        setUserTypes(utRes.data || []);
-        setStatuses(stRes.data || []);
-      })
-      .catch((err) => {
+    const fetchLookups = async () => {
+      try {
+        const [utRes, stRes, statRes, deptRes, desRes, bgRes, relRes, msRes] = await Promise.all([
+          api.get("/employees/lookups/user-types"),
+          api.get("/employees/lookups/statuses"),
+          api.get("/employees/lookups/stations"),
+          api.get("/employees/lookups/departments"),
+          api.get("/employees/lookups/designations"),
+          api.get("/settings/blood-groups?active_only=true"),
+          api.get("/settings/religions?active_only=true"),
+          api.get("/settings/marital-statuses?active_only=true"),
+        ]);
+        setLookups({
+          userTypes: utRes.data || [],
+          statuses: stRes.data || [],
+          stations: statRes.data || [],
+          departments: deptRes.data || [],
+          designations: desRes.data || [],
+          bloodGroups: (bgRes.data || []).map(i => i.name),
+          religions: (relRes.data || []).map(i => i.name),
+          maritalStatuses: (msRes.data || []).map(i => i.name),
+        });
+      } catch (err) {
         console.error("Failed to load edit lookups", err);
-      });
+      }
+    };
+    fetchLookups();
   }, []);
 
   useEffect(() => {
@@ -164,8 +190,10 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
       contact: employee.contact || "",
       emergencyContact: employee.emergencyContact || "",
       address: employee.address || "",
-      profile_img: employee.profile_img || "",
+      profile_img: employee.profile_img || null,
       probation: employee.probation || "",
+      religion: employee.religion || "",
+      maritalStatus: employee.maritalStatus || "",
     });
 
     setVaultForm({
@@ -502,32 +530,32 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                 </Field>
 
                 <Field label="Department:">
-                  <input
-                    type="text"
-                    name="department"
+                  <SharedDropdown
                     value={profileForm.department}
-                    onChange={onProfileChange}
-                    className="input"
+                    onChange={(val) => setProfileForm(p => ({ ...p, department: val }))}
+                    options={lookups.departments}
+                    placeholder="Select Department"
+                    searchable={true}
                   />
                 </Field>
 
                 <Field label="Designation:">
-                  <input
-                    type="text"
-                    name="designation"
+                  <SharedDropdown
                     value={profileForm.designation}
-                    onChange={onProfileChange}
-                    className="input"
+                    onChange={(val) => setProfileForm(p => ({ ...p, designation: val }))}
+                    options={lookups.designations}
+                    placeholder="Select Designation"
+                    searchable={true}
                   />
                 </Field>
 
                 <Field label="Station:">
-                  <input
-                    type="text"
-                    name="station"
+                  <SharedDropdown
                     value={profileForm.station}
-                    onChange={onProfileChange}
-                    className="input"
+                    onChange={(val) => setProfileForm(p => ({ ...p, station: val }))}
+                    options={lookups.stations}
+                    placeholder="Select Station"
+                    searchable={true}
                   />
                 </Field>
 
@@ -535,7 +563,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                   <SharedDropdown
                     value={profileForm.status}
                     onChange={(val) => setProfileForm(p => ({ ...p, status: val }))}
-                    options={statuses}
+                    options={lookups.statuses}
                     placeholder="Select Status"
                     searchable={true}
                   />
@@ -583,22 +611,42 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                 </Field>
 
                 <Field label="Gender:">
-                  <input
-                    type="text"
-                    name="gender"
+                  <SharedDropdown
                     value={profileForm.gender}
-                    onChange={onProfileChange}
-                    className="input"
+                    onChange={(val) => setProfileForm(p => ({ ...p, gender: val }))}
+                    options={["Male", "Female", "Other"]}
+                    placeholder="Select Gender"
+                    searchable={true}
+                  />
+                </Field>
+
+                <Field label="Religion:">
+                  <SharedDropdown
+                    value={profileForm.religion}
+                    onChange={(val) => setProfileForm(p => ({ ...p, religion: val }))}
+                    options={lookups.religions}
+                    placeholder="Select Religion"
+                    searchable={true}
+                  />
+                </Field>
+
+                <Field label="Marital Status:">
+                  <SharedDropdown
+                    value={profileForm.maritalStatus}
+                    onChange={(val) => setProfileForm(p => ({ ...p, maritalStatus: val }))}
+                    options={lookups.maritalStatuses}
+                    placeholder="Select Status"
+                    searchable={true}
                   />
                 </Field>
 
                 <Field label="Blood Group:">
-                  <input
-                    type="text"
-                    name="bloodGroup"
+                  <SharedDropdown
                     value={profileForm.bloodGroup}
-                    onChange={onProfileChange}
-                    className="input"
+                    onChange={(val) => setProfileForm(p => ({ ...p, bloodGroup: val }))}
+                    options={lookups.bloodGroups}
+                    placeholder="Select Blood Group"
+                    searchable={true}
                   />
                 </Field>
 
@@ -1015,7 +1063,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                       }`}
                   >
                     <option value="">Select user type</option>
-                    {userTypes.map((type) => (
+                    {lookups.userTypes.map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>

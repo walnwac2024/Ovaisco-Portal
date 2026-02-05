@@ -25,6 +25,7 @@ const Chat = require("../Controller/UserDeatils/ChatController");
 const Audit = require("../Controller/Audit/AuditController");
 const Timeline = require("../Controller/Employees/TimelineController");
 const Settings = require("../Controller/Settings/SettingsController");
+const SystemSettings = require("../Controller/Settings/SystemSettingsController");
 
 
 const {
@@ -123,6 +124,12 @@ router.get("/audit/filters", isAuthenticated, requireRole("super_admin", "admin"
 // Settings routes
 router.get("/settings/branding", Settings.getBranding);
 router.post("/settings/branding", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.single("logo"), Settings.updateBranding);
+
+// System Settings routes (Dropdown Management)
+router.get("/settings/:type", isAuthenticated, SystemSettings.listSettings);
+router.post("/settings/:type", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), SystemSettings.createSetting);
+router.patch("/settings/:type/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), SystemSettings.updateSetting);
+router.delete("/settings/:type/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), SystemSettings.deleteSetting);
 
 // Timeline routes
 router.get("/employees/:id/timeline", isAuthenticated, Timeline.getTimeline);
