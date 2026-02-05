@@ -103,6 +103,54 @@ const applyLeave = async (req, res) => {
 
         await conn.commit();
 
+        // 5. Send Notifications
+        try {
+            // Notify Manager (Approver)
+            if (approverId && approverId !== user.id) {
+                await pool.execute(
+                    `INSERT INTO notifications (user_id, title, message, type, created_at)
+                     VALUES (?, ?, ?, 'Leave', NOW())`,
+                    [
+                        approverId,
+                        "New Leave Request",
+                        `${user.name} has requested leave for ${total_days} days.`,
+                    ]
+                );
+            }
+
+            // Notify Admins & HRs (Level >= 10)
+            const [admins] = await pool.execute(`
+                SELECT DISTINCT eut.employee_id 
+                FROM employee_user_types eut
+                JOIN users_types ut ON eut.user_type_id = ut.id
+                WHERE ut.permission_level >= 10 AND eut.employee_id != ? AND eut.employee_id != ?
+            `, [user.id, approverId || 0]);
+
+            const adminValues = admins.map(a => [
+                a.employee_id,
+                "New Leave Request",
+                `${user.name} has requested leave for ${total_days} days.`,
+                "Leave",
+                new Date()
+            ]);
+
+            if (adminValues.length > 0) {
+                const query = "INSERT INTO notifications (user_id, title, message, type, created_at) VALUES ?";
+                // Note: mysql2/promise requires a slightly different syntax for bulk inserts or loop.
+                // For simplicity and safety with prepared statements in the loop:
+                for (const row of adminValues) {
+                    await pool.execute(
+                        `INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, ?)`,
+                        row
+                    );
+                }
+            }
+
+        } catch (notifErr) {
+            console.error("Failed to send notifications:", notifErr);
+            // Non-blocking error
+        }
+
         // Audit Log for Applying Leave
         await recordLog({
             actorId: user.id,

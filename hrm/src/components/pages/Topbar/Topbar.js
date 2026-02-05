@@ -61,7 +61,16 @@ export default function Topbar({ logoSrc }) {
   // ✅ Notification State
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'leave', 'attendance'
   const notifyRef = useRef(null);
+
+  // Filter notifications based on active tab
+  const filteredNotifications = notifications.filter(n => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'leave') return n.type === 'Leave';
+    if (activeTab === 'attendance') return n.type === 'attendance'; // Assuming 'attendance' is the type key
+    return true;
+  });
 
   // ✅ Dropdown State
   const [open, setOpen] = useState(false);
@@ -197,7 +206,11 @@ export default function Topbar({ logoSrc }) {
   const [animateBell, setAnimateBell] = useState(false);
   const prevCountRef = useRef(unreadCount);
 
+  // Check if we have unread LEAVE notifications
+  const hasUnreadLeaves = notifications.some(n => n.type === 'Leave' && !n.is_read);
+
   useEffect(() => {
+    // Basic pulse on any new notification
     if (unreadCount > prevCountRef.current) {
       setAnimateBell(true);
       const timer = setTimeout(() => setAnimateBell(false), 1000);
@@ -205,6 +218,19 @@ export default function Topbar({ logoSrc }) {
     }
     prevCountRef.current = unreadCount;
   }, [unreadCount]);
+
+  // "Nagging" interval for high priority leave notifications
+  useEffect(() => {
+    if (!hasUnreadLeaves) return;
+
+    // Pulse every 3 seconds if there are unread leaves
+    const interval = setInterval(() => {
+      setAnimateBell(true);
+      setTimeout(() => setAnimateBell(false), 1000);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [hasUnreadLeaves]);
 
   return (
     <header className="w-full relative sticky top-0 z-[100]">
@@ -297,9 +323,11 @@ export default function Topbar({ logoSrc }) {
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 top-[calc(100%+8px)] w-[300px] rounded-[24px] border border-slate-200 bg-white shadow-2xl z-50 overflow-hidden animate-slide-up">
+                <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] rounded-[24px] border border-slate-200 bg-white shadow-2xl z-50 overflow-hidden animate-slide-up">
                   {/* Arrow pointer */}
                   <div className="absolute -top-1.5 right-4 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45 z-[-1]" />
+
+                  {/* Header */}
                   <div className="px-4 py-3 border-b bg-slate-50/50 flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800">Notifications</span>
                     {unreadCount > 0 && (
@@ -308,41 +336,76 @@ export default function Topbar({ logoSrc }) {
                       </button>
                     )}
                   </div>
+
+                  {/* Tabs */}
+                  <div className="flex items-center px-1 py-1 border-b bg-white gap-1">
+                    {['all', 'leave', 'attendance'].map((tab) => {
+                      const isActive = activeTab === tab;
+                      const label = tab === 'leave' ? 'Leaves' : (tab === 'attendance' ? 'Attendance' : 'All');
+                      return (
+                        <button
+                          key={tab}
+                          onClick={(e) => { e.stopPropagation(); setActiveTab(tab); }}
+                          className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all
+                             ${isActive ? "bg-slate-100 text-slate-900 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"}
+                           `}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
-                    {notifications.length === 0 ? (
+                    {filteredNotifications.length === 0 ? (
                       <div className="px-6 py-10 text-center">
                         <div className="h-12 w-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
                           <FaBell className="text-xl text-slate-200" />
                         </div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Everything is quiet</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {activeTab === 'all' ? "Everything is quiet" : `No ${activeTab} alerts`}
+                        </div>
                       </div>
                     ) : (
-                      notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            if (!n.is_read) markRead(n.id);
-                            if (n.title === "New Support Message") {
-                              const event = new CustomEvent("open-chat-auth");
-                              window.dispatchEvent(event);
-                              setShowNotifications(false);
-                            }
-                          }}
-                          className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-slate-50/80 transition-colors ${!n.is_read ? "bg-red-50/10" : ""}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 shadow-sm ${!n.is_read ? "bg-customRed animate-pulse" : "bg-slate-200"}`} />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-[11px] font-bold text-slate-800 leading-tight mb-0.5">{n.title}</div>
-                              <div className="text-[11px] text-slate-500 leading-relaxed font-medium line-clamp-2">{n.message}</div>
-                              <div className="text-[8px] text-slate-400 mt-1.5 uppercase font-black tracking-widest flex items-center gap-1">
-                                <FaClock className="text-[9px]" />
-                                {new Date(n.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
+                      filteredNotifications.map((n) => {
+                        // Distinct style for Leave notifications
+                        const isLeave = n.type === 'Leave';
+                        const isUnread = !n.is_read;
+
+                        return (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              if (!n.is_read) markRead(n.id);
+                              if (n.title === "New Support Message") {
+                                const event = new CustomEvent("open-chat-auth");
+                                window.dispatchEvent(event);
+                                setShowNotifications(false);
+                              }
+                            }}
+                            className={`
+                            px-4 py-3 border-b last:border-b-0 cursor-pointer transition-colors relative
+                            ${isLeave && isUnread ? "bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-500" : "hover:bg-slate-50/80"}
+                            ${!isLeave && isUnread ? "bg-red-50/10" : ""}
+                          `}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 shadow-sm ${isUnread ? (isLeave ? "bg-amber-500 animate-pulse" : "bg-customRed animate-pulse") : "bg-slate-200"}`} />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  {isLeave && <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">Leave Update</span>}
+                                  <div className={`text-[11px] font-bold leading-tight ${isLeave ? "text-slate-900" : "text-slate-800"}`}>{n.title}</div>
+                                </div>
+                                <div className="text-[11px] text-slate-500 leading-relaxed font-medium line-clamp-2">{n.message}</div>
+                                <div className="text-[8px] text-slate-400 mt-1.5 uppercase font-black tracking-widest flex items-center gap-1">
+                                  <FaClock className="text-[9px]" />
+                                  {new Date(n.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </div>

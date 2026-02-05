@@ -13,7 +13,13 @@ async function listMyNotifications(req, res) {
 
     try {
         const [rows] = await pool.execute(
-            "SELECT id, title, message, type, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
+            `SELECT id, title, message, type, is_read, created_at 
+             FROM notifications 
+             WHERE user_id = ? 
+             ORDER BY 
+                CASE WHEN type = 'Leave' THEN 1 ELSE 2 END ASC,
+                created_at DESC 
+             LIMIT 100`,
             [userId]
         );
         return res.json(rows);
