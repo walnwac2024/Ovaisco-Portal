@@ -361,6 +361,9 @@ export default function Dashboard() {
               <div className="text-xs text-gray-500 truncate">
                 {dashboardData?.profile?.email || user?.Official_Email || user?.email || "—"}
               </div>
+              <div className="text-[11px] text-customRed font-semibold truncate mt-0.5">
+                {dashboardData?.profile?.Department || user?.Department || "—"}
+              </div>
             </div>
           </div>
           {/* Self Birthday or Selected Colleague Birthday */}

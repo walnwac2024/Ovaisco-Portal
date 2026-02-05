@@ -374,7 +374,8 @@ export default function Topbar({ logoSrc }) {
                   </div>
                   <div className="hidden lg:block text-left min-w-0">
                     <p className="text-[13px] font-bold text-slate-900 truncate leading-none mb-1">{userName}</p>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest truncate leading-none">{user?.role || 'Authorized'}</p>
+                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest truncate leading-none mb-0.5">{user?.role || 'Authorized'}</p>
+                    <p className="text-[9px] text-customRed font-bold truncate leading-none">{user?.Department || ''}</p>
                   </div>
                 </button>
 
@@ -510,7 +511,8 @@ export default function Topbar({ logoSrc }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[14px] font-black text-slate-800 truncate leading-none mb-1.5">{userName}</div>
-              <div className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{user?.role || 'authorized personnel'}</div>
+              <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-0.5">{user?.role || 'authorized personnel'}</div>
+              <div className="text-[10px] text-customRed font-bold truncate">{user?.Department || ''}</div>
             </div>
           </div>
         </div>
