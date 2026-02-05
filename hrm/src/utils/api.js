@@ -81,7 +81,7 @@ api.interceptors.response.use(
 
     const isCsrfError =
       error?.response?.status === 403 &&
-      String(message).toLowerCase().includes("csrf");
+      (String(message).toLowerCase().includes("csrf") || !error?.response?.data?.message); // Sometimes message might be missing or different
 
     if (isCsrfError && original && !original.__csrfRetry) {
       original.__csrfRetry = true;

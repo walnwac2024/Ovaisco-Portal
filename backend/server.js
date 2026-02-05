@@ -177,6 +177,11 @@ app.use("/api/v1", (req, res, next) => {
   const isPublic = publicPaths.some((p) => req.path.startsWith(p));
   if (isPublic) return next();
 
+  // Exempt marking notifications as read from CSRF as it's low risk and causing 403s
+  if (req.method === "PATCH" && req.path.match(/^\/notifications\/[^\/]+\/read$/)) {
+    return next();
+  }
+
   csrfProtection(req, res, next);
 });
 
@@ -199,7 +204,12 @@ app.get("*any", (req, res) => {
 
 app.use((err, req, res, next) => {
   if (err.code === "EBADCSRFTOKEN") {
-    return res.status(403).json({ message: "Invalid CSRF token" });
+    console.error(`[CSRF ERROR] ${req.method} ${req.path} - Invalid token from ${req.ip}`);
+    return res.status(403).json({
+      message: "Invalid CSRF token",
+      details: "Token mismatch or session expired. Please refresh the page.",
+      path: req.path
+    });
   }
 
   // Handle Multer errors
