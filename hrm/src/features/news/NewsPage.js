@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Edit2, Trash2, Calendar, User, Megaphone } from "lucide-react";
+import { Plus, Edit2, Trash2, Calendar, User, Megaphone, Smile } from "lucide-react";
 import { listNews, createNews, updateNews, deleteNews, toggleReaction, listReactions } from "./newsService";
 import { BASE_URL } from "../../utils/api";
 import socket from "../../utils/socket";
 import NewsModal from "./components/NewsModal";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
+import { ALL_EMOJIS, EMOJI_CATEGORIES } from "./utils/emojiData";
 
 export default function NewsPage() {
     const { user } = useAuth();
@@ -13,6 +14,9 @@ export default function NewsPage() {
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
+    const [activeEmojiPicker, setActiveEmojiPicker] = useState(null); // newsId
+    const [emojiSearch, setEmojiSearch] = useState("");
+    const [activeCategory, setActiveCategory] = useState("smileys");
 
     const roleList = user?.roles || [];
     if (user?.role) roleList.push(user.role);
@@ -30,6 +34,9 @@ export default function NewsPage() {
         }
     };
 
+    useEffect(() => {
+        loadData();
+    }, []);
 
     // Reactions Real-time Sync via WebSockets
     useEffect(() => {
@@ -165,7 +172,7 @@ export default function NewsPage() {
                     {newsList.map((item) => (
                         <div
                             key={item.id}
-                            className="group bg-white rounded-2xl shadow-sm border hover:shadow-md transition-all duration-300 overflow-hidden"
+                            className="group bg-white rounded-2xl shadow-sm border hover:shadow-md transition-all duration-300"
                         >
                             <div className="p-5 sm:p-6">
                                 <div className="flex items-start justify-between gap-4 mb-4">
@@ -257,6 +264,115 @@ export default function NewsPage() {
                                             </button>
                                         );
                                     })}
+
+                                    {/* Dynamic Reactions (those not in the quick list but present in data) */}
+                                    {(item.reactions || [])
+                                        .filter(r => !['❤️', '👍', '😂', '🎉', '😮'].includes(r.emoji))
+                                        .map(r => (
+                                            <button
+                                                key={r.emoji}
+                                                onClick={() => handleToggleReaction(item.id, r.emoji)}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300
+                                                    ${r.me
+                                                        ? 'bg-customRed/10 text-customRed border-customRed/20 shadow-sm'
+                                                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border-transparent'} border`}
+                                            >
+                                                <span className={`${r.me ? 'scale-110' : ''} transition-all`}>{r.emoji}</span>
+                                                {r.count > 0 && <span>{r.count}</span>}
+                                            </button>
+                                        ))}
+
+                                    {/* More Emojis Button */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setActiveEmojiPicker(activeEmojiPicker === item.id ? null : item.id)}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 border
+                                                ${activeEmojiPicker === item.id
+                                                    ? 'bg-customRed/10 text-customRed border-customRed/20'
+                                                    : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border-transparent'}`}
+                                            title="Add Reaction"
+                                        >
+                                            <Smile size={16} />
+                                        </button>
+
+                                        {activeEmojiPicker === item.id && (
+                                            <>
+                                                <div
+                                                    className="fixed inset-0 z-10"
+                                                    onClick={() => setActiveEmojiPicker(null)}
+                                                />
+                                                <div className="absolute bottom-full left-0 mb-2 p-3 bg-white rounded-2xl shadow-2xl border border-slate-100 z-20 w-72 animate-in slide-in-from-bottom-2 duration-200">
+                                                    {/* Category Navigation */}
+                                                    {!emojiSearch && (
+                                                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-50 overflow-x-auto no-scrollbar gap-1">
+                                                            {EMOJI_CATEGORIES.map(cat => (
+                                                                <button
+                                                                    key={cat.id}
+                                                                    onClick={() => setActiveCategory(cat.id)}
+                                                                    className={`flex-shrink-0 w-8 h-8 rounded-lg text-sm flex items-center justify-center transition-all
+                                                                        ${activeCategory === cat.id ? 'bg-customRed/10 scale-110 shadow-sm' : 'hover:bg-slate-50 grayscale'}`}
+                                                                    title={cat.label}
+                                                                >
+                                                                    {cat.icon}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Emoji Search Bar */}
+                                                    <div className="mb-3">
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="Search all emojis..."
+                                                            value={emojiSearch}
+                                                            onChange={(e) => setEmojiSearch(e.target.value)}
+                                                            className="w-full px-3 py-1.5 text-sm bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-1 focus:ring-customRed/30 transition-all font-medium"
+                                                        />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-6 gap-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+                                                        {ALL_EMOJIS
+                                                            .filter(e => {
+                                                                const query = emojiSearch.toLowerCase();
+                                                                if (!query) return e.category === activeCategory;
+                                                                return e.char.includes(query) || e.keywords.includes(query);
+                                                            })
+                                                            .map(emojiObj => {
+                                                                const emoji = emojiObj.char;
+                                                                const reaction = (item.reactions || []).find(r => r.emoji === emoji);
+                                                                const hasReacted = reaction?.me;
+
+                                                                return (
+                                                                    <button
+                                                                        key={emoji}
+                                                                        onClick={() => {
+                                                                            handleToggleReaction(item.id, emoji);
+                                                                            setActiveEmojiPicker(null);
+                                                                            setEmojiSearch("");
+                                                                        }}
+                                                                        className={`flex items-center justify-center w-9 h-9 rounded-lg text-xl hover:bg-slate-50 transition-all
+                                                                            ${hasReacted ? 'bg-customRed/10 scale-110 shadow-sm' : ''}`}
+                                                                        title={emojiObj.keywords.split(' ')[0]}
+                                                                    >
+                                                                        {emoji}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        {ALL_EMOJIS.filter(e => {
+                                                            const query = emojiSearch.toLowerCase();
+                                                            if (!query) return e.category === activeCategory;
+                                                            return e.char.includes(query) || e.keywords.includes(query);
+                                                        }).length === 0 && (
+                                                                <div className="col-span-12 text-center py-6 text-xs text-slate-400 font-medium italic">
+                                                                    No emoji found
+                                                                </div>
+                                                            )}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
