@@ -67,9 +67,9 @@ async function ensureTableExists(type) {
     const conn = await pool.getConnection();
 
     try {
-        // 1. Check if table exists using INFORMATION_SCHEMA (more reliable)
+        // 1. Check if table exists using SHOW TABLES (often more reliable on restricted environments)
         const [tables] = await conn.execute(
-            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+            `SHOW TABLES LIKE ?`,
             [tableName]
         );
 
@@ -172,12 +172,15 @@ async function listSettings(req, res) {
         try {
             const path = require("path");
             const fs = require("fs");
-            const logMsg = `${new Date().toISOString()} - SYSTEM SETTINGS ERROR [${type}] - ${err.message}\nStack: ${err.stack}\n\n`;
+            const logMsg = `\n[${new Date().toISOString()}] SYSTEM SETTINGS ERROR\nType: ${type}\nError: ${err.message}\nStack: ${err.stack}\n${"-".repeat(50)}\n`;
             fs.appendFileSync(path.join(__dirname, "..", "..", "debug_requests.log"), logMsg);
         } catch (e) {
             console.error("Failed to write to debug_requests.log", e);
         }
-        return res.status(400).json({ message: err.message || "Server error" });
+        return res.status(500).json({
+            message: "Failed to load system settings. This usually happens if database tables are missing on the live server.",
+            error: err.message
+        });
     }
 }
 

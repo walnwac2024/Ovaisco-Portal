@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Search } from "lucide-react";
 import useSystemSettings from "./hooks/useSystemSettings";
 import AddEditModal from "./components/AddEditModal";
+import { useAuth } from "../../context/AuthContext";
 
 // Tab configuration
 const TABS = [
@@ -20,8 +21,11 @@ export default function SystemSettingsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-
+    const { user } = useAuth();
     const { data, loading, createItem, updateItem, deleteItem, toggleActive } = useSystemSettings(activeTab);
+
+    // Check if user has admin access
+    const isAdmin = user?.roles?.some(r => ["super_admin", "admin", "hr", "developer"].includes(r.toLowerCase()));
 
     // Filter data based on search
     const filteredData = data.filter((item) =>
@@ -106,14 +110,16 @@ export default function SystemSettingsPage() {
                         />
                     </div>
 
-                    {/* Add Button */}
-                    <button
-                        onClick={handleAdd}
-                        className="flex items-center gap-2 px-4 py-2 bg-customRed text-white font-semibold rounded-lg hover:bg-customRed/90 transition-all shadow-md"
-                    >
-                        <Plus size={18} />
-                        Add New
-                    </button>
+                    {/* Add Button - Only for Admins */}
+                    {isAdmin && (
+                        <button
+                            onClick={handleAdd}
+                            className="flex items-center gap-2 px-4 py-2 bg-customRed text-white font-semibold rounded-lg hover:bg-customRed/90 transition-all shadow-md"
+                        >
+                            <Plus size={18} />
+                            Add New
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -180,11 +186,12 @@ export default function SystemSettingsPage() {
                                     )}
                                     <td className="px-6 py-4">
                                         <button
-                                            onClick={() => handleToggleActive(item)}
+                                            onClick={() => isAdmin && handleToggleActive(item)}
+                                            disabled={!isAdmin}
                                             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${item.is_active
                                                 ? "bg-green-100 text-green-700 hover:bg-green-200"
                                                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                                }`}
+                                                } ${!isAdmin ? "cursor-not-allowed opacity-80" : ""}`}
                                         >
                                             {item.is_active ? (
                                                 <>
@@ -200,22 +207,24 @@ export default function SystemSettingsPage() {
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => handleEdit(item)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(item)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
+                                        {isAdmin && (
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleEdit(item)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(item)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
