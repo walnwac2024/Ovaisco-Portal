@@ -6,11 +6,18 @@ const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
 const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
 
 if (publicVapidKey && privateVapidKey) {
-    webpush.setVapidDetails(
-        'mailto:support@yourdomain.com',
-        publicVapidKey,
-        privateVapidKey
-    );
+    try {
+        webpush.setVapidDetails(
+            'mailto:support@yourdomain.com',
+            publicVapidKey,
+            privateVapidKey
+        );
+        console.log("VAPID details set successfully");
+    } catch (err) {
+        console.error("Failed to set VAPID details:", err.message);
+    }
+} else {
+    console.warn("VAPID keys missing in environment variables. Push notifications will not work.");
 }
 
 /**
