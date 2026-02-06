@@ -38,6 +38,7 @@ function buildTabs(roleName, features) {
   add('payroll', 'Payroll', 'payroll_view');
   add('reports', 'Reports', 'reports_view');
   add('permissions', 'Permissions', 'permissions_edit');
+  add('system_settings', 'Settings', 'system_settings_view');
 
   return tabs;
 }

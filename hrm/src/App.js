@@ -129,8 +129,15 @@ export default function App() {
                 {/* 👇 NEW: profile route */}
                 <Route path="/profile" element={<ProfilePage />} />
 
-                {/* 👇 NEW: System Settings route */}
-                <Route path="/settings/system" element={<SystemSettingsPage />} />
+                {/* 👇 NEW: System Settings route - Restricted to higher authorities */}
+                <Route
+                  path="/settings/system"
+                  element={
+                    <ProtectedRoute requireRoles={['super_admin', 'admin', 'hr', 'developer']}>
+                      <SystemSettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
               </Route>
 
               {/* Unauthorized placeholder (used if you add role guards) */}

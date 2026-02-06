@@ -164,6 +164,8 @@ export default function Topbar({ logoSrc }) {
     })
     .filter((m) => m.key !== "permissions");
 
+  const isAdmin = user?.roles?.some(r => ["super_admin", "admin", "hr", "developer"].includes(r.toLowerCase()));
+
   const activeMenu = menu.find((m) => location.pathname.startsWith(m.to));
   let activeLabel = activeMenu?.label ?? "";
 
@@ -471,17 +473,19 @@ export default function Topbar({ logoSrc }) {
                         My Profile
                       </Link>
 
-                      <Link
-                        to="/settings/system"
-                        onClick={() => setOpen(false)}
-                        className="group flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 hover:text-customRed rounded-xl transition-all"
-                        role="menuitem"
-                      >
-                        <div className="h-7 w-7 bg-slate-50 rounded-lg flex items-center justify-center transition-colors group-hover:bg-customRed/10">
-                          <FaCog className="text-[14px] text-slate-400 group-hover:text-customRed" />
-                        </div>
-                        System Settings
-                      </Link>
+                      {isAdmin && (
+                        <Link
+                          to="/settings/system"
+                          onClick={() => setOpen(false)}
+                          className="group flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 hover:text-customRed rounded-xl transition-all"
+                          role="menuitem"
+                        >
+                          <div className="h-7 w-7 bg-slate-50 rounded-lg flex items-center justify-center transition-colors group-hover:bg-customRed/10">
+                            <FaCog className="text-[14px] text-slate-400 group-hover:text-customRed" />
+                          </div>
+                          System Settings
+                        </Link>
+                      )}
                     </div>
 
                     <div className="px-1.5 pt-1 pb-1.5 border-t border-slate-100">
