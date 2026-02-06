@@ -83,9 +83,10 @@ async function createNews(req, res) {
     }
 
     try {
+        const isPublishedVal = is_published === 'true' || is_published === '1' || is_published === true;
         const [result] = await pool.execute(
             "INSERT INTO news (title, content, post_type, image_url, author_id, is_published) VALUES (?, ?, ?, ?, ?, ?)",
-            [title, content || '', post_type, imageUrl, authorId, is_published ? 1 : 0]
+            [title, content || '', post_type, imageUrl, authorId, isPublishedVal ? 1 : 0]
         );
 
         const newsId = result.insertId;
@@ -102,18 +103,16 @@ async function createNews(req, res) {
             body: content ? content.substring(0, 100) + '...' : 'Click to see details',
             data: { url: '/news' }
         });
-    }
-        }
 
-return res.status(201).json({ message: "News created", id: newsId });
+        return res.status(201).json({ message: "News created", id: newsId });
     } catch (err) {
-    console.error("createNews error:", err);
-    // Clean up uploaded file if database insert fails
-    if (req.file) {
-        fs.unlink(req.file.path, () => { });
+        console.error("createNews error:", err);
+        // Clean up uploaded file if database insert fails
+        if (req.file) {
+            fs.unlink(req.file.path, () => { });
+        }
+        return res.status(500).json({ message: "Server error" });
     }
-    return res.status(500).json({ message: "Server error" });
-}
 }
 
 /**
@@ -149,9 +148,10 @@ async function updateNews(req, res) {
             return res.status(400).json({ message: "Image is required for image posts" });
         }
 
+        const isPublishedVal = is_published === 'true' || is_published === '1' || is_published === true;
         await pool.execute(
             "UPDATE news SET title = ?, content = ?, post_type = ?, image_url = ?, is_published = ? WHERE id = ?",
-            [title, content || '', currentPostType, finalImageUrl, is_published ? 1 : 0, id]
+            [title, content || '', currentPostType, finalImageUrl, isPublishedVal ? 1 : 0, id]
         );
 
         // Delete old image if replaced or removed
@@ -171,18 +171,16 @@ async function updateNews(req, res) {
             body: content ? content.substring(0, 100) + '...' : 'Click to see details',
             data: { url: '/news' }
         });
-    }
-        }
 
-return res.json({ message: "News updated" });
+        return res.json({ message: "News updated" });
     } catch (err) {
-    console.error("updateNews error:", err);
-    // Clean up new uploaded file if update fails
-    if (req.file) {
-        fs.unlink(req.file.path, () => { });
+        console.error("updateNews error:", err);
+        // Clean up new uploaded file if update fails
+        if (req.file) {
+            fs.unlink(req.file.path, () => { });
+        }
+        return res.status(500).json({ message: "Server error" });
     }
-    return res.status(500).json({ message: "Server error" });
-}
 }
 
 /**
