@@ -201,19 +201,6 @@ export default function NewsModal({ isOpen, onClose, onSave, initialData = null 
                         )}
                     </div>
 
-                    <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 rounded-2xl border border-slate-100 group cursor-pointer transition-colors hover:bg-slate-100/50">
-                        <input
-                            type="checkbox"
-                            id="is_published"
-                            checked={formData.is_published}
-                            onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                            className="w-5 h-5 accent-customRed border-slate-300 rounded-lg cursor-pointer"
-                        />
-                        <label htmlFor="is_published" className="text-[13px] font-bold text-slate-600 select-none cursor-pointer flex-1">
-                            Broadcast to WhatsApp immediately
-                        </label>
-                    </div>
-
                     <div className="flex gap-3 pt-2">
                         <button
                             type="button"

@@ -1,5 +1,4 @@
 const { pool } = require("../../Utils/db");
-const { pushToWhatsApp, getWhatsAppStatus, initWhatsApp, syncGroups, logoutWhatsApp } = require("../../Utils/whatsapp");
 const fs = require('fs');
 const path = require('path');
 
@@ -94,43 +93,27 @@ async function createNews(req, res) {
         // Better truthiness check for FormData values
         const shouldPublish = is_published === 'true' || is_published === '1' || is_published === true;
 
-        if (shouldPublish) {
-            // Get target group from settings
-            const [settings] = await pool.execute("SELECT setting_value FROM settings WHERE setting_key = 'whatsapp_group_id'");
-            const targetGroupId = settings.length > 0 ? settings[0].setting_value : process.env.WHP_GROUP_ID;
+        console.log("Publishing news...");
 
-            if (targetGroupId) {
-                // Ensure imageUrl doesn't have a leading slash that breaks path.join on some OS/Path configs
-                const relativePath = imageUrl && imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
-                const imagePath = imageUrl ? path.join(__dirname, '../../', relativePath) : null;
-                const message = content ? `📢 *${title}*\n\n${content}` : `📢 *${title}*`;
-
-                console.log("Triggering WhatsApp broadcast with path:", imagePath);
-
-                // Fire and forget in background for better UX speed
-                pushToWhatsApp(message, targetGroupId, imagePath).catch(err => {
-                    console.error("Background WhatsApp broadcast error:", err);
-                });
-
-                // ✅ Real-time Push Notification to all staff
-                const { sendNotificationToAll } = require("../UserDeatils/PushController");
-                sendNotificationToAll({
-                    title: `📢 ${title}`,
-                    body: content ? content.substring(0, 100) + '...' : 'Click to see details',
-                    data: { url: '/news' }
-                });
-            }
-        }
-
-        return res.status(201).json({ message: "News created", id: newsId });
-    } catch (err) {
-        console.error("createNews error:", err);
-        // Clean up uploaded file if database insert fails
-        if (req.file) {
-            fs.unlink(req.file.path, () => { });
-        }
-        return res.status(500).json({ message: "Server error" });
+        // ✅ Real-time Push Notification to all staff
+        const { sendNotificationToAll } = require("../UserDeatils/PushController");
+        sendNotificationToAll({
+            title: `📢 ${title}`,
+            body: content ? content.substring(0, 100) + '...' : 'Click to see details',
+            data: { url: '/news' }
+        });
     }
+        }
+
+return res.status(201).json({ message: "News created", id: newsId });
+    } catch (err) {
+    console.error("createNews error:", err);
+    // Clean up uploaded file if database insert fails
+    if (req.file) {
+        fs.unlink(req.file.path, () => { });
+    }
+    return res.status(500).json({ message: "Server error" });
+}
 }
 
 /**
@@ -179,43 +162,27 @@ async function updateNews(req, res) {
             });
         }
 
-        if (is_published && !wasPublished) {
-            // Get target group from settings
-            const [settings] = await pool.execute("SELECT setting_value FROM settings WHERE setting_key = 'whatsapp_group_id'");
-            const targetGroupId = settings.length > 0 ? settings[0].setting_value : process.env.WHP_GROUP_ID;
+        console.log("Publishing news update...");
 
-            if (targetGroupId) {
-                // Ensure finalImageUrl doesn't have a leading slash that breaks path.join on some OS/Path configs
-                const relativePath = finalImageUrl && finalImageUrl.startsWith('/') ? finalImageUrl.substring(1) : finalImageUrl;
-                const imagePath = finalImageUrl ? path.join(__dirname, '../../', relativePath) : null;
-                const message = content ? `📢 *${title}*\n\n${content}` : `📢 *${title}*`;
-
-                console.log("Triggering WhatsApp broadcast update with path:", imagePath);
-
-                // Fire and forget in background for better UX speed
-                pushToWhatsApp(message, targetGroupId, imagePath).catch(err => {
-                    console.error("Background WhatsApp broadcast error:", err);
-                });
-
-                // ✅ Real-time Push Notification to all staff
-                const { sendNotificationToAll } = require("../UserDeatils/PushController");
-                sendNotificationToAll({
-                    title: `📢 ${title}`,
-                    body: content ? content.substring(0, 100) + '...' : 'Click to see details',
-                    data: { url: '/news' }
-                });
-            }
-        }
-
-        return res.json({ message: "News updated" });
-    } catch (err) {
-        console.error("updateNews error:", err);
-        // Clean up new uploaded file if update fails
-        if (req.file) {
-            fs.unlink(req.file.path, () => { });
-        }
-        return res.status(500).json({ message: "Server error" });
+        // ✅ Real-time Push Notification to all staff
+        const { sendNotificationToAll } = require("../UserDeatils/PushController");
+        sendNotificationToAll({
+            title: `📢 ${title}`,
+            body: content ? content.substring(0, 100) + '...' : 'Click to see details',
+            data: { url: '/news' }
+        });
     }
+        }
+
+return res.json({ message: "News updated" });
+    } catch (err) {
+    console.error("updateNews error:", err);
+    // Clean up new uploaded file if update fails
+    if (req.file) {
+        fs.unlink(req.file.path, () => { });
+    }
+    return res.status(500).json({ message: "Server error" });
+}
 }
 
 /**
@@ -243,66 +210,6 @@ async function deleteNews(req, res) {
         console.error("deleteNews error:", err);
         return res.status(500).json({ message: "Server error" });
     }
-}
-
-/**
- * GET /api/v1/news/whatsapp/status
- */
-async function getWHStatus(req, res) {
-    const statusResult = await getWhatsAppStatus();
-    // Also fetch the currently selected group from settings
-    try {
-        const [settings] = await pool.execute("SELECT setting_value FROM settings WHERE setting_key = 'whatsapp_group_id'");
-        statusResult.selectedGroupId = settings.length > 0 ? settings[0].setting_value : null;
-    } catch (e) {
-        console.error("Error fetching group setting", e);
-    }
-    return res.json(statusResult);
-}
-
-/**
- * POST /api/v1/news/whatsapp/init
- */
-function initWH(req, res) {
-    initWhatsApp();
-    return res.json({ message: "WhatsApp initialization started" });
-}
-
-/**
- * POST /api/v1/news/whatsapp/settings
- */
-async function setWHSettings(req, res) {
-    const { groupId } = req.body;
-    if (!groupId) return res.status(400).json({ message: "groupId is required" });
-
-    try {
-        await pool.execute(
-            "INSERT INTO settings (setting_key, setting_value) VALUES ('whatsapp_group_id', ?) ON DUPLICATE KEY UPDATE setting_value = ?",
-            [groupId, groupId]
-        );
-        return res.json({ message: "WhatsApp settings updated" });
-    } catch (err) {
-        console.error("setWHSettings error:", err);
-        return res.status(500).json({ message: "Server error" });
-    }
-}
-
-/**
- * POST /api/v1/news/whatsapp/sync
- */
-async function syncWHGroups(req, res) {
-    const groups = await syncGroups();
-    return res.json({ message: "Groups synced", groups });
-}
-
-/**
- * POST /api/v1/news/whatsapp/logout
- */
-async function logoutWH(req, res) {
-    const { hardReset } = req.body;
-    // Trigger logout in background and return immediately for better UX
-    logoutWhatsApp(hardReset === true).catch(err => console.error("Background logout error:", err));
-    return res.json({ message: hardReset ? "WhatsApp hard reset initiated" : "WhatsApp logout initiated" });
 }
 
 /**
@@ -388,9 +295,4 @@ module.exports = {
     deleteNews,
     toggleReaction,
     getNewsReactions,
-    getWHStatus,
-    initWH,
-    setWHSettings,
-    syncWHGroups,
-    logoutWH,
 };

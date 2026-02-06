@@ -223,10 +223,5 @@ router.patch("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_adm
 router.delete("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.deleteNews);
 router.get("/news/reactions", isAuthenticated, News.getNewsReactions);
 router.post("/news/:id/react", isAuthenticated, News.toggleReaction);
-router.get("/news/whatsapp/status", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.getWHStatus);
-router.post("/news/whatsapp/init", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.initWH);
-router.post("/news/whatsapp/settings", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.setWHSettings);
-router.post("/news/whatsapp/sync", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.syncWHGroups);
-router.post("/news/whatsapp/logout", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.logoutWH);
 
 module.exports = router;

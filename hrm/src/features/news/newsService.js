@@ -22,30 +22,6 @@ export const deleteNews = async (id) => {
     return res.data;
 };
 
-export const getWhatsAppStatus = async () => {
-    const res = await api.get(`${API_URL}/whatsapp/status`);
-    return res.data;
-};
-export const initWhatsAppSession = async () => {
-    const res = await api.post(`${API_URL}/whatsapp/init`);
-    return res.data;
-};
-
-export const updateWhatsAppSettings = async (groupId) => {
-    const res = await api.post(`${API_URL}/whatsapp/settings`, { groupId });
-    return res.data;
-};
-
-export const syncWhatsAppGroups = async () => {
-    const res = await api.post(`${API_URL}/whatsapp/sync`);
-    return res.data;
-};
-
-export const logoutWhatsAppSession = async (hardReset = false) => {
-    const res = await api.post(`${API_URL}/whatsapp/logout`, { hardReset });
-    return res.data;
-};
-
 export const toggleReaction = async (id, emoji) => {
     const res = await api.post(`${API_URL}/${id}/react`, { emoji });
     return res.data;

@@ -56,11 +56,8 @@ app.use(compression());
 
 const routes = require("./Routes/Route");
 const { initAttendanceJob } = require("./Utils/attendanceJob");
-const { initWhatsApp } = require("./Utils/whatsapp");
-
 // Initialize background jobs
 initAttendanceJob();
-initWhatsApp();
 
 app.use((req, res, next) => {
   const start = Date.now();

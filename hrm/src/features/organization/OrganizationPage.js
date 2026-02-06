@@ -295,14 +295,12 @@ export default function OrganizationPage() {
                                                                 )}
                                                                 {m.contact && (
                                                                     <a
-                                                                        href={`https://wa.me/${m.contact.replace(/\D/g, '')}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
-                                                                        title="WhatsApp Message"
+                                                                        href={`tel:${m.contact.replace(/\D/g, '')}`}
+                                                                        className="p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-customRed hover:text-white transition-all shadow-sm"
+                                                                        title="Call Now"
                                                                         onClick={(e) => e.stopPropagation()}
                                                                     >
-                                                                        <Gift size={14} />
+                                                                        <Network size={14} />
                                                                     </a>
                                                                 )}
                                                             </div>
