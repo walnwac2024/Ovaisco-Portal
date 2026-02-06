@@ -111,6 +111,14 @@ async function createNews(req, res) {
                 pushToWhatsApp(message, targetGroupId, imagePath).catch(err => {
                     console.error("Background WhatsApp broadcast error:", err);
                 });
+
+                // ✅ Real-time Push Notification to all staff
+                const { sendNotificationToAll } = require("../UserDeatils/PushController");
+                sendNotificationToAll({
+                    title: `📢 ${title}`,
+                    body: content ? content.substring(0, 100) + '...' : 'Click to see details',
+                    data: { url: '/news' }
+                });
             }
         }
 
@@ -187,6 +195,14 @@ async function updateNews(req, res) {
                 // Fire and forget in background for better UX speed
                 pushToWhatsApp(message, targetGroupId, imagePath).catch(err => {
                     console.error("Background WhatsApp broadcast error:", err);
+                });
+
+                // ✅ Real-time Push Notification to all staff
+                const { sendNotificationToAll } = require("../UserDeatils/PushController");
+                sendNotificationToAll({
+                    title: `📢 ${title}`,
+                    body: content ? content.substring(0, 100) + '...' : 'Click to see details',
+                    data: { url: '/news' }
                 });
             }
         }

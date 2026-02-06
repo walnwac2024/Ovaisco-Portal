@@ -103,6 +103,8 @@ const applyLeave = async (req, res) => {
 
         await conn.commit();
 
+        const Push = require("../UserDeatils/PushController");
+
         // 5. Send Notifications
         try {
             // Notify Manager (Approver)
@@ -116,6 +118,13 @@ const applyLeave = async (req, res) => {
                         `${user.name} has requested leave for ${total_days} days.`,
                     ]
                 );
+
+                // Real-time Push Notification
+                Push.sendNotificationToUser(approverId, {
+                    title: 'New Leave Request',
+                    body: `${user.name} has requested leave for ${total_days} days.`,
+                    data: { url: '/leave' }
+                });
             }
 
             // Notify Admins & HRs (Level >= 10)
@@ -136,16 +145,20 @@ const applyLeave = async (req, res) => {
 
             if (adminValues.length > 0) {
                 const query = "INSERT INTO notifications (user_id, title, message, type, created_at) VALUES ?";
-                // Note: mysql2/promise requires a slightly different syntax for bulk inserts or loop.
-                // For simplicity and safety with prepared statements in the loop:
                 for (const row of adminValues) {
                     await pool.execute(
                         `INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, ?)`,
                         row
                     );
+
+                    // Real-time Push Notification to Admins
+                    Push.sendNotificationToUser(row[0], {
+                        title: 'New Leave Request',
+                        body: `${user.name} has requested leave for ${total_days} days.`,
+                        data: { url: '/leave' }
+                    });
                 }
             }
-
         } catch (notifErr) {
             console.error("Failed to send notifications:", notifErr);
             // Non-blocking error

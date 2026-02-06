@@ -2,12 +2,14 @@ import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Topbar from "../Topbar/Topbar";
 import { useAuth } from "../../../context/AuthContext";
+import { usePushNotifications } from "../../../hooks/usePushNotifications";
 import ChatPopup from "../../common/ChatPopup";
 import api from "../../../utils/api";
 import PWAInstallPrompt from "../../PWAInstallPrompt";
 
 export default function Layout() {
   const { user } = useAuth();
+  usePushNotifications(user);
 
   // Heartbeat to keep online status active
   useEffect(() => {

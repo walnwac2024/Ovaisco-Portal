@@ -111,11 +111,17 @@ router.get("/chat/unread-counts", isAuthenticated, Chat.getUnreadCounts);
 router.get("/chat/unread", isAuthenticated, Chat.getUnreadCounts);
 router.post("/chat/read/:roomId", isAuthenticated, Chat.markAsRead);
 
+const Push = require("../Controller/UserDeatils/PushController");
+
 // Permission routes
 router.get("/permissions/user-types", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), listUserTypes);
 router.get("/permissions/all", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), listAllPermissions);
 router.get("/permissions/type/:typeId", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), getTypePermissions);
 router.post("/permissions/type/:typeId", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateTypePermissions);
+
+// Push Notification routes
+router.post("/push/subscribe", isAuthenticated, Push.subscribe);
+router.post("/push/unsubscribe", isAuthenticated, Push.unsubscribe);
 
 // Audit routes
 router.get("/audit/logs", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Audit.listLogs);
