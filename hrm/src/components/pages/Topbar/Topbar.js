@@ -162,7 +162,7 @@ export default function Topbar({ logoSrc }) {
         isComingSoon: meta.isComingSoon || false,
       };
     })
-    .filter((m) => m.key !== "permissions");
+    .filter((m) => m.key !== "permissions" && m.key !== "system_settings");
 
   const isAdmin = user?.roles?.some(r => ["super_admin", "admin", "hr", "developer"].includes(r.toLowerCase()));
 
