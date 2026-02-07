@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
-const VAPID_PUBLIC_KEY = 'BGLPPGI5JaavI3de55lUPYtyVx_qEyUONRUoLexcadKHTAkPMlD9t3uLyTp2-WR3Ntg-Dl8EgG8_mzoej2DHnx0';
+const VAPID_PUBLIC_KEY = 'BL9O_frMgJURQByq4IWakBcY9Xd1PVFPuOQqxktpwpEUXQhlv0JReNG34TRhXxxkVuNOnpDaHm7VmOvksf_5dIU';
 
 export function usePushNotifications(user) {
     const subscribeUser = useCallback(async () => {
