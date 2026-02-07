@@ -282,16 +282,16 @@ export default function Filters({
               Clear
             </button>
             <div className="ml-2 h-10 w-px bg-slate-200 hidden sm:block" />
-            <div className="flex items-center px-4 h-10 bg-white rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-3">Show</span>
+            <div className="flex items-center px-4 h-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mr-3">Show</span>
               <select
-                className="bg-transparent outline-none font-bold text-slate-800 cursor-pointer appearance-none pr-4 text-xs"
+                className="bg-transparent outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer appearance-none pr-4 text-xs"
                 style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2.5\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right center', backgroundSize: '0.8rem' }}
                 value={perPage}
                 onChange={(e) => onPerPageChange?.(Number(e.target.value))}
               >
                 {[10, 25, 50, 100].map((n) => (
-                  <option key={n} value={n}>{n}</option>
+                  <option key={n} value={n} className="dark:bg-slate-900">{n}</option>
                 ))}
               </select>
             </div>

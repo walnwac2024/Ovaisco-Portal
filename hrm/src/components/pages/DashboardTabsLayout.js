@@ -23,7 +23,7 @@ export default function DashboardTabsLayout() {
 
   return (
     <>
-      <div className="bg-white/50 backdrop-blur-md border border-slate-200 shadow-sm rounded-2xl mb-8 p-1.5 flex items-center overflow-hidden">
+      <div className="bg-white/50 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl mb-8 p-1.5 flex items-center overflow-hidden">
         <div className="flex gap-1 overflow-x-auto no-scrollbar w-full">
           {tabs.map(({ label, to }) => (
             <NavLink
@@ -34,7 +34,7 @@ export default function DashboardTabsLayout() {
                 `px-3 sm:px-5 py-2.5 text-[11px] sm:text-[12px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap 
                  ${isActive
                   ? "bg-customRed text-white shadow-lg shadow-customRed/20 scale-[1.02]"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"}`
               }
             >
               {label}

@@ -330,7 +330,7 @@ export default function Dashboard() {
       {/* LEFT COLUMN */}
       <section className="lg:col-span-3 space-y-3 sm:space-y-4">
         {/* Profile Card */}
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="p-3 sm:p-4 flex items-center gap-3">
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 border overflow-hidden flex-shrink-0">
               {(() => {
@@ -432,7 +432,7 @@ export default function Dashboard() {
         </div>
 
         {/* Attendance card (UPDATED) */}
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
             <div className="text-[12px] sm:text-[13px] font-semibold text-gray-700">
               ATTENDANCE (TODAY)
@@ -543,7 +543,7 @@ export default function Dashboard() {
         </div>
 
         {/* Leave Summary (unchanged) */}
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[13px] font-semibold text-gray-700">
             LEAVE SUMMARY
           </div>
@@ -571,7 +571,7 @@ export default function Dashboard() {
 
       {/* CENTER COLUMN (we will connect HR widget next) */}
       <section className="lg:col-span-6 space-y-3 sm:space-y-4">
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
             <div className="p-0">
               <div className="flex items-center justify-between bg-gray-100 px-3 sm:px-4 py-2">
@@ -581,14 +581,14 @@ export default function Dashboard() {
               </div>
               <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
                 {/* FIX: Removed table-scroll class effectively to avoid negative margin issues on p-0 container */}
-                <div className="w-full overflow-x-auto border-0 sm:border rounded-none sm:rounded-lg scrollbar-hide">
+                <div className="w-full overflow-x-auto border-0 sm:border dark:border-slate-800 rounded-none sm:rounded-lg scrollbar-hide">
                   <table style={{ minWidth: '600px' }} className="w-full text-[10px] sm:text-[12px] table-auto">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400">
                       <tr>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Date</th>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">In</th>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Out</th>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50">Status</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">Date</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">In</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">Out</th>
+                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -621,9 +621,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div className="w-full overflow-x-auto border-0 sm:border rounded-none sm:rounded-lg scrollbar-hide">
+                <div className="w-full overflow-x-auto border-0 sm:border dark:border-slate-800 rounded-none sm:rounded-lg scrollbar-hide">
                   <table style={{ minWidth: '350px' }} className="w-full text-[10px] sm:text-[12px] table-auto">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400">
                       <tr>
                         <th className="p-2 text-left">Title</th>
                         <th className="p-2 text-right">Balance</th>
@@ -657,7 +657,7 @@ export default function Dashboard() {
         </div>
 
         {/* Employee KPI */}
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="flex items-center justify-between bg-gray-100 px-3 sm:px-4 py-2">
             <div className="text-[11px] sm:text-[12px] uppercase font-semibold text-gray-600">
               Employee KPI
@@ -665,9 +665,9 @@ export default function Dashboard() {
             <div className="text-[11px] sm:text-[12px] text-gray-500">—</div>
           </div>
           <div className="p-2.5 sm:p-3">
-            <div className="table-scroll border rounded">
+            <div className="table-scroll border dark:border-slate-800 rounded">
               <table className="min-w-[320px] w-full text-[11px] sm:text-[12px]">
-                <thead className="bg-gray-50 text-gray-600">
+                <thead className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400">
                   <tr>
                     <th className="p-2 text-left">Description</th>
                     <th className="p-2 text-left">Time</th>
@@ -691,7 +691,7 @@ export default function Dashboard() {
 
       {/* RIGHT COLUMN (unchanged) */}
       <section className="lg:col-span-3 space-y-3 sm:space-y-4">
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="px-3 sm:px-4 pt-2 border-b">
             <nav className="flex text-[11px] sm:text-[12px]">
               <button className="px-3 py-2 font-semibold text-customRed border-b-2 border-customRed">
@@ -772,7 +772,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="px-3 sm:px-4 pt-2 border-b">
             <nav className="flex text-[11px] sm:text-[12px]">
               <button
@@ -793,14 +793,14 @@ export default function Dashboard() {
             {rightTab === "requests" ? (
               <div className="flex items-center justify-between">
                 <span>Pending Leave Applications</span>
-                <span className="px-2 py-0.5 rounded bg-gray-100 font-bold">
+                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 font-bold">
                   {leaveStats.myRequestsCount}
                 </span>
               </div>
             ) : (
               <div className="flex items-center justify-between">
                 <span>Leaves Pending Approval</span>
-                <span className="px-2 py-0.5 rounded bg-gray-100 font-bold">
+                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 font-bold">
                   {leaveStats.myApprovalsCount}
                 </span>
               </div>
@@ -812,7 +812,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between border-b">
             <div className="text-[12px] sm:text-[13px] font-semibold text-gray-700 flex items-center gap-2">
               <Megaphone size={16} className="text-customRed" />
@@ -832,7 +832,7 @@ export default function Dashboard() {
               </div>
             ) : (
               news.map((item) => (
-                <div key={item.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate("/dashboard/news")}>
+                <div key={item.id} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" onClick={() => navigate("/dashboard/news")}>
                   <div className="text-[13px] font-bold text-gray-800 line-clamp-1 mb-1">
                     {item.title}
                   </div>

@@ -91,8 +91,8 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-500">
             {/* Removed overflow-hidden to allow dropdown to show */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-t-xl">
+            <div className="card">
+                <div className="card-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         {onBack && (
                             <button
@@ -139,12 +139,12 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
                             {!onBack ? (
                                 <div>
                                     <label className="form-label">Employee Profile</label>
-                                    <input className="input bg-slate-50 font-bold text-slate-700" value={user?.name || ''} readOnly />
+                                    <input className="input bg-slate-50 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-200" value={user?.name || ''} readOnly />
                                 </div>
                             ) : (
                                 <div>
                                     <label className="form-label">Viewing Employee ID</label>
-                                    <input className="input bg-slate-50 font-bold text-slate-700" value={filters.employee_id} readOnly />
+                                    <input className="input bg-slate-50 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-200" value={filters.employee_id} readOnly />
                                 </div>
                             )}
                         </div>
@@ -168,10 +168,10 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="card">
                 <div className="table-scroll">
-                    <table className="min-w-[1000px] w-full divide-y divide-slate-200 text-sm">
-                        <thead className="bg-slate-50">
+                    <table className="min-w-[1000px] w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+                        <thead className="bg-slate-50 dark:bg-slate-800/80">
                             <tr>
                                 <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Reporting<br /><span className="text-[9px] opacity-70">Date</span></th>
                                 <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Assigned<br /><span className="text-[9px] opacity-70">Shift</span></th>
@@ -182,7 +182,7 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
                                 <th className="px-6 py-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Attendance<br /><span className="text-[9px] opacity-70">Status</span></th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-100">
+                        <tbody className="bg-white dark:bg-transparent divide-y divide-slate-100 dark:divide-slate-800">
                             {loading ? (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-12 text-center">

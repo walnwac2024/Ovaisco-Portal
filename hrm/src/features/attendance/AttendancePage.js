@@ -28,11 +28,11 @@ import AttendanceSettings from './components/AttendanceSettings';
 
 function ComingSoon({ label }) {
   return (
-    <div className="card">
-      <div className="card-header">
-        <h3 className="card-title">{label}</h3>
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">{label}</h3>
       </div>
-      <div className="card-body text-sm text-slate-500 italic">
+      <div className="p-6 text-sm text-slate-500 dark:text-slate-400 italic">
         This section is coming soon...
       </div>
     </div>
@@ -41,11 +41,11 @@ function ComingSoon({ label }) {
 
 function UnauthorizedBox() {
   return (
-    <div className="card">
-      <div className="card-header">
-        <h3 className="card-title">Unauthorized</h3>
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Unauthorized</h3>
       </div>
-      <div className="card-body text-sm text-rose-500 font-medium">
+      <div className="p-6 text-sm text-rose-500 font-medium">
         You don’t have permission to view this page.
       </div>
     </div>

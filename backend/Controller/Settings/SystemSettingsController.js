@@ -137,6 +137,35 @@ async function ensureTableExists(type) {
             } else if (type === "marital-statuses") {
                 await conn.query(`INSERT IGNORE INTO \`${tableName}\` (name) VALUES ('Single'), ('Married'), ('Divorced'), ('Widowed')`);
             }
+        } else {
+            // Table exists, check for missing columns (Schema Migration)
+            if (["departments", "designations", "employment-types"].includes(type)) {
+                const [cols] = await conn.query(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'description'",
+                    [tableName]
+                );
+                if (cols.length === 0) {
+                    console.log(`🛠️ Patching table schema: ${tableName}`);
+                    try {
+                        await conn.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`description\` TEXT NULL AFTER \`name\``);
+                    } catch (e) { console.error(`Error adding description to ${tableName}:`, e); }
+
+                    try {
+                        await conn.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`created_by\` INT NULL AFTER \`is_active\``);
+                    } catch (e) { console.error(`Error adding created_by to ${tableName}:`, e); }
+                }
+            } else if (type === "offices") {
+                const [cols] = await conn.query(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'address'",
+                    [tableName]
+                );
+                if (cols.length === 0) {
+                    console.log(`🛠️ Patching table schema: ${tableName}`);
+                    try {
+                        await conn.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`address\` TEXT NULL AFTER \`name\`, ADD COLUMN \`city\` VARCHAR(50) NULL AFTER \`address\`, ADD COLUMN \`country\` VARCHAR(50) NULL AFTER \`city\`, ADD COLUMN \`created_by\` INT NULL AFTER \`is_active\``);
+                    } catch (e) { console.error(`Error patching ${tableName}:`, e); }
+                }
+            }
         }
     } finally {
         conn.release();

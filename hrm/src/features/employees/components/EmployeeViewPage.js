@@ -108,7 +108,7 @@ export default function EmployeeViewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 pt-6 pb-10">
         {/* BACK BUTTON */}
         <button
@@ -119,9 +119,9 @@ export default function EmployeeViewPage() {
         </button>
 
         {/* CARD */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           {/* TOP */}
-          <div className="relative px-6 pt-6 pb-5 border-b border-slate-200 bg-gradient-to-r from-customRed/10 via-rose-50 to-white">
+          <div className="relative px-6 pt-6 pb-5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-customRed/10 via-rose-50 to-white dark:from-customRed/20 dark:via-slate-900 dark:to-slate-900">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               {/* Avatar + Name */}
               <div className="flex items-center gap-4">
@@ -161,16 +161,16 @@ export default function EmployeeViewPage() {
 
               {/* STATUS */}
               <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center rounded-full bg-white px-3 py-1 border border-slate-200 text-[11px] font-medium">
+                <span className="inline-flex items-center rounded-full bg-white dark:bg-slate-800 px-3 py-1 border border-slate-200 dark:border-slate-700 text-[11px] font-medium">
                   <span className={`mr-2 h-2 w-2 rounded-full ${statusDotClass}`} />
                   Status:
-                  <span className="ml-1 text-slate-900">{statusText}</span>
+                  <span className="ml-1 text-slate-900 dark:text-white">{statusText}</span>
                 </span>
 
                 {employee.cnic && (
-                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 border border-slate-200 text-[11px] font-medium">
+                  <span className="inline-flex items-center rounded-full bg-white dark:bg-slate-800 px-3 py-1 border border-slate-200 dark:border-slate-700 text-[11px] font-medium">
                     CNIC:
-                    <span className="ml-1 text-slate-900">{employee.cnic}</span>
+                    <span className="ml-1 text-slate-900 dark:text-white">{employee.cnic}</span>
                   </span>
                 )}
               </div>
@@ -186,7 +186,7 @@ export default function EmployeeViewPage() {
                   PERSONAL INFORMATION
                 </h2>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-4 py-4 shadow-sm">
                   <div className="grid gap-2">
                     <InfoRow label="Date of Birth" value={employee.dateOfBirth} />
                     <InfoRow label="Gender" value={employee.gender} />
@@ -203,7 +203,7 @@ export default function EmployeeViewPage() {
                   JOB & CONTACT
                 </h2>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-4 py-4 shadow-sm">
                   <div className="grid gap-2">
                     <InfoRow label="Date of Joining" value={employee.dateOfJoining} right />
                     <InfoRow label="Official Email" value={employee.emailOfficial} right />
@@ -230,7 +230,7 @@ export default function EmployeeViewPage() {
                 </span>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-4 shadow-sm">
                 {documents.length === 0 ? (
                   <div className="text-xs text-slate-500">No documents uploaded.</div>
                 ) : (
@@ -246,7 +246,7 @@ export default function EmployeeViewPage() {
                           <div className="flex items-center justify-between gap-3">
                             {/* left */}
                             <div className="min-w-0 flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-600 shrink-0">
+                              <div className="h-10 w-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 shrink-0">
                                 📄
                               </div>
 

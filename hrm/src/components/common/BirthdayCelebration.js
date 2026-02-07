@@ -29,7 +29,7 @@ export default function BirthdayCelebration({ isBirthday, name, isSelf = false }
     if (!isBirthday) return null;
 
     return (
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-50 via-white to-pink-50 border border-red-200 p-4 shadow-sm animate-fade-in group">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-50 via-white to-pink-50 dark:from-red-950/20 dark:via-slate-900 dark:to-pink-900/20 border border-red-200 dark:border-red-900/50 p-4 shadow-sm animate-fade-in group">
             {/* Context Label */}
             <div className={`text-[9px] font-black mb-1.5 uppercase tracking-[0.2em] text-center ${isSelf ? 'text-amber-500' : 'text-customRed/70'}`}>
                 {isSelf ? "✨ It's Your Special Day! ✨" : "🎊 Celebrating a Teammate 🎊"}

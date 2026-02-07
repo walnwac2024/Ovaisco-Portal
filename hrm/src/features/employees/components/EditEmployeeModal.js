@@ -718,7 +718,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                   </button>
                 </div>
 
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-4">
                   {docsLoading ? (
                     <div className="text-xs text-slate-600">Loading documents…</div>
                   ) : docsError ? (
@@ -737,7 +737,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                         return (
                           <div
                             key={doc.id}
-                            className="rounded-xl border border-slate-200 bg-white p-4"
+                            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
                           >
                             <div className="flex flex-col gap-4">
                               <div className="min-w-0 flex-1">
@@ -1005,7 +1005,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
               </div>
               {/* -------------------------------------------------------- */}
 
-              <div className="mt-auto sticky bottom-0 bg-white/95 backdrop-blur-sm pt-4 pb-2 border-t border-slate-100 z-10 -mx-1 px-1">
+              <div className="mt-auto sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm pt-4 pb-2 border-t border-slate-100 dark:border-slate-800 z-10 -mx-1 px-1">
                 <div className="flex flex-wrap justify-center sm:justify-end gap-3">
                   <button
                     type="button"
@@ -1144,7 +1144,7 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                 </div>
               )}
 
-              <div className="mt-auto sticky bottom-0 bg-white/95 backdrop-blur-sm pt-4 pb-2 border-t border-slate-100 z-10 -mx-1 px-1">
+              <div className="mt-auto sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm pt-4 pb-2 border-t border-slate-100 dark:border-slate-800 z-10 -mx-1 px-1">
                 <div className="flex flex-wrap justify-center sm:justify-end gap-3">
                   <button
                     type="button"

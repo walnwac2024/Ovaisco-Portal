@@ -264,7 +264,7 @@ export default function Topbar({ logoSrc }) {
               <img
                 src={logo}
                 alt="HRM Logo"
-                className="h-8 sm:h-9 w-auto drop-shadow-sm"
+                className="h-8 sm:h-9 w-auto drop-shadow-sm dark:brightness-200 dark:invert dark:hue-rotate-180"
                 onError={(e) => {
                   e.target.src = fallbackLogo;
                 }}

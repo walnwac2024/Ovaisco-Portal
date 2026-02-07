@@ -319,13 +319,13 @@ export default function ProfilePage() {
     statusDotClass = "bg-red-500";
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       <div className="mx-auto max-w-5xl px-4 pt-6 pb-10">
-        <h1 className="text-xl font-bold text-slate-900 mb-6">My Profile</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-6">My Profile</h1>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           {/* HEADER */}
-          <div className="relative px-6 pt-6 pb-5 border-b border-slate-200 bg-gradient-to-r from-customRed/10 via-rose-50 to-white">
+          <div className="relative px-6 pt-6 pb-5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-customRed/10 via-rose-50 to-white dark:from-customRed/20 dark:via-slate-900 dark:to-slate-900">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               {/* Avatar + name */}
               <div className="flex items-center gap-4">
@@ -337,7 +337,7 @@ export default function ProfilePage() {
                       className="h-16 w-16 rounded-full object-cover border-2 border-white shadow-md"
                     />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-md text-base font-semibold text-slate-700 border border-slate-200">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-md text-base font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                       {initials}
                     </div>
                   )}
@@ -385,12 +385,12 @@ export default function ProfilePage() {
 
               {/* Status + official info */}
               <div className="flex flex-col items-start md:items-end gap-2 text-xs">
-                <span className="inline-flex items-center rounded-full bg-white px-3 py-1 border border-slate-200 text-[11px] font-medium">
+                <span className="inline-flex items-center rounded-full bg-white dark:bg-slate-800 px-3 py-1 border border-slate-200 dark:border-slate-700 text-[11px] font-medium">
                   <span
                     className={`mr-2 h-2 w-2 rounded-full ${statusDotClass}`}
                   />
                   Status:
-                  <span className="ml-1 text-slate-900">{statusText}</span>
+                  <span className="ml-1 text-slate-900 dark:text-white">{statusText}</span>
                 </span>
 
                 <div className="text-right space-y-0.5">
@@ -419,7 +419,7 @@ export default function ProfilePage() {
                 <h2 className="mb-3 text-xs font-semibold tracking-wide text-slate-700 uppercase">
                   Personal {canEditAll ? "(editable)" : "(read only)"}
                 </h2>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm grid gap-3">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-4 py-4 shadow-sm grid gap-3">
                   <Field
                     label="Date of Birth"
                     value={dob}
@@ -451,7 +451,7 @@ export default function ProfilePage() {
                 <h2 className="mb-3 text-xs font-semibold tracking-wide text-slate-700 uppercase">
                   Job {canEditAll ? "(editable)" : "(read only)"}
                 </h2>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm grid gap-3">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-4 py-4 shadow-sm grid gap-3">
                   <Field
                     label="Designation"
                     value={designation}
@@ -483,12 +483,12 @@ export default function ProfilePage() {
             {/* BASIC PROFILE (always editable for the user) */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xs font-semibold tracking-wide text-slate-700 uppercase">
+                <h2 className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-400 uppercase">
                   Basic Profile (you can edit)
                 </h2>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 px-4 py-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field
                     label="Personal Email"
@@ -549,11 +549,11 @@ export default function ProfilePage() {
 
             {/* CHANGE PASSWORD */}
             <section>
-              <h2 className="mb-3 text-xs font-semibold tracking-wide text-slate-700 uppercase">
+              <h2 className="mb-3 text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-400 uppercase">
                 Change Password
               </h2>
 
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 px-4 py-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-3">
                   <Field
                     label="Current Password"

@@ -1,6 +1,20 @@
 // backend/Controller/Attendance/AttendanceSettings.js
 const { pool } = require("../../Utils/db");
 
+const ensureAttendanceRulesReady = async () => {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_rules' AND COLUMN_NAME = 'block_vpn'"
+    );
+    if (cols.length === 0) {
+      console.log("🛠️ Patching attendance_rules: adding block_vpn");
+      await pool.query("ALTER TABLE attendance_rules ADD COLUMN block_vpn TINYINT(1) DEFAULT 0 AFTER notify_hr_admin");
+    }
+  } catch (err) {
+    console.error("ensureAttendanceRulesReady error:", err);
+  }
+};
+
 const getShifts = async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -61,6 +75,7 @@ const updateShift = async (req, res) => {
 
 const getRules = async (req, res) => {
   try {
+    await ensureAttendanceRulesReady();
     const [rows] = await pool.query(
       `
       SELECT id, grace_minutes, notify_employee, notify_hr_admin, block_vpn, is_active, created_at
