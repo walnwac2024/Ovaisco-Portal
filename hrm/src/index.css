@@ -11,6 +11,8 @@
   .page {
     /* Responsive Page Padding */
     @apply mx-auto max-w-screen-2xl px-4 sm:px-6 pt-4 sm:pt-6 pb-24 sm:pb-32 overflow-x-hidden;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
   }
 
   .pagination-safe {
@@ -19,24 +21,20 @@
 
   .card {
     /* radius 12 is rounded-xl? rounded-2xl is 16px usually. rounded-xl is 12px. User said radius 12. */
-    @apply bg-white rounded-xl shadow-sm ring-1 ring-gray-100 overflow-hidden;
+    @apply rounded-xl shadow-sm overflow-hidden;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-base);
   }
 
   .card-header {
     /* padding 16-20. px-5 is 20px. py-4 is 16px. */
-    @apply border-b border-gray-100 px-5 py-4;
+    @apply px-5 py-4;
+    border-bottom: 1px solid var(--border-base);
   }
 
   .card-title {
-    /* H2 20 semibold? Or is this H3? Usually card title is H2 or smaller. 
-       User said H2 20 semibold. Let's map card title to H2 style or keep small caps if it's a "label".
-       The previous style was small caps. Let's make it H2 style if it's a main heading, 
-       but for "Filters" maybe keep it small. 
-       Actually user said H1 28 Bold, H2 20 Semi. 
-       Let's add generic utility classes for these. 
-    */
-    @apply text-lg font-semibold text-slate-800;
-    /* ~18-20px */
+    @apply text-lg font-semibold;
+    color: var(--text-primary);
   }
 
   .card-body {
@@ -46,11 +44,13 @@
 
   /* -------- Typography mappings -------- */
   .h1 {
-    @apply text-[28px] font-bold text-slate-900 leading-tight;
+    @apply text-[28px] font-bold leading-tight;
+    color: var(--text-primary);
   }
 
   .h2 {
-    @apply text-[20px] font-semibold text-slate-800 leading-snug;
+    @apply text-[20px] font-semibold leading-snug;
+    color: var(--text-primary);
   }
 
   /* Body defaults to 14-15. Tailwind base is 16, sm is 14. 
@@ -60,7 +60,10 @@
   /* -------- inputs (Premium Standard: 40px height, radius 12) -------- */
   .input {
     /* h-10 is 40px. rounded-xl is 12px. */
-    @apply w-full h-10 rounded-xl border border-slate-300 bg-white px-4 text-[14px] outline-none transition-all duration-200 shadow-sm;
+    @apply w-full h-10 rounded-xl px-4 text-[14px] outline-none transition-all duration-200 shadow-sm;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-base);
+    color: var(--text-primary);
   }
 
   .input:focus {
@@ -107,12 +110,18 @@
 
   /* Secondary Action (Outline) - Soft Border & Clean Look */
   .btn-outline {
-    @apply btn border border-slate-200 bg-white text-slate-700;
+    @apply btn;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-base);
+    color: var(--text-primary);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   }
 
   .btn-outline:hover {
-    @apply border-slate-300 bg-slate-50 text-slate-900 -translate-y-0.5 shadow-lg shadow-slate-200/50;
+    @apply -translate-y-0.5;
+    background-color: var(--bg-hover);
+    border-color: var(--border-base);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
 
   /* Utility Action (Export/Import/etc) - Glassy Professional Look */
@@ -142,11 +151,14 @@
   }
 
   .sidebar-card {
-    @apply sticky top-6 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden;
+    @apply sticky top-6 rounded-xl shadow-sm overflow-hidden;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-base);
   }
 
   .sidebar-heading {
-    @apply px-5 pt-4 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500;
+    @apply px-5 pt-4 pb-2 text-[11px] font-bold uppercase tracking-wider;
+    color: var(--text-secondary);
   }
 
   .sidebar-list {
@@ -154,7 +166,12 @@
   }
 
   .sidebar-item {
-    @apply relative w-full flex items-center gap-3 rounded-xl px-3 h-10 text-[14px] font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50 outline-none text-left;
+    @apply relative w-full flex items-center gap-3 rounded-xl px-3 h-10 text-[14px] font-medium transition-all duration-200 outline-none text-left;
+    color: var(--text-primary);
+  }
+
+  .sidebar-item:hover {
+    background-color: var(--bg-hover);
   }
 
   .sidebar-icon {
@@ -192,7 +209,8 @@
 
   /* -------- labels -------- */
   .form-label {
-    @apply block text-[13px] leading-5 font-normal text-gray-600 mb-1;
+    @apply block text-[13px] leading-5 font-normal mb-1;
+    color: var(--text-secondary);
   }
 
   /* -------- tables (match Employee) -------- */
@@ -222,19 +240,29 @@
 
   .thead {
     /* Sticky header requirement */
-    @apply sticky top-0 z-10 bg-white text-sm font-semibold text-gray-800 border-b border-customLightGrey/40;
+    @apply sticky top-0 z-10 text-sm font-semibold;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-base);
   }
 
   .th {
-    @apply text-left py-3 px-4 text-sm font-semibold text-gray-800 whitespace-nowrap;
+    @apply text-left py-3 px-4 text-sm font-semibold whitespace-nowrap;
+    color: var(--text-primary);
   }
 
   .tr {
-    @apply border-b border-gray-100 last:border-b-0 hover:bg-slate-50 transition-colors;
+    @apply border-b last:border-b-0 transition-colors;
+    border-color: var(--border-base);
+  }
+
+  .tr:hover {
+    background-color: var(--bg-hover);
   }
 
   .td {
-    @apply py-4 px-4 align-top text-sm text-gray-700;
+    @apply py-4 px-4 align-top text-sm;
+    color: var(--text-primary);
   }
 
   /* badges */
@@ -352,11 +380,14 @@
 
   /* -------- Modals & Special Sections -------- */
   .modal-overlay {
-    @apply fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-hidden;
+    @apply fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm overflow-hidden;
+    background-color: var(--modal-overlay);
   }
 
   .modal-content {
-    @apply relative bg-white w-full max-h-[90vh] flex flex-col rounded-[32px] shadow-2xl border border-white/20 overflow-hidden;
+    @apply relative w-full max-h-[90vh] flex flex-col rounded-[32px] shadow-2xl border overflow-hidden;
+    background-color: var(--bg-card);
+    border-color: var(--border-base);
     animation: modal-in 0.3s ease-out;
   }
 
@@ -403,7 +434,9 @@
   }
 
   .modal-header {
-    @apply px-5 sm:px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30;
+    @apply px-5 sm:px-8 py-4 border-b flex items-center justify-between;
+    background-color: var(--bg-hover);
+    border-color: var(--border-base);
   }
 
   .modal-body {
@@ -411,7 +444,9 @@
   }
 
   .modal-footer {
-    @apply px-5 sm:px-8 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-white;
+    @apply px-5 sm:px-8 py-4 border-t flex items-center justify-end gap-3;
+    background-color: var(--bg-card);
+    border-color: var(--border-base);
   }
 
   .section-divider {
@@ -434,6 +469,132 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
+
+  /* Light Theme Variables */
+  --bg-body: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F1F5F9;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border-base: #E2E8F0;
+  --modal-overlay: rgba(15, 23, 42, 0.6);
+}
+
+.dark {
+  /* Dark Theme Variables - Rich Navy/Slate Palette */
+  --bg-body: #0B0F19;
+  /* Deeper Navy */
+  --bg-card: #151B28;
+  /* Slightly lighter navy */
+  --bg-hover: #1F2937;
+  --text-primary: #F3F4F6;
+  /* High contrast light grey */
+  --text-secondary: #9CA3AF;
+  /* Muted grey */
+  --border-base: #1F2937;
+  --modal-overlay: rgba(0, 0, 0, 0.85);
+}
+
+/* Global Overrides for Hardcoded Tailwind Classes in Dark Mode */
+.dark body {
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+}
+
+.dark .bg-white {
+  background-color: var(--bg-card) !important;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50,
+.dark .bg-stone-50 {
+  background-color: var(--bg-hover) !important;
+}
+
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Handle Gradients in Dark Mode */
+.dark .from-white {
+  --tw-gradient-from: var(--bg-card) !important;
+  --tw-gradient-to: rgb(255 255 255 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.dark .to-slate-50,
+.dark .to-gray-50 {
+  --tw-gradient-to: var(--bg-body) !important;
+}
+
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-stone-900,
+.dark .text-black {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-stone-600 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-slate-500,
+.dark .text-gray-500 {
+  color: var(--text-secondary) !important;
+  opacity: 0.8 !important;
+}
+
+.dark .text-slate-400,
+.dark .text-gray-400 {
+  color: var(--text-secondary) !important;
+  opacity: 0.6 !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-stone-100 {
+  border-color: var(--border-base) !important;
+}
+
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-xl,
+.dark .shadow-2xl,
+.dark .shadow-slate-200\/50,
+.dark .shadow-slate-200\/30 {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Special fix for Inputs in Dark Mode */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--bg-body) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-base) !important;
+}
+
+.dark input::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.5;
+}
+
+/* Fix for Scrollbars in Dark Mode */
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--bg-hover) !important;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--bg-body) !important;
 }
 
 /* Ensure body respects safe areas */
@@ -443,6 +604,8 @@ body {
   padding-left: var(--safe-area-left);
   padding-right: var(--safe-area-right);
   min-height: 100vh;
+  background-color: var(--bg-body);
+  color: var(--text-primary);
   /* Prevent rubber-banding on iOS */
   overscroll-behavior-y: none;
 }

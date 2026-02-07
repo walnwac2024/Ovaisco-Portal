@@ -32,6 +32,8 @@ const ComingSoon = lazy(() => import("./components/common/ComingSoon"));
 const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
 const PerformancePage = lazy(() => import("./features/performance/PerformancePage"));
 
+const ThemeToggle = lazy(() => import("./components/common/ThemeToggle"));
+
 // Loading component
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -76,6 +78,7 @@ export default function App() {
         <ThemeProvider>
           <ToastContainer position="top-right" autoClose={3000} />
           <Suspense fallback={<LoadingFallback />}>
+            <ThemeToggle />
             <Routes>
               {/* Public */}
               <Route

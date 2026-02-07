@@ -245,14 +245,14 @@ export default function Topbar({ logoSrc }) {
       )}
 
       {/* Main Top Bar */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-sm transition-all duration-300 relative z-20">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 shadow-sm transition-all duration-300 relative z-20">
         <div className="mx-auto max-w-screen-2xl h-[72px] px-4 sm:px-6 flex items-center justify-between">
 
           {/* Left: Logo & Mobile Toggle */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowMobileMenu(true)}
-              className="p-2 -ml-2 text-slate-500 hover:text-customRed md:hidden transition-colors rounded-xl hover:bg-red-50"
+              className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-customRed md:hidden transition-colors rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30"
               aria-label="Open menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,7 +285,7 @@ export default function Topbar({ logoSrc }) {
                     className={`group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-200 whitespace-nowrap
                       ${isActive
                         ? "bg-customRed text-white shadow-md shadow-red-500/10 scale-[1.02] z-10"
-                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                       }`}
                   >
                     <Icon className={`text-[13px] 2xl:text-[15px] transition-all duration-200 
@@ -312,7 +312,7 @@ export default function Topbar({ logoSrc }) {
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={`relative p-2 rounded-xl transition-all duration-200 
-                  ${showNotifications ? "bg-customRed/10 text-customRed" : "text-slate-500 hover:text-customRed hover:bg-slate-50"}`}
+                  ${showNotifications ? "bg-customRed/10 text-customRed" : "text-slate-500 dark:text-slate-400 hover:text-customRed hover:bg-slate-50 dark:hover:bg-slate-800"}`}
                 aria-label="Notifications"
                 type="button"
               >
@@ -325,13 +325,13 @@ export default function Topbar({ logoSrc }) {
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] rounded-[24px] border border-slate-200 bg-white shadow-2xl z-50 overflow-hidden animate-slide-up">
+                <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] rounded-[24px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl z-50 overflow-hidden animate-slide-up">
                   {/* Arrow pointer */}
-                  <div className="absolute -top-1.5 right-4 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45 z-[-1]" />
+                  <div className="absolute -top-1.5 right-4 w-3 h-3 bg-white dark:bg-slate-800 border-t border-l border-slate-200 dark:border-slate-700 rotate-45 z-[-1]" />
 
                   {/* Header */}
-                  <div className="px-4 py-3 border-b bg-slate-50/50 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800">Notifications</span>
+                  <div className="px-4 py-3 border-b dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800 dark:text-slate-200">Notifications</span>
                     {unreadCount > 0 && (
                       <button onClick={markAllRead} className="text-[9px] text-customRed font-black uppercase tracking-wider hover:underline">
                         Clear All
@@ -340,7 +340,7 @@ export default function Topbar({ logoSrc }) {
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex items-center px-1 py-1 border-b bg-white gap-1">
+                  <div className="flex items-center px-1 py-1 border-b dark:border-slate-700 bg-white dark:bg-slate-800 gap-1">
                     {['all', 'leave', 'attendance'].map((tab) => {
                       const isActive = activeTab === tab;
                       const label = tab === 'leave' ? 'Leaves' : (tab === 'attendance' ? 'Attendance' : 'All');
@@ -349,7 +349,7 @@ export default function Topbar({ logoSrc }) {
                           key={tab}
                           onClick={(e) => { e.stopPropagation(); setActiveTab(tab); }}
                           className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all
-                             ${isActive ? "bg-slate-100 text-slate-900 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"}
+                             ${isActive ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-300"}
                            `}
                         >
                           {label}
@@ -361,8 +361,8 @@ export default function Topbar({ logoSrc }) {
                   <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
                     {filteredNotifications.length === 0 ? (
                       <div className="px-6 py-10 text-center">
-                        <div className="h-12 w-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                          <FaBell className="text-xl text-slate-200" />
+                        <div className="h-12 w-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <FaBell className="text-xl text-slate-200 dark:text-slate-700" />
                         </div>
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                           {activeTab === 'all' ? "Everything is quiet" : `No ${activeTab} alerts`}
@@ -393,9 +393,9 @@ export default function Topbar({ logoSrc }) {
                               }
                             }}
                             className={`
-                            px-4 py-3 border-b last:border-b-0 cursor-pointer transition-colors relative
-                            ${isLeave && isUnread ? "bg-amber-50 hover:bg-amber-100/80 border-l-4 border-l-amber-500" : "hover:bg-slate-50/80"}
-                            ${!isLeave && isUnread ? "bg-red-50/10" : ""}
+                            px-4 py-3 border-b dark:border-slate-700 last:border-b-0 cursor-pointer transition-colors relative
+                            ${isLeave && isUnread ? "bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100/80 dark:hover:bg-amber-950/30 border-l-4 border-l-amber-500" : "hover:bg-slate-50/80 dark:hover:bg-slate-700/50"}
+                            ${!isLeave && isUnread ? "bg-red-50/10 dark:bg-red-950/10" : ""}
                           `}
                           >
                             <div className="flex items-start gap-3">
@@ -428,7 +428,7 @@ export default function Topbar({ logoSrc }) {
                   ref={btnRef}
                   onClick={() => setOpen((v) => !v)}
                   className={`flex items-center gap-3 p-1.5 pr-4 rounded-2xl border transition-all duration-200
-                    ${open ? "bg-customRed/5 border-customRed/20 ring-4 ring-customRed/5" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"}`}
+                    ${open ? "bg-customRed/5 border-customRed/20 ring-4 ring-customRed/5" : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
                   aria-haspopup="menu"
                   aria-expanded={open}
                   aria-label="User menu"
@@ -445,8 +445,8 @@ export default function Topbar({ logoSrc }) {
                     <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" title="Online" />
                   </div>
                   <div className="hidden lg:block text-left min-w-0">
-                    <p className="text-[13px] font-bold text-slate-900 truncate leading-none mb-1">{userName}</p>
-                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest truncate leading-none mb-0.5">{user?.role || 'Authorized'}</p>
+                    <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{userName}</p>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest truncate leading-none mb-0.5">{user?.role || 'Authorized'}</p>
                     <p className="text-[9px] text-customRed font-bold truncate leading-none">{user?.Department || ''}</p>
                   </div>
                 </button>
@@ -455,9 +455,9 @@ export default function Topbar({ logoSrc }) {
                   <div className="absolute right-0 top-[calc(100%+8px)] w-[190px] rounded-[20px] border border-slate-200 bg-white shadow-2xl z-50 overflow-hidden ring-1 ring-slate-900/5 animate-slide-up">
                     {/* Arrow pointer */}
                     <div className="absolute -top-1.5 right-6 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45 z-[-1]" />
-                    <div className="px-4 py-3 border-b bg-slate-50/50">
-                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.15em] mb-0.5">Signed in as</p>
-                      <p className="text-[12px] font-bold text-slate-800 truncate leading-tight">{userName}</p>
+                    <div className="px-4 py-3 border-b dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                      <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.15em] mb-0.5">Signed in as</p>
+                      <p className="text-[12px] font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{userName}</p>
                     </div>
 
                     <div className="p-1.5 space-y-0.5">
@@ -536,13 +536,13 @@ export default function Topbar({ logoSrc }) {
       </div>
 
       {/* Mobile Drawer (Refined) */}
-      <div className={`fixed top-0 left-0 h-full w-[300px] bg-white z-[1001] shadow-[30px_0_60px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden rounded-r-[32px] overflow-hidden flex flex-col ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`fixed top-0 left-0 h-full w-[300px] bg-white dark:bg-slate-900 z-[1001] shadow-[30px_0_60px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden rounded-r-[32px] overflow-hidden flex flex-col ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Header */}
-        <div className="shrink-0 p-6 border-b border-slate-100 flex items-center justify-between bg-white relative">
+        <div className="shrink-0 p-6 border-b dark:border-slate-800 border-slate-100 flex items-center justify-between bg-white dark:bg-slate-900 relative">
           <img src={logo} alt="Logo" className="h-8 w-auto" />
           <button
             onClick={() => setShowMobileMenu(false)}
-            className="p-2 text-slate-400 hover:text-customRed hover:bg-red-50 rounded-xl transition-all"
+            className="p-2 text-slate-400 hover:text-customRed hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
             aria-label="Close menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -564,11 +564,11 @@ export default function Topbar({ logoSrc }) {
                 className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-[13px] font-bold transition-all
                   ${isActive
                     ? "bg-customRed/5 text-customRed shadow-sm shadow-red-500/5 ring-1 ring-customRed/10"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                   }`}
               >
-                <div className={`p-2 rounded-xl transition-colors ${isActive ? "bg-customRed/10" : "bg-slate-50"}`}>
-                  <Icon className={`text-[20px] ${isActive ? "text-customRed" : "text-slate-400"}`} />
+                <div className={`p-2 rounded-xl transition-colors ${isActive ? "bg-customRed/10" : "bg-slate-50 dark:bg-slate-800"}`}>
+                  <Icon className={`text-[20px] ${isActive ? "text-customRed" : "text-slate-400 dark:text-slate-500"}`} />
                 </div>
                 <span className="uppercase tracking-widest">{item.label}</span>
                 {isActive && <div className="ml-auto w-2 h-2 rounded-full bg-customRed shadow-[0_0_10px_rgba(221,4,28,0.5)]" />}
@@ -578,14 +578,14 @@ export default function Topbar({ logoSrc }) {
         </nav>
 
         {/* Footer (Safe Area + Profile) */}
-        <div className="shrink-0 w-full px-6 pt-6 pb-[calc(1.5rem+var(--safe-area-bottom))] border-t bg-slate-50/50 backdrop-blur-sm">
+        <div className="shrink-0 w-full px-6 pt-6 pb-[calc(1.5rem+var(--safe-area-bottom))] border-t dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl bg-customRed flex items-center justify-center text-white font-black text-sm uppercase shadow-lg shadow-red-500/30">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-black text-slate-800 truncate leading-none mb-1.5">{userName}</div>
-              <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-0.5">{user?.role || 'authorized personnel'}</div>
+              <div className="text-[14px] font-black text-slate-800 dark:text-slate-200 truncate leading-none mb-1.5">{userName}</div>
+              <div className="text-[9px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em] mb-0.5">{user?.role || 'authorized personnel'}</div>
               <div className="text-[10px] text-customRed font-bold truncate">{user?.Department || ''}</div>
             </div>
           </div>

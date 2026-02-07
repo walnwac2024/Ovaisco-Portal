@@ -2,8 +2,9 @@ const webpush = require('web-push');
 const { pool } = require('../../Utils/db');
 
 // VAPID keys should ideally be in .env
-const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
-const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
+// Sanitize VAPID keys to remove potential quotes or whitespace from environment variables
+const publicVapidKey = (process.env.VAPID_PUBLIC_KEY || '').replace(/^["']|["']$/g, '').trim();
+const privateVapidKey = (process.env.VAPID_PRIVATE_KEY || '').replace(/^["']|["']$/g, '').trim();
 
 if (publicVapidKey && privateVapidKey) {
     try {
@@ -15,6 +16,7 @@ if (publicVapidKey && privateVapidKey) {
         console.log("VAPID details set successfully");
     } catch (err) {
         console.error("Failed to set VAPID details:", err.message);
+        console.error("Key lengths - Public:", publicVapidKey.length, "Private:", privateVapidKey.length);
     }
 } else {
     console.warn("VAPID keys missing in environment variables. Push notifications will not work.");
