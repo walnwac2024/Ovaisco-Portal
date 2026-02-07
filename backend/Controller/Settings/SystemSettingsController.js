@@ -67,9 +67,9 @@ async function ensureTableExists(type) {
     const conn = await pool.getConnection();
 
     try {
-        // 1. Check if table exists using SHOW TABLES (often more reliable on restricted environments)
-        const [tables] = await conn.execute(
-            `SHOW TABLES LIKE ?`,
+        // 1. Check if table exists using INFORMATION_SCHEMA (More reliable than SHOW TABLES with placeholders)
+        const [tables] = await conn.query(
+            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
             [tableName]
         );
 
@@ -164,7 +164,7 @@ async function listSettings(req, res) {
 
         sql += " ORDER BY name ASC";
 
-        const [rows] = await pool.execute(sql);
+        const [rows] = await pool.query(sql);
         return res.json(rows);
     } catch (err) {
         console.error("listSettings error:", err);

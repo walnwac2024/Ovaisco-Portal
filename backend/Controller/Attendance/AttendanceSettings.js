@@ -3,7 +3,7 @@ const { pool } = require("../../Utils/db");
 
 const getShifts = async (req, res) => {
   try {
-    const [rows] = await pool.execute(
+    const [rows] = await pool.query(
       `
       SELECT id, name, start_time, end_time, effective_from, effective_to, is_active, created_at
       FROM attendance_shifts
@@ -61,7 +61,7 @@ const updateShift = async (req, res) => {
 
 const getRules = async (req, res) => {
   try {
-    const [rows] = await pool.execute(
+    const [rows] = await pool.query(
       `
       SELECT id, grace_minutes, notify_employee, notify_hr_admin, block_vpn, is_active, created_at
       FROM attendance_rules
@@ -85,7 +85,7 @@ const updateActiveRule = async (req, res) => {
       return res.status(400).json({ message: "grace_minutes must be a number (0-240)" });
     }
 
-    await pool.execute(`UPDATE attendance_rules SET is_active = 0 WHERE is_active = 1`);
+    await pool.query(`UPDATE attendance_rules SET is_active = 0 WHERE is_active = 1`);
 
     await pool.execute(
       `
