@@ -396,19 +396,73 @@ const createLeaveType = async (req, res) => {
  * Admin only
  */
 const updateLeaveType = async (req, res) => {
+    const conn = await pool.getConnection();
     try {
         const { id } = req.params;
         const { name, entitlement_days, is_active } = req.body || {};
 
-        await pool.execute(
+        await conn.beginTransaction();
+
+        console.log(`[updateLeaveType] Received request for ID ${id}:`, { name, entitlement_days, is_active });
+
+        // Get old entitlement to calculate difference
+        const [[oldType]] = await conn.execute(
+            "SELECT entitlement_days FROM leave_types WHERE id = ?",
+            [id]
+        );
+
+        if (!oldType) {
+            return res.status(404).json({ message: "Leave type not found" });
+        }
+
+        const oldEntitlement = Number(oldType.entitlement_days);
+        const newEntitlement = Number(entitlement_days);
+        const difference = newEntitlement - oldEntitlement;
+
+        console.log(`[updateLeaveType] Calculated:`, { oldEntitlement, newEntitlement, difference });
+
+        // Update leave_types table
+        await conn.execute(
             "UPDATE leave_types SET name = ?, entitlement_days = ?, is_active = ? WHERE id = ?",
             [name, entitlement_days, is_active ?? 1, id]
         );
 
+        // Sync all employee balances for current year if entitlement changed
+        if (difference !== 0) {
+            const currentYear = new Date().getFullYear();
+
+            // Update entitlement and recalculate balance based on used days
+            // Formula: balance = entitlement - used
+            await conn.execute(
+                `UPDATE leave_balances 
+                 SET entitlement = ?, 
+                     balance = ? - used,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE leave_type_id = ? AND year = ?`,
+                [newEntitlement, newEntitlement, id, currentYear]
+            );
+
+            console.log(`[updateLeaveType] Synced balances for leave_type_id ${id}: ${oldEntitlement} → ${newEntitlement} days`);
+        }
+
+        await conn.commit();
+
+        // Audit Log
+        await recordLog({
+            actorId: req.session?.user?.id,
+            action: `Updated leave type: ${name} (entitlement: ${oldEntitlement} → ${newEntitlement})`,
+            category: "System",
+            status: "Success",
+            details: { id, name, oldEntitlement, newEntitlement, difference }
+        });
+
         return res.json({ message: "Leave type updated successfully" });
     } catch (e) {
+        await conn.rollback();
         console.error("updateLeaveType error:", e);
         return res.status(500).json({ message: "Failed to update leave type" });
+    } finally {
+        conn.release();
     }
 };
 

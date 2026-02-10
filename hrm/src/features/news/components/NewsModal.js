@@ -6,7 +6,7 @@ export default function NewsModal({ isOpen, onClose, onSave, initialData = null 
     const [formData, setFormData] = useState({
         title: "",
         content: "",
-        is_published: false,
+        is_published: true,
         post_type: "text",
     });
     const [imageFile, setImageFile] = useState(null);
@@ -26,7 +26,7 @@ export default function NewsModal({ isOpen, onClose, onSave, initialData = null 
             setImageFile(null);
             setRemoveImage(false);
         } else {
-            setFormData({ title: "", content: "", is_published: false, post_type: "text" });
+            setFormData({ title: "", content: "", is_published: true, post_type: "text" });
             setImagePreview(null);
             setImageFile(null);
             setRemoveImage(false);
@@ -153,6 +153,31 @@ export default function NewsModal({ isOpen, onClose, onSave, initialData = null 
                             className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-[13px] font-medium text-slate-700 placeholder:text-slate-300 focus:ring-4 focus:ring-customRed/5 focus:border-customRed/30 focus:bg-white transition-all outline-none resize-none"
                             placeholder={formData.post_type === 'text' ? "What's the update?" : "Add context..."}
                         />
+                    </div>
+
+                    {/* Publish Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-200">
+                        <div>
+                            <label className="text-sm font-bold text-slate-700 cursor-pointer">
+                                Publish Immediately
+                            </label>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                {formData.is_published ? 'News will be visible to all employees' : 'Save as draft for later'}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, is_published: !formData.is_published })}
+                            className={`relative w-14 h-7 rounded-full transition-all duration-300 ${formData.is_published
+                                ? 'bg-customRed shadow-lg shadow-red-500/30'
+                                : 'bg-slate-300'
+                                }`}
+                        >
+                            <span
+                                className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${formData.is_published ? 'translate-x-7' : 'translate-x-0'
+                                    }`}
+                            />
+                        </button>
                     </div>
 
                     {/* Enhanced Image field */}

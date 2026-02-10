@@ -124,12 +124,17 @@ export default function LeavePage() {
             } else {
                 await createLeaveType(typeFormData);
             }
-            alert("Leave type saved");
+            toast.success("Leave type saved successfully");
             setShowTypeForm(false);
             setTypeFormData({ id: null, name: "", entitlement_days: "" });
-            getLeaveTypes().then(setLeaveTypes);
+
+            // Refresh both leave types and balances
+            await Promise.all([
+                getLeaveTypes().then(setLeaveTypes),
+                getLeaveBalances().then(setBalances)
+            ]);
         } catch (e) {
-            alert("Failed to save leave type");
+            toast.error("Failed to save leave type");
         }
     };
 
@@ -180,9 +185,12 @@ export default function LeavePage() {
                                             <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider truncate mb-1" title={b.leave_type_name}>
                                                 {b.leave_type_name}
                                             </div>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-2xl font-black text-slate-800">{Number(b.balance)}</span>
-                                                <span className="text-[10px] text-slate-400 font-medium">/{Number(b.entitlement)}</span>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-2xl font-black text-slate-800">{Number(b.entitlement)}</span>
+                                                <span className="text-xs text-slate-500 font-medium">Days Total</span>
+                                            </div>
+                                            <div className="text-xs text-slate-600 mt-1">
+                                                <span className="font-semibold text-emerald-600">{Number(b.balance)}</span> available
                                             </div>
                                             <div className="mt-2 h-1 w-full bg-slate-50 rounded-full overflow-hidden">
                                                 <div
