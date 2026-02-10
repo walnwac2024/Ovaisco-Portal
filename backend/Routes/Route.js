@@ -218,10 +218,10 @@ router.get("/leaves/summary/stats", isAuthenticated, Leave.getLeaveDashboardStat
 
 // News routes
 router.get("/news", isAuthenticated, News.listNews);
+router.get("/news/reactions", isAuthenticated, News.getNewsReactions);
 router.post("/news", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), upload.single('image'), News.createNews);
+router.post("/news/:id/react", isAuthenticated, News.toggleReaction);
 router.patch("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), upload.single('image'), News.updateNews);
 router.delete("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.deleteNews);
-router.get("/news/reactions", isAuthenticated, News.getNewsReactions);
-router.post("/news/:id/react", isAuthenticated, News.toggleReaction);
 
 module.exports = router;
