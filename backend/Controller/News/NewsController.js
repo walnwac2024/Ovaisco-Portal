@@ -224,7 +224,7 @@ async function toggleReaction(req, res) {
     try {
         // Check if reaction exists
         const [existing] = await pool.execute(
-            "SELECT id FROM news_reactions WHERE news_id = ? AND user_id = ? AND emoji = ?",
+            "SELECT id FROM news_reactions WHERE news_id = ? AND user_id = ? AND emoji COLLATE utf8mb4_unicode_ci = ?",
             [newsId, userId, emoji]
         );
 
