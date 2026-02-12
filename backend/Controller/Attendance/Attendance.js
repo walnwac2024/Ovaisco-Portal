@@ -359,9 +359,15 @@ const punch = async (req, res) => {
 
     let isInside = false;
     let distToTarget = Infinity;
+    const officeLat = Number(targetOffice.latitude);
+    const officeLng = Number(targetOffice.longitude);
 
-    if (latitude && longitude && targetOffice.latitude && targetOffice.longitude) {
-      distToTarget = calculateDistance(latitude, longitude, Number(targetOffice.latitude), Number(targetOffice.longitude));
+    // ✅ SOLUTION: If office has no coordinates, BYPASS Geofence (Smart Bypass)
+    if (!officeLat || !officeLng) {
+      isInside = true;
+      console.log(`[Attendance] Geofence BYPASS for office: ${targetOffice.name} (No coordinates)`);
+    } else if (latitude && longitude) {
+      distToTarget = calculateDistance(latitude, longitude, officeLat, officeLng);
       if (distToTarget <= (targetOffice.allowed_radius_meters || 200)) {
         isInside = true;
       }
@@ -946,6 +952,40 @@ const getMonthlyReportAll = async (req, res) => {
   }
 };
 
+/**
+ * GET /attendance/audit-locations
+ * List all punches with GPS coordinates for HR audit
+ */
+const listLocationAudit = async (req, res) => {
+  try {
+    const user = req.session?.user;
+    if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+    const [rows] = await pool.execute(`
+      SELECT 
+        ap.id,
+        ap.punched_at,
+        ap.punch_type,
+        ap.latitude,
+        ap.longitude,
+        ap.distance_from_office,
+        e.Employee_Name as name,
+        e.Employee_ID as employeeCode,
+        o.name as officeName
+      FROM attendance_punches ap
+      JOIN employee_records e ON ap.employee_id = e.id
+      JOIN offices o ON ap.office_id = o.id
+      ORDER BY ap.punched_at DESC
+      LIMIT 100
+    `);
+
+    return res.json(rows);
+  } catch (e) {
+    console.error("listLocationAudit error:", e);
+    return res.status(500).json({ message: "Failed to load location audit data" });
+  }
+};
+
 module.exports = {
   listOffices,
   getToday,
@@ -954,4 +994,5 @@ module.exports = {
   getPersonalSummary,
   getMonthlyReport,
   getMonthlyReportAll,
+  listLocationAudit,
 };

@@ -16,6 +16,7 @@ export default function DashboardTabsLayout() {
     { label: "Permissions", to: "/dashboard/permissions", adminOnly: true },
     { label: "Logs", to: "/dashboard/logs", adminOnly: true },
     { label: "Branding", to: "/dashboard/branding", adminOnly: true },
+    { label: "Leaderboard", to: "/dashboard/leaderboard" },
   ];
 
   // Filter tabs: Show if Admin OR has the specific feature code

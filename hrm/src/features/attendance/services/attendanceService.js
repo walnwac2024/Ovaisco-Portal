@@ -95,3 +95,8 @@ export async function getMonthlyAttendanceReport(params) {
   const { data } = await api.get("/attendance/report/monthly", { params });
   return data;
 }
+
+export async function getAuditLocations() {
+  const { data } = await api.get("/attendance/audit-locations");
+  return data;
+}

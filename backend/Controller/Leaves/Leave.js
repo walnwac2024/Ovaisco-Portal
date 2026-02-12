@@ -110,12 +110,13 @@ const applyLeave = async (req, res) => {
             // Notify Manager (Approver)
             if (approverId && approverId !== user.id) {
                 await pool.execute(
-                    `INSERT INTO notifications (user_id, title, message, type, created_at)
-                     VALUES (?, ?, ?, 'Leave', NOW())`,
+                    `INSERT INTO notifications (user_id, title, message, type, reference_id, created_at)
+                     VALUES (?, ?, ?, 'Leave', ?, NOW())`,
                     [
                         approverId,
                         "New Leave Request",
                         `${user.name} has requested leave for ${total_days} days.`,
+                        applicationId
                     ]
                 );
 
@@ -140,14 +141,15 @@ const applyLeave = async (req, res) => {
                 "New Leave Request",
                 `${user.name} has requested leave for ${total_days} days.`,
                 "Leave",
+                applicationId,
                 new Date()
             ]);
 
             if (adminValues.length > 0) {
-                const query = "INSERT INTO notifications (user_id, title, message, type, created_at) VALUES ?";
+                const query = "INSERT INTO notifications (user_id, title, message, type, reference_id, created_at) VALUES ?";
                 for (const row of adminValues) {
                     await pool.execute(
-                        `INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, ?)`,
+                        `INSERT INTO notifications (user_id, title, message, type, reference_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
                         row
                     );
 
@@ -534,6 +536,79 @@ const getLeaveDashboardStats = async (req, res) => {
     }
 };
 
+/**
+ * DELETE /leaves/:id
+ * Only for 'pending' status
+ */
+const deleteLeaveApplication = async (req, res) => {
+    const conn = await pool.getConnection();
+    try {
+        const { id } = req.params;
+        const user = req.session?.user;
+        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
+
+        await conn.beginTransaction();
+
+        // 1. Check existence and status
+        const [[la]] = await conn.execute(
+            "SELECT employee_id, status FROM leave_applications WHERE id = ?",
+            [id]
+        );
+
+        if (!la) {
+            return res.status(404).json({ message: "Leave application not found" });
+        }
+
+        // 2. ONLY PENDING leaves can be deleted
+        if (la.status !== 'pending') {
+            return res.status(400).json({ message: `Cannot delete a leave that is already ${la.status}.` });
+        }
+
+        // 3. Check ownership or admin rights
+        const isAdmin = ["super_admin", "admin", "hr", "developer"].includes(String(user?.role || "").toLowerCase());
+        if (la.employee_id !== user.id && !isAdmin) {
+            return res.status(403).json({ message: "You are not authorized to delete this application." });
+        }
+
+        // 4. Delete associated records
+        await conn.execute(
+            "DELETE FROM approvals WHERE approvable_type = 'Leave' AND approvable_id = ?",
+            [id]
+        );
+
+        // Cleanup notifications
+        await conn.execute(
+            "DELETE FROM notifications WHERE type = 'Leave' AND reference_id = ?",
+            [id]
+        );
+
+        // 5. Delete application
+        await conn.execute(
+            "DELETE FROM leave_applications WHERE id = ?",
+            [id]
+        );
+
+        await conn.commit();
+
+        // Audit Log for Deleting Leave
+        await recordLog({
+            actorId: user.id,
+            action: `Deleted pending leave application (ID: ${id})`,
+            category: "System",
+            status: "Success",
+            details: { applicationId: id, employee_id: la.employee_id }
+        });
+
+        return res.json({ message: "Leave application deleted successfully" });
+    } catch (e) {
+        await conn.rollback();
+        console.error("deleteLeaveApplication error:", e);
+        return res.status(500).json({ message: "Failed to delete leave application" });
+    } finally {
+        conn.release();
+    }
+};
+
 module.exports = {
     getLeaveTypes,
     applyLeave,
@@ -545,4 +620,5 @@ module.exports = {
     deleteLeaveType,
     getLeaveBalances,
     getLeaveDashboardStats,
+    deleteLeaveApplication,
 };

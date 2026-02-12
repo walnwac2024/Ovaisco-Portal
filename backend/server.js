@@ -188,7 +188,7 @@ app.use("/api/v1", routes);
 const buildPath = path.join(__dirname, "../hrm/build");
 app.use(express.static(buildPath));
 
-app.get("*any", (req, res) => {
+app.use((req, res) => {
   if (req.path.startsWith("/api/v1")) {
     return res.status(404).json({ message: "API endpoint not found" });
   }

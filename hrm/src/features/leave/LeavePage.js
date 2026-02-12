@@ -13,7 +13,8 @@ import {
     approveLeaveAdmin,
     createLeaveType,
     updateLeaveType,
-    deleteLeaveType
+    deleteLeaveType,
+    deleteLeaveApplication
 } from "./services/leaveService";
 
 export default function LeavePage() {
@@ -148,6 +149,18 @@ export default function LeavePage() {
         }
     };
 
+    const handleDeleteLeave = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this leave application?")) return;
+        try {
+            await deleteLeaveApplication(id);
+            toast.success("Leave application deleted");
+            getMyLeaves().then(setMyLeaves);
+            getLeaveBalances().then(setBalances);
+        } catch (e) {
+            toast.error(e.response?.data?.message || "Failed to delete leave application");
+        }
+    };
+
     return (
         <div className="flex flex-col lg:flex-row gap-6">
             <LeaveSidebar
@@ -235,13 +248,22 @@ export default function LeavePage() {
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-4 text-slate-600 font-bold">{l.total_days}</td>
-                                                    <td className="px-4 py-4">
+                                                    <td className="px-4 py-4 flex items-center gap-2">
                                                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${l.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm shadow-emerald-50' :
                                                             l.status === 'rejected' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
                                                                 'bg-amber-50 text-amber-600 border border-amber-100 animate-pulse'
                                                             }`}>
                                                             {l.status}
                                                         </span>
+                                                        {l.status === 'pending' && (
+                                                            <button
+                                                                onClick={() => handleDeleteLeave(l.id)}
+                                                                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                                                title="Delete applied leave"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}

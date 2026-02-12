@@ -50,3 +50,8 @@ export async function getLeaveDashboardStats() {
     const { data } = await api.get("/leaves/summary/stats");
     return data;
 }
+
+export async function deleteLeaveApplication(id) {
+    const { data } = await api.delete(`/leaves/${id}`);
+    return data;
+}

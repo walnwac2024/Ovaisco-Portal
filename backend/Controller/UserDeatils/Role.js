@@ -238,20 +238,15 @@ async function getDashboard(req, res) {
       });
     }
 
-    // Default User / Basic Employee
-    let teamQuery = `
-      SELECT ${BASE_EMP_FIELDS}, ad.status AS attendance_status
-      FROM employee_records e
-      LEFT JOIN attendance_daily ad ON ad.employee_id = e.id AND ad.attendance_date = CURDATE()
-      WHERE e.is_active = 1 AND e.id != ?`;
-    let teamParams = [userId];
-    if (myDept) {
-      teamQuery += " AND e.Department = ?";
-      teamParams.push(myDept);
-    }
-    teamQuery += " LIMIT 10";
-
-    const [team] = await pool.query(teamQuery, teamParams);
+    // Default User / Basic Employee - Show full team like admin/hr
+    const [team] = await pool.query(
+      `SELECT ${BASE_EMP_FIELDS}, ad.status AS attendance_status
+       FROM employee_records e
+       LEFT JOIN attendance_daily ad ON ad.employee_id = e.id AND ad.attendance_date = CURDATE()
+       WHERE e.is_active = 1 AND e.id != ?
+       ORDER BY e.id DESC LIMIT 25`,
+      [userId]
+    );
 
     return res.json({
       role,

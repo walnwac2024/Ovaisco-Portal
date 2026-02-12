@@ -31,6 +31,7 @@ const SystemSettingsPage = lazy(() => import("./features/settings/SystemSettings
 const ComingSoon = lazy(() => import("./components/common/ComingSoon"));
 const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
 const PerformancePage = lazy(() => import("./features/performance/PerformancePage"));
+const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPage"));
 
 const ThemeToggle = lazy(() => import("./components/common/ThemeToggle"));
 
@@ -108,6 +109,7 @@ export default function App() {
                   <Route path="permissions" element={<PermissionsPage />} />
                   <Route path="logs" element={<LogsPage />} />
                   <Route path="branding" element={<BrandingPage />} />
+                  <Route path="leaderboard" element={<LeaderboardPage />} />
                 </Route>
 
                 {/* Other top-level pages */}

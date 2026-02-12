@@ -26,6 +26,7 @@ const Audit = require("../Controller/Audit/AuditController");
 const Timeline = require("../Controller/Employees/TimelineController");
 const Settings = require("../Controller/Settings/SettingsController");
 const SystemSettings = require("../Controller/Settings/SystemSettingsController");
+const Gamification = require("../Controller/Gamification/GamificationController");
 
 
 const {
@@ -187,6 +188,7 @@ router.get("/attendance/admin/missing", isAuthenticated, Attendance.adminMissing
 router.get("/attendance/summary/personal", isAuthenticated, Attendance.getPersonalSummary);
 router.get("/attendance/report/monthly/all", isAuthenticated, Attendance.getMonthlyReportAll); // ✅ BULK EXPORT
 router.get("/attendance/report/monthly", isAuthenticated, Attendance.getMonthlyReport);
+router.get("/attendance/audit-locations", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Attendance.listLocationAudit);
 
 // Attendance Settings
 router.get("/attendance/settings/shifts", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), AttendanceSettings.getShifts);
@@ -215,6 +217,7 @@ router.post("/leaves/types", isAuthenticated, requireRole("super_admin", "admin"
 router.patch("/leaves/types/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Leave.updateLeaveType);
 router.delete("/leaves/types/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Leave.deleteLeaveType);
 router.get("/leaves/summary/stats", isAuthenticated, Leave.getLeaveDashboardStats);
+router.delete("/leaves/:id", isAuthenticated, Leave.deleteLeaveApplication);
 
 // News routes
 router.get("/news", isAuthenticated, News.listNews);
@@ -223,5 +226,10 @@ router.post("/news", isAuthenticated, requireRole("hr", "admin", "super_admin", 
 router.post("/news/:id/react", isAuthenticated, News.toggleReaction);
 router.patch("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), upload.single('image'), News.updateNews);
 router.delete("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.deleteNews);
+
+// Gamification routes
+router.get("/gamification/leaderboard", isAuthenticated, Gamification.getLeaderboard);
+router.get("/gamification/badges/me", isAuthenticated, Gamification.getMyBadges);
+router.get("/gamification/badges/:employeeId", isAuthenticated, Gamification.getEmployeeBadges);
 
 module.exports = router;

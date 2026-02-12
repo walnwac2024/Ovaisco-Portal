@@ -8,6 +8,7 @@ export const ATTENDANCE_NAV = [
   { id: 'amend-attendance', label: 'Amend Attendance', status: 'working' },
   { id: 'amend-employee-shift', label: 'Amend Employee Shift', status: 'working' },
   { id: 'attendance-approval', label: 'Attendance Approval', status: 'working' },
+  { id: 'location-audit', label: 'Punch Locations' },
   { id: 'attendance-settings', label: 'Attendance Settings', active: true },
 ];
 

@@ -19,6 +19,7 @@ import AddShiftModal from './components/AddShiftModal';
 import ApprovalFilters from './components/ApprovalFilters';
 import AttendanceApprovalTable from './components/AttendanceApprovalTable';
 import ApprovalViewModal from './components/ApprovalViewModal';
+import LocationAuditTable from './components/LocationAuditTable';
 
 import useAttendanceRequests from './hooks/useAttendanceRequests';
 import { ATTENDANCE_NAV } from './constants';
@@ -172,6 +173,7 @@ export default function AttendancePage() {
     const filtered = base.filter(item => {
       if (item.id === 'attendance-settings') return features.includes('attendance_settings');
       if (item.id === 'attendance-approval') return features.includes('attendance_edit');
+      if (item.id === 'location-audit') return features.includes('attendance_edit');
       return features.includes('attendance_view');
     });
 
@@ -359,6 +361,10 @@ export default function AttendancePage() {
                     onDownload={(row) => handleApprovalAction('download', row)}
                   />
                 </>
+              )}
+
+              {activeId === 'location-audit' && (
+                <LocationAuditTable />
               )}
 
               {activeId === 'attendance-settings' && (
