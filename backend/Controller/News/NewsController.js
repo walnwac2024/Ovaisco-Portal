@@ -286,6 +286,92 @@ async function getNewsReactions(req, res) {
     }
 }
 
+/**
+ * GET /api/v1/news/:id/comments
+ */
+async function listComments(req, res) {
+    const { id: newsId } = req.params;
+    try {
+        const query = `
+            SELECT c.*, e.Employee_Name as author_name, e.profile_img
+            FROM news_comments c
+            LEFT JOIN employee_records e ON c.user_id = e.id
+            WHERE c.news_id = ?
+            ORDER BY c.created_at ASC
+        `;
+        const [rows] = await pool.execute(query, [newsId]);
+        return res.json(rows);
+    } catch (err) {
+        console.error("listComments error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+}
+
+/**
+ * POST /api/v1/news/:id/comments
+ */
+async function addComment(req, res) {
+    const { id: newsId } = req.params;
+    const { comment } = req.body;
+    const userId = req.session?.user?.id;
+
+    if (!comment) return res.status(400).json({ message: "Comment is required" });
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+        const [result] = await pool.execute(
+            "INSERT INTO news_comments (news_id, user_id, comment) VALUES (?, ?, ?)",
+            [newsId, userId, comment]
+        );
+
+        // Emit socket event for real-time updates
+        if (req.io) {
+            req.io.emit("news_comment_updated", { newsId });
+        }
+
+        return res.status(201).json({ message: "Comment added", id: result.insertId });
+    } catch (err) {
+        console.error("addComment error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+}
+
+/**
+ * DELETE /api/v1/news/comments/:commentId
+ */
+async function deleteComment(req, res) {
+    const { commentId } = req.params;
+    const userId = req.session?.user?.id;
+    const user = req.session?.user || {};
+    const userRoles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
+    const isAdmin = userRoles.some(r => ["admin", "super_admin", "hr", "developer"].includes(String(r).toLowerCase()));
+
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+        // Fetch comment to check ownership
+        const [rows] = await pool.execute("SELECT user_id, news_id FROM news_comments WHERE id = ?", [commentId]);
+        if (rows.length === 0) return res.status(404).json({ message: "Comment not found" });
+
+        const comment = rows[0];
+        if (comment.user_id !== userId && !isAdmin) {
+            return res.status(403).json({ message: "Forbidden: You cannot delete this comment" });
+        }
+
+        await pool.execute("DELETE FROM news_comments WHERE id = ?", [commentId]);
+
+        // Emit socket event
+        if (req.io) {
+            req.io.emit("news_comment_updated", { newsId: comment.news_id });
+        }
+
+        return res.json({ message: "Comment deleted" });
+    } catch (err) {
+        console.error("deleteComment error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+}
+
 module.exports = {
     listNews,
     createNews,
@@ -293,4 +379,7 @@ module.exports = {
     deleteNews,
     toggleReaction,
     getNewsReactions,
+    listComments,
+    addComment,
+    deleteComment,
 };

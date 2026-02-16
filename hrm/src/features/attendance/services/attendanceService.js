@@ -1,5 +1,5 @@
 // src/features/attendance/services/attendanceService.js
-import api from "../../../utils/api";
+import api, { BASE_URL } from "../../../utils/api";
 
 // ---- existing demo for Attendance Requests (keep it) ----
 const demoRows = [
@@ -38,7 +38,8 @@ export async function punchAttendance({
   note,
   clientTime,
   latitude,
-  longitude
+  longitude,
+  photo
 }) {
   const { data } = await api.post("/attendance/punch", {
     office_id,
@@ -48,6 +49,7 @@ export async function punchAttendance({
     clientTime,
     latitude,
     longitude,
+    photo
   });
   return data;
 }
@@ -99,4 +101,15 @@ export async function getMonthlyAttendanceReport(params) {
 export async function getAuditLocations() {
   const { data } = await api.get("/attendance/audit-locations");
   return data;
+}
+
+export async function getAttendanceLogs(date) {
+  const { data } = await api.get("/attendance/logs", {
+    params: { date },
+  });
+  return data;
+}
+
+export function getAttendanceLogsExcelUrl(date) {
+  return `${BASE_URL}/api/v1/attendance/logs?date=${date}&format=excel`;
 }

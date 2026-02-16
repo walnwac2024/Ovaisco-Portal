@@ -81,6 +81,7 @@ app.use(
 
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://127.0.0.1:3000",
   "http://propeople.cloud",
   "https://propeople.cloud",
   "http://api.propeople.cloud",
@@ -174,8 +175,14 @@ app.use("/api/v1", (req, res, next) => {
   const isPublic = publicPaths.some((p) => req.path.startsWith(p));
   if (isPublic) return next();
 
-  // Exempt marking notifications as read from CSRF as it's low risk and causing 403s
-  if (req.method === "PATCH" && req.path.match(/^\/notifications\/[^\/]+\/read$/)) {
+  // Exempt specific routes from CSRF
+  // Using originalUrl to be safe as req.path might vary by mount point
+  const pathForCsrf = req.originalUrl || req.url;
+  const isExempt =
+    (req.method === "PATCH" && pathForCsrf.includes("/notifications/") && pathForCsrf.endsWith("/read")) ||
+    pathForCsrf.includes("/attendance/punch");
+
+  if (isExempt) {
     return next();
   }
 

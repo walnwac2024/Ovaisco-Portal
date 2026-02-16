@@ -2,6 +2,9 @@ const { pool } = require("../../Utils/db");
 const { recordLog } = require("../../Utils/AuditUtils");
 const https = require("https");
 const xlsx = require('xlsx');
+const fs = require('fs');
+const path = require('path');
+console.log('[Attendance] fs and path modules loaded:', !!fs, !!path);
 
 /**
  * Fetch real network time to prevent system clock manipulation
@@ -254,7 +257,7 @@ const punch = async (req, res) => {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id) return res.status(401).json({ message: "Unauthenticated" });
 
-    const { office_id, punch_type, employee_id, note, clientTime, latitude, longitude } = req.body || {};
+    const { office_id, punch_type, employee_id, note, clientTime, latitude, longitude, photo } = req.body || {};
 
     if (!office_id) return res.status(400).json({ message: "office_id is required" });
     if (!punch_type || !["IN", "OUT"].includes(punch_type)) {
@@ -349,6 +352,29 @@ const punch = async (req, res) => {
       }
     }
 
+    // --- SECURITY CHECK 4: LIVE PHOTO VERIFICATION ---
+    // User requested mandatory photo for security
+    if (!photo && !isAdminLike(sessionUser)) {
+      return res.status(400).json({ message: "Live photo is required to mark attendance. Access to camera is mandatory." });
+    }
+
+    let photoPath = null;
+    if (photo) {
+      try {
+        const base64Data = photo.replace(/^data:image\/\w+;base64,/, "");
+        const extMatch = photo.match(/^data:image\/(\w+);base64,/);
+        const ext = (extMatch && extMatch[1]) || 'png';
+        const buffer = Buffer.from(base64Data, "base64");
+        const filename = `punch-${targetEmployeeId}-${Date.now()}.${ext}`;
+        const dir = path.join(__dirname, "..", "..", "uploads", "attendance");
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        photoPath = `uploads/attendance/${filename}`;
+        fs.writeFileSync(path.join(__dirname, "..", "..", photoPath), buffer);
+      } catch (err) {
+        console.error("Failed to save punch photo:", err);
+      }
+    }
+
     // --- GPS VALIDATION ---
     const [allOffices] = await conn.execute(
       "SELECT id, name, latitude, longitude, allowed_radius_meters FROM offices WHERE is_active = 1"
@@ -416,9 +442,9 @@ const punch = async (req, res) => {
     await conn.execute(
       `
       INSERT INTO attendance_punches
-        (employee_id, office_id, punch_type, punched_at, source, marked_by_employee_id, note, latitude, longitude, distance_from_office, matched_office_id)
+        (employee_id, office_id, punch_type, punched_at, source, marked_by_employee_id, note, latitude, longitude, distance_from_office, matched_office_id, punch_photo)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         targetEmployeeId,
@@ -432,6 +458,7 @@ const punch = async (req, res) => {
         longitude || null,
         isInside ? distToTarget : null,
         isInside ? targetOffice.id : null,
+        photoPath
       ]
     );
 
@@ -490,11 +517,12 @@ const punch = async (req, res) => {
         UPDATE attendance_daily
         SET first_in = ?,
             office_id_first_in = ?,
+            photo_in = ?,
             late_minutes = ?,
             status = ?
         WHERE id = ?
         `,
-        [now, Number(office_id), lateMinutes, status, daily.id]
+        [now, Number(office_id), photoPath, lateMinutes, status, daily.id]
       );
     } else {
       if (!daily.first_in) {
@@ -516,11 +544,12 @@ const punch = async (req, res) => {
         UPDATE attendance_daily
         SET last_out = ?,
             office_id_last_out = ?,
+            photo_out = ?,
             worked_minutes = ?,
             status = ?
         WHERE id = ?
         `,
-        [now, Number(office_id), workedMinutes, finalStatus, daily.id]
+        [now, Number(office_id), photoPath, workedMinutes, finalStatus, daily.id]
       );
     }
 
@@ -953,6 +982,112 @@ const getMonthlyReportAll = async (req, res) => {
 };
 
 /**
+ * GET /attendance/logs?date=YYYY-MM-DD&format=json|excel
+ * Returns attendance logs for all employees on a specific date
+ * Admin/HR only
+ */
+const getAttendanceLogs = async (req, res) => {
+  try {
+    const user = req.session?.user;
+    if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+    const date = req.query?.date || toYMD(new Date());
+    const format = req.query?.format || 'json';
+
+    // Fetch all active employees with their attendance for the date
+    const [rows] = await pool.execute(
+      `
+      SELECT 
+        e.id,
+        e.Employee_ID as employeeCode,
+        e.Employee_Name as employeeName,
+        e.Department as department,
+        e.Designations as designation,
+        d.attendance_date as date,
+        d.first_in as checkIn,
+        d.last_out as checkOut,
+        d.photo_in as photoIn,
+        d.photo_out as photoOut,
+        d.status,
+        d.late_minutes as lateMinutes,
+        d.worked_minutes as workedMinutes,
+        s.name as shiftName,
+        o_in.name as officeIn,
+        o_out.name as officeOut
+      FROM employee_records e
+      LEFT JOIN attendance_daily d ON d.employee_id = e.id AND d.attendance_date = ?
+      LEFT JOIN attendance_shifts s ON d.shift_id = s.id
+      LEFT JOIN offices o_in ON d.office_id_first_in = o_in.id
+      LEFT JOIN offices o_out ON d.office_id_last_out = o_out.id
+      WHERE e.is_active = 1
+      ORDER BY 
+        CASE 
+          WHEN d.first_in IS NOT NULL THEN 0
+          ELSE 1
+        END,
+        d.first_in DESC,
+        e.Employee_Name ASC
+      `,
+      [date]
+    );
+
+    // Process rows to add computed fields
+    const processedRows = rows.map(row => ({
+      ...row,
+      status: row.status || 'NOT_MARKED',
+      checkIn: row.checkIn ? new Date(row.checkIn).toLocaleTimeString('en-US', { hour12: false }) : null,
+      checkOut: row.checkOut ? new Date(row.checkOut).toLocaleTimeString('en-US', { hour12: false }) : null,
+      lateMinutes: row.lateMinutes || 0,
+      workedMinutes: row.workedMinutes || 0,
+    }));
+
+    // If Excel format requested
+    if (format === 'excel') {
+      const dataForSheet = processedRows.map(row => ({
+        "Employee Code": row.employeeCode,
+        "Employee Name": row.employeeName,
+        "Department": row.department || '',
+        "Designation": row.designation || '',
+        "Date": date,
+        "Check In": row.checkIn || '',
+        "Check Out": row.checkOut || '',
+        "Status": row.status,
+        "Late Minutes": row.lateMinutes,
+        "Worked Minutes": row.workedMinutes,
+        "Shift": row.shiftName || '',
+        "Office In": row.officeIn || '',
+        "Office Out": row.officeOut || '',
+      }));
+
+      const wb = xlsx.utils.book_new();
+      const ws = xlsx.utils.json_to_sheet(dataForSheet);
+      xlsx.utils.book_append_sheet(wb, ws, "Attendance Logs");
+
+      const buffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+
+      res.setHeader("Content-Disposition", `attachment; filename="Attendance_Logs_${date}.xlsx"`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      return res.send(buffer);
+    }
+
+    // Return JSON
+    return res.json({
+      date,
+      logs: processedRows,
+      summary: {
+        total: processedRows.length,
+        present: processedRows.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length,
+        late: processedRows.filter(r => r.status === 'LATE').length,
+        notMarked: processedRows.filter(r => r.status === 'NOT_MARKED').length,
+      }
+    });
+  } catch (e) {
+    console.error("getAttendanceLogs error:", e);
+    return res.status(500).json({ message: "Failed to load attendance logs" });
+  }
+};
+
+/**
  * GET /attendance/audit-locations
  * List all punches with GPS coordinates for HR audit
  */
@@ -994,5 +1129,6 @@ module.exports = {
   getPersonalSummary,
   getMonthlyReport,
   getMonthlyReportAll,
+  getAttendanceLogs,
   listLocationAudit,
 };

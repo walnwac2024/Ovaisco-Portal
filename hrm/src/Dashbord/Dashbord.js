@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
 import BirthdayCelebration from "../components/common/BirthdayCelebration";
 import TimeSyncModal from "../components/common/TimeSyncModal";
+import AttendancePhotoModal from "../features/attendance/components/AttendancePhotoModal";
 
 const BACKEND_URL = BASE_URL;
 
@@ -25,6 +26,19 @@ function formatTime(dt) {
   if (!dt) return "—";
   const d = new Date(dt);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatLateMinutes(minutes) {
+  if (!minutes) return "0 minutes";
+  if (minutes < 60) {
+    return `${minutes} minutes`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) {
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'} and ${remainingMinutes} ${remainingMinutes === 1 ? 'minute' : 'minutes'}`;
 }
 
 /**
@@ -105,6 +119,8 @@ export default function Dashboard() {
   const [selectedBirthday, setSelectedBirthday] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [timeSync, setTimeSync] = useState({ show: false, drift: 0 });
+  const [photoModal, setPhotoModal] = useState({ show: false, type: 'IN' });
+  const [pendingPunch, setPendingPunch] = useState(null);
 
   const kpiRows = [
     "Working Hour",
@@ -172,9 +188,16 @@ export default function Dashboard() {
       const isStaff = userRoles.some(r => ["admin", "super_admin", "hr", "developer"].includes(r));
       setNews((isStaff ? newsData : (newsData || []).filter(n => n.is_published)).slice(0, 3));
 
-      const inOfficeId = today?.attendance?.office_id_first_in;
-      if (inOfficeId) setSelectedOfficeId(String(inOfficeId));
-      else if (officeList?.length) setSelectedOfficeId(String(officeList[0].id));
+      // Only auto-set office selection on initial load, not during background refreshes
+      // This prevents resetting user's manual selection during photo capture
+      if (!silent) {
+        const inOfficeId = today?.attendance?.office_id_first_in;
+        if (inOfficeId) {
+          setSelectedOfficeId(String(inOfficeId));
+        } else if (!selectedOfficeId && officeList?.length) {
+          setSelectedOfficeId(String(officeList[0].id));
+        }
+      }
 
       // --- Proactive Time Sync Check ---
       if (today?.serverTime) {
@@ -246,13 +269,24 @@ export default function Dashboard() {
 
   const handlePunch = async (type) => {
     try {
-      setPunching(true);
-      setError("");
-
       if (!selectedOfficeId) {
         setError("Please select an office first.");
         return;
       }
+
+      setError("");
+      setPendingPunch(type);
+      setPhotoModal({ show: true, type });
+    } catch (e) {
+      setError("An unexpected error occurred.");
+    }
+  };
+
+  const onPhotoCaptured = async (photoBase64) => {
+    const type = pendingPunch;
+    try {
+      setPunching(true);
+      setError("");
 
       // 1. Get Location
       let coords = null;
@@ -265,7 +299,7 @@ export default function Dashboard() {
 
       const { latitude, longitude } = coords;
 
-      // 2. Client-side Geofence Check (Optional but helpful)
+      // 2. Client-side Geofence Check
       const office = offices.find((o) => String(o.id) === String(selectedOfficeId));
       if (office && office.latitude && office.longitude) {
         const dist = calculateDistance(
@@ -280,7 +314,7 @@ export default function Dashboard() {
             `You are not within the authorized radius for ${office.name
             }. You are approximately ${Math.round(dist)}m away.`
           );
-          return; // STOP HERE: Do not allow punching if outside
+          return;
         }
       }
 
@@ -290,6 +324,7 @@ export default function Dashboard() {
         clientTime: new Date().toISOString(),
         latitude,
         longitude,
+        photo: photoBase64, // Send Captured Photo
       });
 
       setTodayData((prev) => ({
@@ -299,14 +334,15 @@ export default function Dashboard() {
         grace_minutes: res.grace_minutes,
         attendance: res.attendance,
       }));
+      setPendingPunch(null);
     } catch (e) {
       if (e?.response?.status === 403) {
         const data = e.response.data;
         if (data.drift !== undefined) {
           setTimeSync({ show: true, drift: Math.round(data.drift) });
-          setError(`SECURITY VIOLATION: Your device time is out of sync. Please follow the instructions in the popup.`);
+          setError(`SECURITY VIOLATION: Your device time is out of sync.`);
         } else {
-          setError(data.message || "Attendance blocked due to security reasons.");
+          setError(data.message || "Attendance blocked.");
         }
       } else {
         const msg = e?.response?.data?.message || "Failed to mark attendance.";
@@ -464,7 +500,7 @@ export default function Dashboard() {
               {loadingAttendance ? "Loading attendance..." : statusText}
               {attendance?.status === "LATE" && (
                 <div className="mt-1 text-[12px] text-red-700">
-                  Late by {attendance?.late_minutes || 0} minutes
+                  Late by {formatLateMinutes(attendance?.late_minutes)}
                 </div>
               )}
             </div>
@@ -897,6 +933,16 @@ export default function Dashboard() {
         show={timeSync.show}
         drift={timeSync.drift}
         onClose={() => setTimeSync({ ...timeSync, show: false })}
+      />
+
+      <AttendancePhotoModal
+        isOpen={photoModal.show}
+        punchType={photoModal.type}
+        onClose={() => {
+          setPhotoModal({ ...photoModal, show: false });
+          setPendingPunch(null);
+        }}
+        onCapture={onPhotoCaptured}
       />
     </div>
   );

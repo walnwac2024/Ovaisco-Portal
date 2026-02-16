@@ -31,3 +31,18 @@ export const listReactions = async () => {
     const res = await api.get(`${API_URL}/reactions`);
     return res.data;
 };
+
+export const listComments = async (newsId) => {
+    const res = await api.get(`${API_URL}/${newsId}/comments`);
+    return res.data;
+};
+
+export const addComment = async (newsId, comment) => {
+    const res = await api.post(`${API_URL}/${newsId}/comments`, { comment });
+    return res.data;
+};
+
+export const deleteComment = async (commentId) => {
+    const res = await api.delete(`${API_URL}/comments/${commentId}`);
+    return res.data;
+};

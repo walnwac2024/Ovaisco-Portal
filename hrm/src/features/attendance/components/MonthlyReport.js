@@ -30,6 +30,15 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
         'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
     };
 
+    const formatLateMinutes = (minutes) => {
+        if (!minutes) return "0m";
+        if (minutes < 60) return `${minutes}m`;
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m}m`;
+    };
+
     const fetchReport = async () => {
         if (!filters.employee_id) return;
         setLoading(true);
@@ -230,7 +239,7 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {row.late_minutes ? (
                                                 <span className="text-rose-600 font-bold text-sm bg-rose-50 px-2 py-0.5 rounded">
-                                                    {row.late_minutes}m
+                                                    {formatLateMinutes(row.late_minutes)}
                                                 </span>
                                             ) : (
                                                 <span className="text-emerald-500 text-sm">—</span>

@@ -1,9 +1,9 @@
 // src/utils/api.js
 import axios from "axios";
 
-const isLocal = window.location.hostname === "localhost";
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 export const BASE_URL = isLocal
-  ? "http://localhost:5000"
+  ? `http://${window.location.hostname}:5000`
   : "https://api.propeople.cloud";
 
 const api = axios.create({

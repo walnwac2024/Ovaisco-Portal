@@ -188,6 +188,7 @@ router.get("/attendance/admin/missing", isAuthenticated, Attendance.adminMissing
 router.get("/attendance/summary/personal", isAuthenticated, Attendance.getPersonalSummary);
 router.get("/attendance/report/monthly/all", isAuthenticated, Attendance.getMonthlyReportAll); // ✅ BULK EXPORT
 router.get("/attendance/report/monthly", isAuthenticated, Attendance.getMonthlyReport);
+router.get("/attendance/logs", isAuthenticated, requireFeatures("attendance_view"), Attendance.getAttendanceLogs);
 router.get("/attendance/audit-locations", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Attendance.listLocationAudit);
 
 // Attendance Settings
@@ -226,6 +227,11 @@ router.post("/news", isAuthenticated, requireRole("hr", "admin", "super_admin", 
 router.post("/news/:id/react", isAuthenticated, News.toggleReaction);
 router.patch("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), upload.single('image'), News.updateNews);
 router.delete("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.deleteNews);
+
+// News Comments
+router.get("/news/:id/comments", isAuthenticated, News.listComments);
+router.post("/news/:id/comments", isAuthenticated, News.addComment);
+router.delete("/news/comments/:commentId", isAuthenticated, News.deleteComment);
 
 // Gamification routes
 router.get("/gamification/leaderboard", isAuthenticated, Gamification.getLeaderboard);

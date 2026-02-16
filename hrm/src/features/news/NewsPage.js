@@ -4,6 +4,7 @@ import { listNews, createNews, updateNews, deleteNews, toggleReaction, listReact
 import { BASE_URL } from "../../utils/api";
 import socket from "../../utils/socket";
 import NewsModal from "./components/NewsModal";
+import NewsCommentSection from "./components/NewsCommentSection";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import { ALL_EMOJIS, EMOJI_CATEGORIES } from "./utils/emojiData";
@@ -374,6 +375,9 @@ export default function NewsPage() {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Comments Section */}
+                                <NewsCommentSection newsId={item.id} currentUser={user} />
                             </div>
                         </div>
                     ))}

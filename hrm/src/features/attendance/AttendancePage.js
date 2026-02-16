@@ -20,8 +20,11 @@ import ApprovalFilters from './components/ApprovalFilters';
 import AttendanceApprovalTable from './components/AttendanceApprovalTable';
 import ApprovalViewModal from './components/ApprovalViewModal';
 import LocationAuditTable from './components/LocationAuditTable';
+import AttendanceLogsTable from './components/AttendanceLogsTable';
+import AttendanceLogsFilters from './components/AttendanceLogsFilters';
 
 import useAttendanceRequests from './hooks/useAttendanceRequests';
+import useAttendanceLogs from './hooks/useAttendanceLogs';
 import { ATTENDANCE_NAV } from './constants';
 
 // ✅ Real settings UI
@@ -174,6 +177,7 @@ export default function AttendancePage() {
       if (item.id === 'attendance-settings') return features.includes('attendance_settings');
       if (item.id === 'attendance-approval') return features.includes('attendance_edit');
       if (item.id === 'location-audit') return features.includes('attendance_edit');
+      if (item.id === 'attendance-logs') return features.includes('attendance_view');
       return features.includes('attendance_view');
     });
 
@@ -187,6 +191,14 @@ export default function AttendancePage() {
   const [modal, setModal] = useState(null);
   const [perPage, setPerPage] = useState(10);
   const { rows, applyFilters } = useAttendanceRequests({});
+
+  // Attendance Logs state
+  const [logsDate, setLogsDate] = useState(new Date().toISOString().split('T')[0]);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const { logs, summary, loading: logsLoading, downloadExcel } = useAttendanceLogs({
+    date: logsDate,
+    autoRefresh
+  });
 
   const [remoteRows, setRemoteRows] = useState([]);
   const [shiftRows, setShiftRows] = useState([]);
@@ -365,6 +377,20 @@ export default function AttendancePage() {
 
               {activeId === 'location-audit' && (
                 <LocationAuditTable />
+              )}
+
+              {activeId === 'attendance-logs' && (
+                <>
+                  <AttendanceLogsFilters
+                    date={logsDate}
+                    onDateChange={setLogsDate}
+                    onDownloadExcel={downloadExcel}
+                    autoRefresh={autoRefresh}
+                    onAutoRefreshChange={setAutoRefresh}
+                    summary={summary}
+                  />
+                  <AttendanceLogsTable rows={logs} loading={logsLoading} />
+                </>
               )}
 
               {activeId === 'attendance-settings' && (
