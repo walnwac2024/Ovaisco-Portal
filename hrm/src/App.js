@@ -32,8 +32,8 @@ const ComingSoon = lazy(() => import("./components/common/ComingSoon"));
 const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
 const PerformancePage = lazy(() => import("./features/performance/PerformancePage"));
 const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPage"));
+const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
 
-const ThemeToggle = lazy(() => import("./components/common/ThemeToggle"));
 
 // Loading component
 const LoadingFallback = () => (
@@ -79,7 +79,6 @@ export default function App() {
         <ThemeProvider>
           <ToastContainer position="top-right" autoClose={3000} />
           <Suspense fallback={<LoadingFallback />}>
-            <ThemeToggle />
             <Routes>
               {/* Public */}
               <Route

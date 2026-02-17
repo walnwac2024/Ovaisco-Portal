@@ -9,7 +9,7 @@ async function listNews(req, res) {
     try {
         const user = req.session?.user || {};
         const userRoles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
-        const isAdmin = userRoles.some(r => ["admin", "super_admin", "hr", "developer"].includes(String(r).toLowerCase()));
+        const isAdmin = userRoles.some(r => ["admin", "super_admin", "hr", "developer"].includes(String(r).toLowerCase())) || (Array.isArray(user.features) && user.features.includes("news_manage"));
 
         let query = `
             SELECT n.*, e.Employee_Name as author_name 

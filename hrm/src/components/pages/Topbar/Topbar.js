@@ -19,6 +19,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
+import ThemeToggle from "../../common/ThemeToggle";
 import api, { BASE_URL } from "../../../utils/api";
 
 // Map backend keys -> route + icon + fallback label
@@ -31,7 +32,7 @@ const TAB_META = {
   leave: { to: "/leave", Icon: FaCalendarCheck, label: "Leave" },
   attendance: { to: "/attendance", Icon: FaClock, label: "Attendance" },
   performance: { to: "/performance", Icon: FaChartLine, label: "Performance", isComingSoon: true },
-  payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll", isComingSoon: true },
+  payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll" },
   reports: { to: "/reports", Icon: FaChartBar, label: "Reports" },
   permissions: { to: "/dashboard/permissions", Icon: FaShieldAlt, label: "Permissions" },
   system_settings: { to: "/settings/system", Icon: FaCog, label: "Settings" },
@@ -272,9 +273,9 @@ export default function Topbar({ logoSrc }) {
             </Link>
           </div>
 
-          {/* Center: Premium Desktop Navigation (High Performance) */}
-          <nav className="hidden lg:flex items-center justify-center flex-1 mx-2 overflow-hidden">
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 px-1">
+          {/* Center: Premium Desktop Navigation */}
+          <nav className="hidden lg:flex items-center justify-center flex-1 mx-1 overflow-hidden">
+            <div className="flex items-center gap-0.5 2xl:gap-1 overflow-x-auto no-scrollbar pb-1 px-1">
               {menu.map((item) => {
                 const isActive = location.pathname.startsWith(item.to);
                 const Icon = item.Icon;
@@ -282,7 +283,7 @@ export default function Topbar({ logoSrc }) {
                   <Link
                     key={item.key}
                     to={item.to}
-                    className={`group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-200 whitespace-nowrap
+                    className={`group relative flex items-center gap-1 px-1.5 2xl:px-2 py-1.5 rounded-xl transition-all duration-200 whitespace-nowrap
                       ${isActive
                         ? "bg-customRed text-white shadow-md shadow-red-500/10 scale-[1.02] z-10"
                         : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -304,15 +305,19 @@ export default function Topbar({ logoSrc }) {
             </div>
           </nav>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-3 shrink-0 ml-1">
+          {/* Actions */}
+          <div className="flex items-center gap-1.5 2xl:gap-3 shrink-0 ml-auto">
+            <ThemeToggle />
 
             {/* Notifications */}
             <div className="relative" ref={notifyRef}>
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNotifications(!showNotifications);
+                }}
                 className={`relative p-2 rounded-xl transition-all duration-200 
-                  ${showNotifications ? "bg-customRed/10 text-customRed" : "text-slate-500 dark:text-slate-400 hover:text-customRed hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+                    ${showNotifications ? "bg-customRed/10 text-customRed" : "text-slate-500 dark:text-slate-400 hover:text-customRed hover:bg-slate-50 dark:hover:bg-slate-800"}`}
                 aria-label="Notifications"
                 type="button"
               >

@@ -66,7 +66,7 @@ const {
 } = require("../Controller/UserDeatils/PermissionController");
 
 // Middleware
-const { isAuthenticated, requireRole, requireFeatures } = require("../middlewares/middleware");
+const { isAuthenticated, requireRole, requireFeatures, requireFeaturesOrSelf } = require("../middlewares/middleware");
 
 // Multer storage for documents
 const docsDir = path.join(__dirname, "..", "uploads", "documents");
@@ -130,7 +130,7 @@ router.get("/audit/filters", isAuthenticated, requireRole("super_admin", "admin"
 
 // Settings routes
 router.get("/settings/branding", Settings.getBranding);
-router.post("/settings/branding", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.single("logo"), Settings.updateBranding);
+router.post("/settings/branding", isAuthenticated, requireFeatures("branding_manage"), upload.single("logo"), Settings.updateBranding);
 
 // System Settings routes (Dropdown Management)
 router.get("/settings/:type", isAuthenticated, SystemSettings.listSettings);
@@ -139,8 +139,8 @@ router.patch("/settings/:type/:id", isAuthenticated, requireRole("super_admin", 
 router.delete("/settings/:type/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), SystemSettings.deleteSetting);
 
 // Timeline routes
-router.get("/employees/:id/timeline", isAuthenticated, Timeline.getTimeline);
-router.post("/employees/:id/timeline", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Timeline.addEvent);
+router.get("/employees/:id/timeline", isAuthenticated, requireFeaturesOrSelf("timeline_view"), Timeline.getTimeline);
+router.post("/employees/:id/timeline", isAuthenticated, requireFeatures("timeline_manage"), Timeline.addEvent);
 
 
 // Employee routes
@@ -189,14 +189,14 @@ router.get("/attendance/summary/personal", isAuthenticated, Attendance.getPerson
 router.get("/attendance/report/monthly/all", isAuthenticated, Attendance.getMonthlyReportAll); // ✅ BULK EXPORT
 router.get("/attendance/report/monthly", isAuthenticated, Attendance.getMonthlyReport);
 router.get("/attendance/logs", isAuthenticated, requireFeatures("attendance_view"), Attendance.getAttendanceLogs);
-router.get("/attendance/audit-locations", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Attendance.listLocationAudit);
+router.get("/attendance/audit-locations", isAuthenticated, requireFeatures("attendance_audit"), Attendance.listLocationAudit);
 
 // Attendance Settings
-router.get("/attendance/settings/shifts", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), AttendanceSettings.getShifts);
-router.patch("/attendance/settings/shifts/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), AttendanceSettings.updateShift);
-router.get("/attendance/settings/rules", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), AttendanceSettings.getRules);
-router.put("/attendance/settings/rules/active", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), AttendanceSettings.updateActiveRule);
-router.post("/attendance/settings/shifts/bulk-assign", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), AttendanceSettings.bulkAssignShift);
+router.get("/attendance/settings/shifts", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.getShifts);
+router.patch("/attendance/settings/shifts/:id", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.updateShift);
+router.get("/attendance/settings/rules", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.getRules);
+router.put("/attendance/settings/rules/active", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.updateActiveRule);
+router.post("/attendance/settings/shifts/bulk-assign", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.bulkAssignShift);
 
 // Leave routes
 router.get("/leaves/types", isAuthenticated, Leave.getLeaveTypes);
@@ -221,21 +221,49 @@ router.get("/leaves/summary/stats", isAuthenticated, Leave.getLeaveDashboardStat
 router.delete("/leaves/:id", isAuthenticated, Leave.deleteLeaveApplication);
 
 // News routes
-router.get("/news", isAuthenticated, News.listNews);
-router.get("/news/reactions", isAuthenticated, News.getNewsReactions);
-router.post("/news", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), upload.single('image'), News.createNews);
-router.post("/news/:id/react", isAuthenticated, News.toggleReaction);
-router.patch("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), upload.single('image'), News.updateNews);
-router.delete("/news/:id", isAuthenticated, requireRole("hr", "admin", "super_admin", "developer"), News.deleteNews);
+router.get("/news", isAuthenticated, requireFeatures("news_view"), News.listNews);
+router.get("/news/reactions", isAuthenticated, requireFeatures("news_view"), News.getNewsReactions);
+router.post("/news", isAuthenticated, requireFeatures("news_manage"), upload.single('image'), News.createNews);
+router.post("/news/:id/react", isAuthenticated, requireFeatures("news_react"), News.toggleReaction);
+router.patch("/news/:id", isAuthenticated, requireFeatures("news_manage"), upload.single('image'), News.updateNews);
+router.delete("/news/:id", isAuthenticated, requireFeatures("news_manage"), News.deleteNews);
 
 // News Comments
-router.get("/news/:id/comments", isAuthenticated, News.listComments);
-router.post("/news/:id/comments", isAuthenticated, News.addComment);
-router.delete("/news/comments/:commentId", isAuthenticated, News.deleteComment);
+router.get("/news/:id/comments", isAuthenticated, requireFeatures("news_view"), News.listComments);
+router.post("/news/:id/comments", isAuthenticated, requireFeatures("news_comment"), News.addComment);
+router.delete("/news/comments/:commentId", isAuthenticated, requireFeatures("news_manage_comments"), News.deleteComment);
 
 // Gamification routes
 router.get("/gamification/leaderboard", isAuthenticated, Gamification.getLeaderboard);
 router.get("/gamification/badges/me", isAuthenticated, Gamification.getMyBadges);
 router.get("/gamification/badges/:employeeId", isAuthenticated, Gamification.getEmployeeBadges);
+
+// Payroll routes
+const Payroll = require("../Controller/Payroll/PayrollController");
+
+// Salary management
+router.post("/payroll/salary", isAuthenticated, requireFeatures("payroll_manage_salary"), Payroll.setSalary);
+router.get("/payroll/salary/me", isAuthenticated, requireFeatures("payroll_view_own"), Payroll.getMySalary);
+router.get("/payroll/salary/:employeeId", isAuthenticated, requireFeaturesOrSelf("payroll_view_all", "employeeId"), Payroll.getEmployeeSalary);
+
+// Increment requests (employees)
+router.post("/payroll/increment/request", isAuthenticated, requireFeatures("payroll_request_increment"), Payroll.requestIncrement);
+router.get("/payroll/increment/history/:employeeId", isAuthenticated, requireFeaturesOrSelf("payroll_view_all", "employeeId"), Payroll.getIncrementHistory);
+
+// Increment management (admin/HR)
+router.get("/payroll/increment/requests", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.getIncrementRequests);
+router.post("/payroll/increment/approve/:requestId", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.approveIncrement);
+router.post("/payroll/increment/reject/:requestId", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.rejectIncrement);
+router.post("/payroll/increment/grant", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.grantIncrement);
+router.get("/payroll/increment/reminders", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.getIncrementReminders);
+
+// Bulk Salary updates
+router.get("/payroll/salaries/all", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.listAllSalaries);
+router.post("/payroll/salaries/bulk-update", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.bulkUpdateSalaries);
+
+// Payroll calculation & history
+router.post("/payroll/calculate/:month/:year", isAuthenticated, requireFeatures("payroll_calculate"), Payroll.calculateMonthlyPayroll);
+router.get("/payroll/history", isAuthenticated, requireFeatures("payroll_view_reports"), Payroll.getPayrollHistory);
+router.get("/payroll/deductions/:month/:year", isAuthenticated, requireFeatures("payroll_view_reports"), Payroll.getDeductions);
 
 module.exports = router;

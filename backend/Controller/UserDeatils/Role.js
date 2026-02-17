@@ -35,10 +35,10 @@ function buildTabs(roleName, features) {
   add('leave', 'Leave', 'leave_view');
   add('attendance', 'Attendance', 'attendance_view');
   add('performance', 'Performance', 'performance_view');
-  add('payroll', 'Payroll', 'payroll_view');
+  add('payroll', 'Payroll', 'payroll_view_own');
   add('reports', 'Reports', 'reports_view');
   add('permissions', 'Permissions', 'permissions_edit');
-  add('system_settings', 'Settings', 'system_settings_view');
+  add('system_settings', 'Settings', 'branding_view');
 
   return tabs;
 }

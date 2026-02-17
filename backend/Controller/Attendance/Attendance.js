@@ -354,9 +354,9 @@ const punch = async (req, res) => {
 
     // --- SECURITY CHECK 4: LIVE PHOTO VERIFICATION ---
     // User requested mandatory photo for security
-    if (!photo && !isAdminLike(sessionUser)) {
-      return res.status(400).json({ message: "Live photo is required to mark attendance. Access to camera is mandatory." });
-    }
+    // if (!photo && !isAdminLike(sessionUser)) {
+    //   return res.status(400).json({ message: "Live photo is required to mark attendance. Access to camera is mandatory." });
+    // }
 
     let photoPath = null;
     if (photo) {
@@ -573,6 +573,21 @@ const punch = async (req, res) => {
       `,
       [targetEmployeeId, today]
     );
+
+    // Emit real-time event
+    if (req.io) {
+      req.io.emit("punch-recorded", {
+        id: Date.now(), // temporary or fetched if recordLog gives ID
+        punched_at: now,
+        punch_type,
+        latitude,
+        longitude,
+        distance_from_office: distToTarget === Infinity ? null : distToTarget,
+        name: sessionUser.Employee_Name,
+        employeeCode: sessionUser.Employee_ID,
+        officeName: targetOffice.name
+      });
+    }
 
     return res.json({
       message: "Punch saved",
@@ -989,7 +1004,10 @@ const getMonthlyReportAll = async (req, res) => {
 const getAttendanceLogs = async (req, res) => {
   try {
     const user = req.session?.user;
-    if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+    const features = user?.features || [];
+    if (!isAdminLike(user) && !features.includes('attendance_view_logs')) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const date = req.query?.date || toYMD(new Date());
     const format = req.query?.format || 'json';
@@ -1094,7 +1112,10 @@ const getAttendanceLogs = async (req, res) => {
 const listLocationAudit = async (req, res) => {
   try {
     const user = req.session?.user;
-    if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+    const features = user?.features || [];
+    if (!isAdminLike(user) && !features.includes('attendance_audit')) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const [rows] = await pool.execute(`
       SELECT 

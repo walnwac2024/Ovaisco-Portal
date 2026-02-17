@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
 import BirthdayCelebration from "../components/common/BirthdayCelebration";
 import TimeSyncModal from "../components/common/TimeSyncModal";
-import AttendancePhotoModal from "../features/attendance/components/AttendancePhotoModal";
+// import AttendancePhotoModal from "../features/attendance/components/AttendancePhotoModal";
 
 const BACKEND_URL = BASE_URL;
 
@@ -119,8 +119,8 @@ export default function Dashboard() {
   const [selectedBirthday, setSelectedBirthday] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [timeSync, setTimeSync] = useState({ show: false, drift: 0 });
-  const [photoModal, setPhotoModal] = useState({ show: false, type: 'IN' });
-  const [pendingPunch, setPendingPunch] = useState(null);
+  // const [photoModal, setPhotoModal] = useState({ show: false, type: 'IN' });
+  // const [pendingPunch, setPendingPunch] = useState(null);
 
   const kpiRows = [
     "Working Hour",
@@ -140,6 +140,17 @@ export default function Dashboard() {
   const attendance = todayData?.attendance || null;
   const shift = todayData?.shift || null;
   const grace = todayData?.grace_minutes ?? 15;
+
+  const hasFeature = (code) => {
+    const feats = new Set((user?.features || []).map(f => String(f).toLowerCase()));
+    return feats.has(String(code).toLowerCase());
+  };
+
+  const isAdmin = useMemo(() => {
+    const roles = (user?.roles || []).map(r => String(r).toLowerCase());
+    if (user?.role) roles.push(user.role.toLowerCase());
+    return roles.some(r => ["admin", "super_admin", "hr", "developer"].includes(r));
+  }, [user]);
 
   const canCheckIn = useMemo(() => {
     if (!attendance) return true;
@@ -166,30 +177,30 @@ export default function Dashboard() {
       if (!silent) setLoadingAttendance(true);
       setError("");
 
-      const [officeList, today, balances, stats, summaryData, dbData, newsData] = await Promise.all([
-        getAttendanceOffices(),
-        getTodayAttendance(),
-        getLeaveBalances(),
-        getLeaveDashboardStats(),
-        getPersonalAttendanceSummary(),
-        getDashboardData(),
-        listNews(),
-      ]);
+      const safeFetch = async (promise, fallback = null, featureCode = null) => {
+        if (featureCode && !hasFeature(featureCode)) {
+          return fallback;
+        }
+        try {
+          return await promise;
+        } catch (err) {
+          if (err?.response?.status === 403) {
+            console.log(`Access denied for ${featureCode || 'endpoint'}`);
+          } else {
+            console.warn("Dashboard partial fetch failed:", err?._meta?.url || "unknown", err);
+          }
+          return fallback;
+        }
+      };
 
-      setOffices(officeList);
+      // Critical basic data
+      const officeList = await safeFetch(getAttendanceOffices(), []);
+      const today = await safeFetch(getTodayAttendance(), null);
+
+      setOffices(officeList || []);
       setTodayData(today);
-      setLeaveBalances(balances);
-      setLeaveStats(stats);
-      setAttendanceSummary(summaryData.summary || []);
-      setMissingAttendance(summaryData.missing || []);
-      setDashboardData(dbData);
-      const userRoles = (user?.roles || []).map(r => String(r).toLowerCase());
-      if (user?.role) userRoles.push(user.role.toLowerCase());
-      const isStaff = userRoles.some(r => ["admin", "super_admin", "hr", "developer"].includes(r));
-      setNews((isStaff ? newsData : (newsData || []).filter(n => n.is_published)).slice(0, 3));
 
-      // Only auto-set office selection on initial load, not during background refreshes
-      // This prevents resetting user's manual selection during photo capture
+      // Auto-set office selection on initial load
       if (!silent) {
         const inOfficeId = today?.attendance?.office_id_first_in;
         if (inOfficeId) {
@@ -197,6 +208,33 @@ export default function Dashboard() {
         } else if (!selectedOfficeId && officeList?.length) {
           setSelectedOfficeId(String(officeList[0].id));
         }
+      }
+
+      // Parallel fetch for remaining non-critical data
+      const [
+        balances,
+        stats,
+        summaryData,
+        dbData,
+        newsData
+      ] = await Promise.all([
+        safeFetch(getLeaveBalances(), [], 'leave_view'), // Assuming leave_view is needed, but service might have its own internal check
+        safeFetch(getLeaveDashboardStats(), { myRequestsCount: 0, myApprovalsCount: 0 }),
+        safeFetch(getPersonalAttendanceSummary(), { summary: [], missing: [] }),
+        isAdmin ? safeFetch(getDashboardData(), null) : Promise.resolve(null),
+        hasFeature('news_view') ? safeFetch(listNews(), []) : Promise.resolve([]),
+      ]);
+
+      setLeaveBalances(balances || []);
+      setLeaveStats(stats || { myRequestsCount: 0, myApprovalsCount: 0 });
+      setAttendanceSummary(summaryData?.summary || []);
+      setMissingAttendance(summaryData?.missing || []);
+      setDashboardData(dbData);
+
+      if (hasFeature('news_view') && newsData) {
+        setNews((isAdmin ? newsData : (newsData || []).filter(n => n.is_published)).slice(0, 3));
+      } else {
+        setNews([]);
       }
 
       // --- Proactive Time Sync Check ---
@@ -275,18 +313,7 @@ export default function Dashboard() {
       }
 
       setError("");
-      setPendingPunch(type);
-      setPhotoModal({ show: true, type });
-    } catch (e) {
-      setError("An unexpected error occurred.");
-    }
-  };
-
-  const onPhotoCaptured = async (photoBase64) => {
-    const type = pendingPunch;
-    try {
       setPunching(true);
-      setError("");
 
       // 1. Get Location
       let coords = null;
@@ -294,6 +321,7 @@ export default function Dashboard() {
         coords = await getCurrentPosition();
       } catch (err) {
         setError(err.message);
+        setPunching(false);
         return;
       }
 
@@ -314,6 +342,7 @@ export default function Dashboard() {
             `You are not within the authorized radius for ${office.name
             }. You are approximately ${Math.round(dist)}m away.`
           );
+          setPunching(false);
           return;
         }
       }
@@ -324,7 +353,7 @@ export default function Dashboard() {
         clientTime: new Date().toISOString(),
         latitude,
         longitude,
-        photo: photoBase64, // Send Captured Photo
+        photo: null, // Photo removed as requested
       });
 
       setTodayData((prev) => ({
@@ -334,7 +363,6 @@ export default function Dashboard() {
         grace_minutes: res.grace_minutes,
         attendance: res.attendance,
       }));
-      setPendingPunch(null);
     } catch (e) {
       if (e?.response?.status === 403) {
         const data = e.response.data;
@@ -935,6 +963,7 @@ export default function Dashboard() {
         onClose={() => setTimeSync({ ...timeSync, show: false })}
       />
 
+      {/* 
       <AttendancePhotoModal
         isOpen={photoModal.show}
         punchType={photoModal.type}
@@ -944,6 +973,7 @@ export default function Dashboard() {
         }}
         onCapture={onPhotoCaptured}
       />
+      */}
     </div>
   );
 }

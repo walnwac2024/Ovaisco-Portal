@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, ExternalLink, User, Clock, Building } from 'lucide-react';
 import { getAuditLocations } from '../services/attendanceService';
+import { io } from 'socket.io-client';
+import { BASE_URL } from '../../../utils/api';
 
 const LocationAuditTable = () => {
     const [punches, setPunches] = useState([]);
@@ -21,6 +23,25 @@ const LocationAuditTable = () => {
         };
 
         fetchAuditData();
+
+        // ✅ Real-time Updates
+        const socket = io(BASE_URL, {
+            withCredentials: true,
+            transports: ['websocket', 'polling']
+        });
+
+        socket.on('punch-recorded', (newPunch) => {
+            console.log('New real-time punch received:', newPunch);
+            setPunches(prev => {
+                // Check if already in list to avoid duplicates
+                if (prev.some(p => p.id === newPunch.id)) return prev;
+                return [newPunch, ...prev].slice(0, 100); // Keep top 100
+            });
+        });
+
+        return () => {
+            socket.disconnect();
+        };
     }, []);
 
     const getGoogleMapsLink = (lat, lng) => {
@@ -48,8 +69,8 @@ const LocationAuditTable = () => {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Punch Locations Audit</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Verify where employees are marking attendance from.</p>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Attendance Audit</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Real-time tracking of employee attendance punches.</p>
                 </div>
             </div>
 

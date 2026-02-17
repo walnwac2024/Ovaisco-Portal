@@ -2,10 +2,19 @@ import api from "../../utils/api";
 
 const API_URL = "/news";
 
-export const listNews = async () => {
-    const res = await api.get(API_URL);
-    return res.data;
-};
+export async function listNews() {
+    try {
+        const { data } = await api.get("/news");
+        return data;
+    } catch (e) {
+        if (e?.response?.status === 403) {
+            console.log("News access denied (403)");
+        } else {
+            console.warn("listNews fetch failed:", e);
+        }
+        return [];
+    }
+}
 
 export const createNews = async (data) => {
     const res = await api.post(API_URL, data);

@@ -1,0 +1,483 @@
+/* Shared Premium Modal Styles */
+/* These are now mostly handled by the shared .increment-modal and .salary-modal classes */
+
+.grant-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.grant-modal {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 40px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    animation: modalIn 0.5s cubic-bezier(0.16, 1.2, 0.4, 1);
+    font-family: 'Outfit', sans-serif;
+}
+
+.grant-modal-header {
+    padding: 32px 40px;
+    background: rgba(248, 250, 252, 0.5);
+    border-bottom: 1.5px solid rgba(15, 23, 42, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.grant-modal-header h2 {
+    font-size: 24px;
+    font-weight: 900;
+    color: #0F172A;
+    letter-spacing: -0.8px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.grant-modal-header h2 i {
+    color: #E02D3D;
+    background: rgba(224, 45, 61, 0.08);
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.grant-modal-close {
+    background: #F1F5F9;
+    border: none;
+    font-size: 20px;
+    color: #64748B;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.grant-modal-close:hover {
+    background-color: #E02D3D;
+    color: #FFFFFF;
+    transform: rotate(90deg) scale(1.1);
+}
+
+.grant-modal-body {
+    padding: 40px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.grant-form-group {
+    margin-bottom: 28px;
+}
+
+.grant-form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+
+.grant-select,
+.grant-input,
+.grant-textarea {
+    width: 100%;
+    height: 60px;
+    padding: 0 24px;
+    border: 2px solid rgba(15, 23, 42, 0.08);
+    border-radius: 20px;
+    font-size: 16px;
+    color: #0F172A;
+    background-color: #FFFFFF;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 650;
+}
+
+.grant-textarea {
+    height: auto;
+    min-height: 120px;
+    padding: 20px 24px;
+}
+
+.grant-select:focus,
+.grant-input:focus,
+.grant-textarea:focus {
+    border-color: #E02D3D;
+    box-shadow: 0 0 0 5px rgba(224, 45, 61, 0.1);
+    background-color: #FFFFFF;
+    outline: none;
+    transform: translateY(-2px);
+}
+
+.grant-current-salary-info {
+    background-color: rgba(15, 23, 42, 0.02);
+    padding: 24px;
+    border-radius: 20px;
+    margin-bottom: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1.5px solid rgba(15, 23, 42, 0.05);
+}
+
+.grant-salary-amount {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0F172A;
+}
+
+.grant-type-toggle {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.grant-type-btn {
+    flex: 1;
+    height: 56px;
+    border-radius: 18px;
+    border: 2px solid rgba(15, 23, 42, 0.08);
+    background: #FFFFFF;
+    color: #64748B;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.grant-type-btn.active {
+    border-color: #E02D3D;
+    background-color: rgba(224, 45, 61, 0.05);
+    color: #991b1b;
+    box-shadow: 0 8px 16px -4px rgba(224, 45, 61, 0.2);
+}
+
+.grant-preview-card {
+    background: linear-gradient(135deg, rgba(224, 45, 61, 0.08) 0%, rgba(224, 45, 61, 0.03) 100%);
+    padding: 32px;
+    border-radius: 28px;
+    border: 1.5px dashed rgba(224, 45, 61, 0.3);
+    margin: 24px 0;
+}
+
+.grant-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.grant-currency,
+.grant-percent-symbol {
+    position: absolute;
+    font-weight: 800;
+    color: #64748B;
+    pointer-events: none;
+}
+
+.grant-currency {
+    left: 24px;
+}
+
+.grant-percent-symbol {
+    right: 24px;
+}
+
+.grant-input-wrapper .grant-input {
+    padding-left: 55px;
+}
+
+.grant-input-wrapper input[id="increment_percentage"] {
+    padding-right: 50px;
+    padding-left: 24px;
+}
+
+.grant-preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #64748B;
+}
+
+.grant-preview-item.grant-highlight {
+    color: #E02D3D;
+}
+
+.grant-preview-item.new-total {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid rgba(224, 45, 61, 0.2);
+    font-size: 28px;
+    font-weight: 940;
+    color: #991b1b;
+    letter-spacing: -1px;
+}
+
+.grant-modal-footer {
+    padding: 32px 40px 40px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+}
+
+.grant-required {
+    color: #e74c3c;
+    margin-left: 4px;
+}
+
+/* Searchable Select Styles */
+.grant-searchable-select {
+    position: relative;
+    width: 100%;
+}
+
+.grant-select-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 15px;
+    color: #2c3e50;
+}
+
+.grant-select-box:hover {
+    border-color: #3498db;
+    background: #fff;
+}
+
+.grant-select-box.active {
+    border-color: #3498db;
+    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
+}
+
+.grant-select-box .placeholder {
+    color: #95a5a6;
+}
+
+.grant-dropdown-container {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.grant-dropdown-search {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #f8f9fa;
+}
+
+.grant-dropdown-search i {
+    color: #95a5a6;
+    margin-right: 12px;
+}
+
+.grant-dropdown-search input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    font-size: 14px;
+    outline: none;
+    color: #2c3e50;
+}
+
+.grant-dropdown-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.grant-dropdown-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.grant-dropdown-item:hover {
+    background: #f0f7ff;
+}
+
+.grant-dropdown-item.selected {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 600;
+}
+
+.grant-dropdown-item .emp-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.grant-dropdown-item .emp-name {
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.grant-dropdown-item .emp-id {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 2px;
+}
+
+.grant-dropdown-no-results {
+    padding: 20px;
+    text-align: center;
+    color: #95a5a6;
+    font-size: 14px;
+}
+
+.grant-btn {
+    height: 56px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    font-family: 'Outfit', sans-serif;
+    padding: 0 32px;
+}
+
+.grant-btn-secondary {
+    background: #F1F5F9;
+    color: #64748B;
+}
+
+.grant-btn-secondary:hover {
+    background: #E2E8F0;
+    color: #0F172A;
+    transform: translateY(-2px);
+}
+
+.grant-btn-primary {
+    background: linear-gradient(135deg, #E02D3D 0%, #b91c1c 100%);
+    color: #FFFFFF;
+    box-shadow: 0 10px 25px -5px rgba(224, 45, 61, 0.4);
+}
+
+.grant-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(224, 45, 61, 0.5);
+    filter: brightness(1.1);
+}
+
+.grant-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.dark .grant-modal {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .grant-modal-header {
+    background: rgba(30, 41, 59, 0.5);
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .grant-modal-header h2 {
+    color: #F8FAFC;
+}
+
+.dark .grant-input,
+.dark .grant-select,
+.dark .grant-textarea {
+    background: #0F172A;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #F8FAFC;
+}
+
+.dark .grant-salary-amount {
+    color: #F8FAFC;
+}
+
+.dark .grant-type-btn {
+    background: #1E293B;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94A3B8;
+}
+
+.dark .grant-type-btn.active {
+    background: rgba(224, 45, 61, 0.1);
+    border-color: #E02D3D;
+    color: #ef4444;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

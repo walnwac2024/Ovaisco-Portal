@@ -132,7 +132,7 @@ export default function PermissionsPage() {
                                         <label
                                             key={p.id}
                                             className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${isActive
-                                                ? "border-emerald-200 bg-emerald-50/30"
+                                                ? "border-customRed/20 bg-customRed/5"
                                                 : "border-slate-100 bg-white hover:border-slate-200"
                                                 }`}
                                         >
@@ -141,11 +141,11 @@ export default function PermissionsPage() {
                                                     type="checkbox"
                                                     checked={isActive}
                                                     onChange={() => handleTogglePermission(p.id)}
-                                                    className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                                                    className="w-4 h-4 rounded text-customRed border-slate-300 focus:ring-customRed"
                                                 />
                                             </div>
                                             <div>
-                                                <div className={`text-sm font-semibold ${isActive ? "text-emerald-800" : "text-slate-700"}`}>
+                                                <div className={`text-sm font-semibold ${isActive ? "text-customRed" : "text-slate-700"}`}>
                                                     {p.name || `${p.module}: ${p.action}`}
                                                 </div>
                                                 <div className="text-[11px] text-slate-400 font-mono mt-0.5">{p.code}</div>

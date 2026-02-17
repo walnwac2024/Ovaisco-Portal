@@ -165,7 +165,7 @@ export default function AttendancePage() {
 
   // ✅ Check settings permission
   const canSeeSettings = useMemo(() => {
-    return (user?.features || []).includes('attendance_settings');
+    return (user?.features || []).includes('attendance_manage_settings');
   }, [user]);
 
   // ✅ Build nav based on permissions
@@ -174,10 +174,10 @@ export default function AttendancePage() {
     const features = user?.features || [];
 
     const filtered = base.filter(item => {
-      if (item.id === 'attendance-settings') return features.includes('attendance_settings');
+      if (item.id === 'attendance-settings') return features.includes('attendance_manage_settings');
       if (item.id === 'attendance-approval') return features.includes('attendance_edit');
-      if (item.id === 'location-audit') return features.includes('attendance_edit');
-      if (item.id === 'attendance-logs') return features.includes('attendance_view');
+      if (item.id === 'location-audit') return features.includes('attendance_audit');
+      if (item.id === 'attendance-logs') return features.includes('attendance_view_logs');
       return features.includes('attendance_view');
     });
 

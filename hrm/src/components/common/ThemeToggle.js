@@ -2,40 +2,33 @@ import React from 'react';
 import { FaSun, FaMoon } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 
-const ThemeToggle = () => {
+const ThemeToggle = ({ className = "" }) => {
     const { darkMode, toggleDarkMode } = useTheme();
 
     return (
         <button
             onClick={toggleDarkMode}
-            className={`fixed right-6 bottom-24 z-[9999] flex items-center gap-4 px-5 py-3 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all duration-500 hover:scale-105 active:scale-95 group backdrop-blur-xl border-2 
-        ${darkMode
-                    ? 'bg-slate-900/90 text-yellow-400 border-yellow-400/30'
-                    : 'bg-white/95 text-slate-800 border-customRed/20'
-                }`}
+            className={`flex items-center justify-center p-2 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group 
+                ${darkMode
+                    ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700'
+                    : 'bg-slate-50 text-slate-500 hover:text-customRed hover:bg-red-50'
+                } ${className}`}
             aria-label="Toggle Night Mode"
+            title={darkMode ? "Switch to Light Mode" : "Switch to Night Mode"}
         >
-            <div className={`relative w-12 h-6 flex items-center rounded-full p-1 transition-all duration-500 shadow-inner
-                ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}
+            <div className={`relative w-10 h-5 flex items-center rounded-full p-1 transition-all duration-300 shadow-inner
+                ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-slate-200'}`}
             >
                 <div
-                    className={`w-4 h-4 rounded-full shadow-lg transform transition-all duration-500 flex items-center justify-center
+                    className={`w-3.5 h-3.5 rounded-full shadow-lg transform transition-all duration-500 flex items-center justify-center
                         ${darkMode
-                            ? 'translate-x-6 bg-yellow-400 rotate-0'
-                            : 'translate-x-0 bg-customRed -rotate-[360deg]'}`}
+                            ? 'translate-x-4.5 bg-yellow-400'
+                            : 'translate-x-0 bg-white'}`}
                 >
                     {darkMode
-                        ? <FaMoon size={10} className="text-slate-900" />
-                        : <FaSun size={10} className="text-white" />}
+                        ? <FaMoon size={8} className="text-slate-900" />
+                        : <FaSun size={8} className="text-amber-500" />}
                 </div>
-            </div>
-            <div className="flex flex-col items-start leading-none">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-50">
-                    Switch to
-                </span>
-                <span className="text-[11px] font-black uppercase tracking-[0.1em]">
-                    {darkMode ? 'Light' : 'Night'} Mode
-                </span>
             </div>
         </button>
     );

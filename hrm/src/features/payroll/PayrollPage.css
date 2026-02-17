@@ -1,0 +1,16 @@
+.payroll-under-development {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    text-align: center;
+    color: #64748b;
+}
+
+.payroll-under-development h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: #1e293b;
+}

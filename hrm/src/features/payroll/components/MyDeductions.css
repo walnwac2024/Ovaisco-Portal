@@ -1,0 +1,158 @@
+/* My Deductions - Premium Glassmorphism Overhaul */
+
+.my-deductions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    font-family: 'Outfit', sans-serif;
+}
+
+.deduction-summary-header h4 {
+    margin: 0 0 24px 0;
+    color: #0F172A;
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -0.8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.deduction-summary-header h4::before {
+    content: '';
+    width: 6px;
+    height: 24px;
+    background: #E02D3D;
+    border-radius: 4px;
+}
+
+.deduction-total-amount {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 32px 48px;
+    background: linear-gradient(135deg, #E02D3D 0%, #C02636 100%) !important;
+    border-radius: 32px;
+    color: #FFFFFF !important;
+    box-shadow: 0 20px 40px -10px rgba(224, 45, 61, 0.45) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.deduction-total-amount::after {
+    content: '\f158';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    position: absolute;
+    right: -20px;
+    top: -20px;
+    font-size: 140px;
+    opacity: 0.1;
+    transform: rotate(-15deg);
+}
+
+.deduction-label {
+    font-size: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.9;
+}
+
+.deduction-amount {
+    font-size: 48px;
+    font-weight: 940;
+    letter-spacing: -2px;
+}
+
+.deduction-item {
+    padding: 32px;
+    border: 1.5px solid rgba(15, 23, 42, 0.05);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-bottom: 24px;
+}
+
+.deduction-item:hover {
+    border-color: rgba(224, 45, 61, 0.2);
+    transform: translateX(8px);
+    background: #FFFFFF;
+    box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.05);
+}
+
+.deduction-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: var(--payroll-primary-light);
+    color: #E02D3D;
+    font-size: 26px;
+    box-shadow: inset 0 0 0 1px rgba(224, 45, 61, 0.1);
+}
+
+.deduction-item-info h5 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.5px;
+}
+
+.deduction-item-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 28px;
+    background: rgba(15, 23, 42, 0.02);
+    border-radius: 24px;
+    border: 1.5px solid rgba(15, 23, 42, 0.03);
+    margin-top: 24px;
+}
+
+.deduction-stat-label {
+    font-size: 12px;
+    font-weight: 800;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.deduction-stat-value {
+    font-size: 24px;
+    font-weight: 900;
+    color: #0F172A;
+    letter-spacing: -1px;
+}
+
+.deduction-tips {
+    margin-top: 48px;
+    padding: 40px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.03) 100%);
+    border-radius: 32px;
+    border: 1.5px solid rgba(34, 197, 94, 0.1);
+}
+
+.deduction-tips h5 {
+    font-size: 18px;
+    font-weight: 900;
+    color: #166534;
+    letter-spacing: -0.5px;
+}
+
+.dark .deduction-item {
+    background: rgba(31, 41, 55, 0.5);
+}
+
+.dark .deduction-item-info h5 {
+    color: #F8FAFC;
+}
+
+.dark .deduction-stat-value {
+    color: #F8FAFC;
+}
+
+.dark .deduction-item-details {
+    background: rgba(0, 0, 0, 0.2);
+}
