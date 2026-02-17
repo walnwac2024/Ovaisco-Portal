@@ -193,7 +193,7 @@ router.get("/attendance/audit-locations", isAuthenticated, requireFeatures("atte
 
 // Attendance Settings
 router.get("/attendance/settings/shifts", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.getShifts);
-router.patch("/attendance/settings/shifts/:id", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.updateShift);
+router.put("/attendance/settings/shifts/:id", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.updateShift);
 router.get("/attendance/settings/rules", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.getRules);
 router.put("/attendance/settings/rules/active", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.updateActiveRule);
 router.post("/attendance/settings/shifts/bulk-assign", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.bulkAssignShift);
