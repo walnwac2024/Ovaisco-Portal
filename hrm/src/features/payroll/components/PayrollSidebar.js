@@ -8,6 +8,7 @@ const PayrollSidebar = ({ activeKey, onNavigate, isAdmin, userPermissions = [] }
             id: 'my-salary',
             label: 'My Payslips',
             icon: <FaHistory />,
+            permission: 'payroll_view_own',
         },
         {
             id: 'payroll-run',
