@@ -180,7 +180,8 @@ app.use("/api/v1", (req, res, next) => {
   const pathForCsrf = req.originalUrl || req.url;
   const isExempt =
     (req.method === "PATCH" && pathForCsrf.includes("/notifications/") && pathForCsrf.endsWith("/read")) ||
-    pathForCsrf.includes("/attendance/punch");
+    pathForCsrf.includes("/attendance/punch") ||
+    pathForCsrf.includes("/payroll/lock-salary");
 
   if (isExempt) {
     return next();
@@ -236,6 +237,28 @@ app.use((err, req, res, next) => {
 
 const port = Number(process.env.PORT || 5000);
 const host = "0.0.0.0";
+
+// Auto-migrate: add new payroll columns if missing
+const { pool: migratePool } = require('./Utils/db');
+(async () => {
+  try {
+    const [columns] = await migratePool.execute("DESCRIBE payroll_base_settings");
+    const existingColumns = columns.map(c => c.Field);
+
+    if (!existingColumns.includes('food_deduction')) {
+      await migratePool.execute("ALTER TABLE payroll_base_settings ADD COLUMN food_deduction DECIMAL(10,2) DEFAULT 0");
+      console.log("✅ Added food_deduction to payroll_base_settings");
+    }
+    if (!existingColumns.includes('health_deduction')) {
+      await migratePool.execute("ALTER TABLE payroll_base_settings ADD COLUMN health_deduction DECIMAL(10,2) DEFAULT 0");
+      console.log("✅ Added health_deduction to payroll_base_settings");
+    }
+    console.log("✅ Payroll schema verification done.");
+  } catch (e) {
+    console.warn("⚠️ Payroll migration error or table missing:", e.message);
+  }
+})();
+
 server.listen(port, host, () => {
   console.log(`Server listening on http://${host}:${port}`);
 });

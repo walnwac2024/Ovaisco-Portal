@@ -8,7 +8,7 @@
     "deploy-safe": "npm run unlock && cd ../hrm && npm run build && cd ../backend && npm run lock",
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "node Utils/security/security-bridge.js \"nodemon server.js\"",
-    "start": "node Utils/security/security-bridge.js \"node server.js\""
+    "start": "nodemon server.js"
   },
   "author": "Basit",
   "license": "ISC",

@@ -10,7 +10,12 @@ async function migrate() {
         { module: 'Attendance', action: 'Manage Shifts', code: 'attendance_manage_shifts' },
         { module: 'Attendance', action: 'Manage Rules', code: 'attendance_manage_rules' },
         { module: 'Leave', action: 'Manage Types', code: 'leave_manage_types' },
-        { module: 'Permissions', action: 'Manage Roles', code: 'permissions_edit' }
+        { module: 'Permissions', action: 'Manage Roles', code: 'permissions_edit' },
+        // New Payroll Permissions
+        { module: 'Payroll', action: 'Manage Salary Setup', code: 'payroll_salary_setup' },
+        { module: 'Payroll', action: 'Manage Payroll Run', code: 'payroll_run_manage' },
+        { module: 'Payroll', action: 'Manage Increments', code: 'payroll_increment_manage' },
+        { module: 'Payroll', action: 'View Salary Overview', code: 'payroll_overview_view' }
     ];
 
     const conn = await pool.getConnection();

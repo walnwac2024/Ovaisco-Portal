@@ -25,7 +25,7 @@ export default function SharedSidebar({
     const filteredItems = items.filter((it) => {
         // 1. If item has a specific permission code, check it
         if (it.permission) {
-            return userPermissions.includes(it.permission);
+            return userPermissions.includes(it.permission) || isAdminUser;
         }
         // 2. Fallback to isAdmin check for backward compatibility
         if (it.isAdmin) {

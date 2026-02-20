@@ -33,6 +33,8 @@ const OrganizationPage = lazy(() => import("./features/organization/Organization
 const PerformancePage = lazy(() => import("./features/performance/PerformancePage"));
 const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPage"));
 const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
+const PayrollDetailsView = lazy(() => import("./features/payroll/components/PayrollDetailsView"));
+const SalarySettings = lazy(() => import("./features/payroll/components/SalarySettings"));
 
 
 // Loading component
@@ -127,7 +129,15 @@ export default function App() {
                 <Route path="/timesheet" element={<ComingSoon title="Timesheet" />} />
                 <Route path="/leave" element={<LeavePage />} />
                 <Route path="/performance" element={<PerformancePage />} />
-                <Route path="/payroll" element={<ComingSoon title="Payroll" />} />
+                {/* Minimal Payroll Routes */}
+                <Route path="/payroll" element={<PayrollPage />} />
+                <Route path="/self-service/my-salary" element={<PayrollPage tab="self" />} />
+                <Route path="/self-service/my-salary/:id" element={<PayrollDetailsView />} />
+                <Route path="/hr/payroll/run" element={<PayrollPage tab="run" />} />
+                <Route path="/hr/employees/:id/increment" element={<ComingSoon title="Increment Management" />} />
+
+                <Route path="/payroll/details/:month/:year" element={<PayrollDetailsView />} />
+                <Route path="/payroll/settings" element={<SalarySettings />} />
                 <Route path="/reports" element={<ReportsPage />} />
 
                 {/* 👇 NEW: profile route */}

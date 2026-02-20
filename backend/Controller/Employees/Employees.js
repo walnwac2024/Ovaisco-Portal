@@ -26,7 +26,9 @@ const EMP_LIST_FIELDS = `
   is_active         AS isActive,
   can_login         AS canLogin,
   Date_of_Joining   AS dateOfJoining,
-  Date_of_Birth     AS dateOfBirth
+  Date_of_Birth     AS dateOfBirth,
+  monthly_salary,
+  salary_locked
 `;
 
 /* ------------------------------------------------------------------

@@ -1,5 +1,6 @@
 const { pool } = require("../../Utils/db");
 const { recordLog } = require("../../Utils/AuditUtils");
+const xlsx = require("xlsx");
 
 /**
  * Helper: Check if user is admin/HR
@@ -17,1037 +18,566 @@ function isAdminLike(user) {
 }
 
 /**
- * POST /api/v1/payroll/salary
- * Employee enters their salary (ONE-TIME ONLY)
+ * 1. SALARY SETUP & LOCKING
+ * POST /api/v1/payroll/lock-salary
  */
-const setSalary = async (req, res) => {
+const lockSalary = async (req, res) => {
+    const conn = await pool.getConnection();
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-
-        const { basic_salary, allowances, effective_from } = req.body;
-
-        if (!basic_salary || basic_salary <= 0) {
-            return res.status(400).json({ message: "Valid basic salary is required" });
-        }
-
-        const conn = await pool.getConnection();
-
-        try {
-            await conn.beginTransaction();
-
-            // Check if salary already exists and is locked
-            const [existing] = await conn.execute(
-                "SELECT id, is_locked FROM payroll_salaries WHERE employee_id = ?",
-                [user.id]
-            );
-
-            if (existing.length > 0 && existing[0].is_locked === 1) {
-                await conn.rollback();
-                return res.status(403).json({
-                    message: "Your salary has already been submitted and is now locked. It cannot be changed."
-                });
-            }
-
-            // Insert or update salary (should only happen once)
-            if (existing.length > 0) {
-                await conn.execute(
-                    `UPDATE payroll_salaries 
-           SET basic_salary = ?, allowances = ?, effective_from = ?, is_locked = 1, updated_at = NOW()
-           WHERE employee_id = ?`,
-                    [basic_salary, allowances || 0, effective_from || new Date().toISOString().slice(0, 10), user.id]
-                );
-            } else {
-                await conn.execute(
-                    `INSERT INTO payroll_salaries (employee_id, basic_salary, allowances, effective_from, is_locked)
-           VALUES (?, ?, ?, ?, 1)`,
-                    [user.id, basic_salary, allowances || 0, effective_from || new Date().toISOString().slice(0, 10)]
-                );
-            }
-
-            // Initialize increment reminder
-            const effectiveDate = effective_from || new Date().toISOString().slice(0, 10);
-            const nextReviewDate = new Date(effectiveDate);
-            nextReviewDate.setFullYear(nextReviewDate.getFullYear() + 1);
-
-            await conn.execute(
-                `INSERT INTO increment_reminders (employee_id, last_increment_date, next_review_date, reminder_sent)
-         VALUES (?, ?, ?, 0)
-         ON DUPLICATE KEY UPDATE last_increment_date = ?, next_review_date = ?, reminder_sent = 0`,
-                [user.id, effectiveDate, nextReviewDate.toISOString().slice(0, 10), effectiveDate, nextReviewDate.toISOString().slice(0, 10)]
-            );
-
-            await conn.commit();
-
-            await recordLog({
-                actorId: user.id,
-                action: "Submitted salary information (locked)",
-                category: "Payroll",
-                status: "Success",
-                details: { basic_salary, allowances }
-            });
-
-            return res.json({
-                message: "Salary submitted successfully and is now locked",
-                salary: { basic_salary, allowances, effective_from: effectiveDate, is_locked: true }
-            });
-
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
-        }
-
-    } catch (error) {
-        console.error("setSalary error:", error);
-        return res.status(500).json({ message: "Failed to set salary" });
-    }
-};
-
-/**
- * GET /api/v1/payroll/salary/me
- * Get own salary information
- */
-const getMySalary = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-
-        const [rows] = await pool.execute(
-            "SELECT * FROM payroll_salaries WHERE employee_id = ?",
-            [user.id]
-        );
-
-        if (rows.length === 0) {
-            return res.json({ salary: null, is_locked: false });
-        }
-
-        return res.json({
-            salary: {
-                basic_salary: rows[0].basic_salary,
-                allowances: rows[0].allowances,
-                effective_from: rows[0].effective_from,
-                is_locked: rows[0].is_locked === 1
-            }
-        });
-
-    } catch (error) {
-        console.error("getMySalary error:", error);
-        return res.status(500).json({ message: "Failed to get salary" });
-    }
-};
-
-/**
- * GET /api/v1/payroll/salary/:employeeId
- * Admin/HR view employee salary (read-only)
- */
-const getEmployeeSalary = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
         if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
 
-        const { employeeId } = req.params;
+        const {
+            employee_id,
+            contractual_pay = 0,
+            transport_allowance = 0,
+            attendance_bonus = 0,
+            mobile_allowance = 0,
+            tardiness_allowance = 0,
+            night_allowance = 0,
+            house_allowance = 0,
+            fuel_allowance = 0,
+            adhoc_allowance = 0,
+            misc_allowance = 0,
+            relocation_allowance = 0,
+            food_deduction = 0,
+            health_deduction = 0
+        } = req.body;
 
-        const [rows] = await pool.execute(
-            `SELECT ps.*, e.Employee_Name as employee_name, e.Employee_ID as employee_code
-       FROM payroll_salaries ps
-       JOIN employee_records e ON e.id = ps.employee_id
-       WHERE ps.employee_id = ?`,
-            [employeeId]
+        if (!employee_id) return res.status(400).json({ message: "Missing employee ID" });
+
+        // Calculate total gross (allowances only, not deductions)
+        const monthly_salary =
+            Number(contractual_pay) +
+            Number(transport_allowance) +
+            Number(attendance_bonus) +
+            Number(mobile_allowance) +
+            Number(tardiness_allowance) +
+            Number(night_allowance) +
+            Number(house_allowance) +
+            Number(fuel_allowance) +
+            Number(adhoc_allowance) +
+            Number(misc_allowance) +
+            Number(relocation_allowance);
+
+        await conn.beginTransaction();
+
+        // 1. Update/Insert into payroll_base_settings
+        await conn.execute(`
+            INSERT INTO payroll_base_settings (
+                employee_id, contractual_pay, transport_allowance, attendance_bonus,
+                mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
+                fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
+                food_deduction, health_deduction,
+                is_locked, locked_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+            ON DUPLICATE KEY UPDATE
+                contractual_pay = VALUES(contractual_pay),
+                transport_allowance = VALUES(transport_allowance),
+                attendance_bonus = VALUES(attendance_bonus),
+                mobile_allowance = VALUES(mobile_allowance),
+                tardiness_allowance = VALUES(tardiness_allowance),
+                night_allowance = VALUES(night_allowance),
+                house_allowance = VALUES(house_allowance),
+                fuel_allowance = VALUES(fuel_allowance),
+                adhoc_allowance = VALUES(adhoc_allowance),
+                misc_allowance = VALUES(misc_allowance),
+                relocation_allowance = VALUES(relocation_allowance),
+                food_deduction = VALUES(food_deduction),
+                health_deduction = VALUES(health_deduction),
+                is_locked = 1,
+                locked_at = NOW()
+        `, [
+            employee_id, contractual_pay, transport_allowance, attendance_bonus,
+            mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
+            fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
+            food_deduction, health_deduction
+        ]);
+
+        // 2. Update employee_records
+        await conn.execute(
+            "UPDATE employee_records SET monthly_salary = ?, salary_locked = 1, salary_locked_at = NOW() WHERE id = ?",
+            [monthly_salary, employee_id]
         );
 
-        if (rows.length === 0) {
-            return res.json({ salary: null });
-        }
-
-        return res.json({
-            salary: {
-                employee_name: rows[0].employee_name,
-                employee_code: rows[0].employee_code,
-                basic_salary: rows[0].basic_salary,
-                allowances: rows[0].allowances,
-                effective_from: rows[0].effective_from,
-                is_locked: rows[0].is_locked === 1
-            }
-        });
-
-    } catch (error) {
-        console.error("getEmployeeSalary error:", error);
-        return res.status(500).json({ message: "Failed to get employee salary" });
-    }
-};
-
-/**
- * POST /api/v1/payroll/increment/request
- * Employee requests increment
- */
-const requestIncrement = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-
-        const { request_type, requested_amount, requested_percentage, reason } = req.body;
-
-        if (!request_type || !['AMOUNT', 'PERCENTAGE'].includes(request_type)) {
-            return res.status(400).json({ message: "Invalid request type" });
-        }
-
-        if (request_type === 'AMOUNT' && (!requested_amount || requested_amount <= 0)) {
-            return res.status(400).json({ message: "Valid increment amount is required" });
-        }
-
-        if (request_type === 'PERCENTAGE' && (!requested_percentage || requested_percentage <= 0)) {
-            return res.status(400).json({ message: "Valid increment percentage is required" });
-        }
-
-        // Check if employee has salary set
-        const [salary] = await pool.execute(
-            "SELECT id FROM payroll_salaries WHERE employee_id = ? AND is_locked = 1",
-            [user.id]
-        );
-
-        if (salary.length === 0) {
-            return res.status(400).json({ message: "Please set your salary first before requesting an increment" });
-        }
-
-        await pool.execute(
-            `INSERT INTO increment_requests 
-       (employee_id, requested_amount, requested_percentage, request_type, reason, status)
-       VALUES (?, ?, ?, ?, ?, 'PENDING')`,
-            [user.id, requested_amount || null, requested_percentage || null, request_type, reason || null]
-        );
+        await conn.commit();
 
         await recordLog({
             actorId: user.id,
-            action: `Requested salary increment (${request_type})`,
+            action: `Locked detailed salary for employee ID ${employee_id}. Total Gross: Rs. ${monthly_salary}`,
             category: "Payroll",
-            status: "Success",
-            details: { request_type, requested_amount, requested_percentage }
+            status: "Success"
         });
 
-        return res.json({ message: "Increment request submitted successfully" });
-
+        return res.json({ message: "Salary locked successfully.", monthly_salary });
     } catch (error) {
-        console.error("requestIncrement error:", error);
-        return res.status(500).json({ message: "Failed to request increment" });
+        if (conn) await conn.rollback();
+        console.error("lockSalary error:", error);
+        return res.status(500).json({ message: error.message || "Server error" });
+    } finally {
+        if (conn) conn.release();
     }
 };
 
 /**
- * GET /api/v1/payroll/increment/requests
- * Admin/HR view all pending increment requests
+ * GET Detailed Salary base settings
+ * GET /api/v1/payroll/base-settings/:employeeId
  */
-const getIncrementRequests = async (req, res) => {
+const getSalaryDetails = async (req, res) => {
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
-
-        const { status } = req.query;
-        const statusFilter = status || 'PENDING';
-
-        const [rows] = await pool.execute(
-            `SELECT ir.*, 
-              e.Employee_Name as employee_name, 
-              e.Employee_ID as employee_code,
-              ps.basic_salary as current_salary,
-              ps.allowances
-       FROM increment_requests ir
-       JOIN employee_records e ON e.id = ir.employee_id
-       LEFT JOIN payroll_salaries ps ON ps.employee_id = ir.employee_id
-       WHERE ir.status = ?
-       ORDER BY ir.requested_at DESC`,
-            [statusFilter]
-        );
-
-        const requests = rows.map(row => {
-            const currentTotal = Number(row.current_salary || 0) + Number(row.allowances || 0);
-            let newSalary = currentTotal;
-
-            if (row.request_type === 'AMOUNT') {
-                newSalary = currentTotal + Number(row.requested_amount || 0);
-            } else if (row.request_type === 'PERCENTAGE') {
-                newSalary = currentTotal + (currentTotal * Number(row.requested_percentage || 0) / 100);
-            }
-
-            return {
-                id: row.id,
-                employee_id: row.employee_id,
-                employee_name: row.employee_name,
-                employee_code: row.employee_code,
-                current_salary: currentTotal,
-                request_type: row.request_type,
-                requested_amount: row.requested_amount,
-                requested_percentage: row.requested_percentage,
-                new_salary: newSalary,
-                reason: row.reason,
-                status: row.status,
-                requested_at: row.requested_at,
-                reviewed_at: row.reviewed_at,
-                review_notes: row.review_notes
-            };
-        });
-
-        return res.json({ requests });
-
-    } catch (error) {
-        console.error("getIncrementRequests error:", error);
-        return res.status(500).json({ message: "Failed to get increment requests" });
-    }
-};
-
-/**
- * POST /api/v1/payroll/increment/approve/:requestId
- * Admin/HR approve increment request
- */
-const approveIncrement = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
-
-        const { requestId } = req.params;
-        const { review_notes } = req.body;
-
-        const conn = await pool.getConnection();
-
-        try {
-            await conn.beginTransaction();
-
-            // Get request details
-            const [requests] = await conn.execute(
-                `SELECT ir.*, ps.basic_salary, ps.allowances
-         FROM increment_requests ir
-         JOIN payroll_salaries ps ON ps.employee_id = ir.employee_id
-         WHERE ir.id = ? AND ir.status = 'PENDING'`,
-                [requestId]
-            );
-
-            if (requests.length === 0) {
-                await conn.rollback();
-                return res.status(404).json({ message: "Request not found or already processed" });
-            }
-
-            const request = requests[0];
-            const currentSalary = Number(request.basic_salary) + Number(request.allowances);
-            let newSalary = currentSalary;
-            let incrementAmount = 0;
-            let incrementPercentage = null;
-
-            if (request.request_type === 'AMOUNT') {
-                incrementAmount = Number(request.requested_amount);
-                newSalary = currentSalary + incrementAmount;
-            } else if (request.request_type === 'PERCENTAGE') {
-                incrementPercentage = Number(request.requested_percentage);
-                incrementAmount = currentSalary * (incrementPercentage / 100);
-                newSalary = currentSalary + incrementAmount;
-            }
-
-            const newBasicSalary = Number(request.basic_salary) + incrementAmount;
-
-            // Update salary
-            await conn.execute(
-                `UPDATE payroll_salaries 
-         SET basic_salary = ?, updated_at = NOW()
-         WHERE employee_id = ?`,
-                [newBasicSalary, request.employee_id]
-            );
-
-            // Record increment history
-            const effectiveDate = new Date().toISOString().slice(0, 10);
-            await conn.execute(
-                `INSERT INTO salary_increments 
-         (employee_id, previous_salary, increment_amount, increment_percentage, new_salary, 
-          increment_type, applied_by_employee_id, effective_date, reason)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    request.employee_id,
-                    currentSalary,
-                    request.request_type === 'AMOUNT' ? incrementAmount : null,
-                    request.request_type === 'PERCENTAGE' ? incrementPercentage : null,
-                    newSalary,
-                    request.request_type,
-                    user.id,
-                    effectiveDate,
-                    request.reason || review_notes
-                ]
-            );
-
-            // Update increment reminder
-            const nextReviewDate = new Date();
-            nextReviewDate.setFullYear(nextReviewDate.getFullYear() + 1);
-            await conn.execute(
-                `UPDATE increment_reminders 
-         SET last_increment_date = ?, next_review_date = ?, reminder_sent = 0
-         WHERE employee_id = ?`,
-                [effectiveDate, nextReviewDate.toISOString().slice(0, 10), request.employee_id]
-            );
-
-            // Update request status
-            await conn.execute(
-                `UPDATE increment_requests 
-         SET status = 'APPROVED', reviewed_by_employee_id = ?, reviewed_at = NOW(), review_notes = ?
-         WHERE id = ?`,
-                [user.id, review_notes || null, requestId]
-            );
-
-            await conn.commit();
-
-            await recordLog({
-                actorId: user.id,
-                action: `Approved increment request for employee ${request.employee_id}`,
-                category: "Payroll",
-                status: "Success",
-                details: { requestId, newSalary, incrementAmount }
-            });
-
-            return res.json({
-                message: "Increment approved successfully",
-                new_salary: newSalary
-            });
-
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
-        }
-
-    } catch (error) {
-        console.error("approveIncrement error:", error);
-        return res.status(500).json({ message: "Failed to approve increment" });
-    }
-};
-
-/**
- * POST /api/v1/payroll/increment/reject/:requestId
- * Admin/HR reject increment request
- */
-const rejectIncrement = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
-
-        const { requestId } = req.params;
-        const { review_notes } = req.body;
-
-        const [result] = await pool.execute(
-            `UPDATE increment_requests 
-       SET status = 'REJECTED', reviewed_by_employee_id = ?, reviewed_at = NOW(), review_notes = ?
-       WHERE id = ? AND status = 'PENDING'`,
-            [user.id, review_notes || null, requestId]
-        );
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Request not found or already processed" });
-        }
-
-        await recordLog({
-            actorId: user.id,
-            action: `Rejected increment request ${requestId}`,
-            category: "Payroll",
-            status: "Success",
-            details: { requestId, review_notes }
-        });
-
-        return res.json({ message: "Increment request rejected" });
-
-    } catch (error) {
-        console.error("rejectIncrement error:", error);
-        return res.status(500).json({ message: "Failed to reject increment" });
-    }
-};
-
-/**
- * POST /api/v1/payroll/increment/grant
- * Admin/HR directly grant increment to employee
- */
-const grantIncrement = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
-
-        const { employee_id, increment_type, increment_amount, increment_percentage, fixed_salary, allowances, reason } = req.body;
-
-        if (!employee_id) {
-            return res.status(400).json({ message: "Employee ID is required" });
-        }
-
-        if (!increment_type || !['AMOUNT', 'PERCENTAGE', 'SET_FIXED'].includes(increment_type)) {
-            return res.status(400).json({ message: "Invalid update type" });
-        }
-
-        const conn = await pool.getConnection();
-
-        try {
-            await conn.beginTransaction();
-
-            // Get current salary
-            const [salary] = await conn.execute(
-                "SELECT basic_salary, allowances FROM payroll_salaries WHERE employee_id = ?",
-                [employee_id]
-            );
-
-            // If SET_FIXED and no existing salary, we can still proceed
-            if (salary.length === 0 && increment_type !== 'SET_FIXED') {
-                await conn.rollback();
-                return res.status(400).json({ message: "Employee has not set their salary yet" });
-            }
-
-            const currentBasic = salary.length > 0 ? Number(salary[0].basic_salary) : 0;
-            const currentAllowances = salary.length > 0 ? Number(salary[0].allowances) : 0;
-            const currentTotal = currentBasic + currentAllowances;
-
-            let newBasicSalary = currentBasic;
-            let newAllowances = currentAllowances;
-            let actualIncrementAmount = 0;
-
-            if (increment_type === 'AMOUNT') {
-                actualIncrementAmount = Number(increment_amount || 0);
-                newBasicSalary = currentBasic + actualIncrementAmount;
-            } else if (increment_type === 'PERCENTAGE') {
-                actualIncrementAmount = currentTotal * (Number(increment_percentage || 0) / 100);
-                newBasicSalary = currentBasic + actualIncrementAmount;
-            } else if (increment_type === 'SET_FIXED') {
-                newBasicSalary = Number(fixed_salary || 0);
-                newAllowances = Number(allowances || 0);
-                actualIncrementAmount = (newBasicSalary + newAllowances) - currentTotal;
-            }
-
-            // Update or Insert salary
-            if (salary.length > 0) {
-                await conn.execute(
-                    `UPDATE payroll_salaries 
-                     SET basic_salary = ?, allowances = ?, is_locked = 1, updated_at = NOW()
-                     WHERE employee_id = ?`,
-                    [newBasicSalary, newAllowances, employee_id]
-                );
-            } else {
-                await conn.execute(
-                    `INSERT INTO payroll_salaries (employee_id, basic_salary, allowances, is_locked)
-                     VALUES (?, ?, ?, 1)`,
-                    [employee_id, newBasicSalary, newAllowances]
-                );
-            }
-
-            // Record increment history
-            const effectiveDate = new Date().toISOString().slice(0, 10);
-            await conn.execute(
-                `INSERT INTO salary_increments 
-         (employee_id, previous_salary, increment_amount, increment_percentage, new_salary, 
-          increment_type, applied_by_employee_id, effective_date, reason)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    employee_id,
-                    currentTotal,
-                    increment_type === 'SET_FIXED' ? null : actualIncrementAmount,
-                    increment_type === 'PERCENTAGE' ? increment_percentage : null,
-                    newBasicSalary + newAllowances,
-                    increment_type,
-                    user.id,
-                    effectiveDate,
-                    reason || (increment_type === 'SET_FIXED' ? 'Direct salary update' : null)
-                ]
-            );
-
-            // Update increment reminder
-            const nextReviewDate = new Date();
-            nextReviewDate.setFullYear(nextReviewDate.getFullYear() + 1);
-            await conn.execute(
-                `INSERT INTO increment_reminders (employee_id, last_increment_date, next_review_date, reminder_sent)
-         VALUES (?, ?, ?, 0)
-         ON DUPLICATE KEY UPDATE last_increment_date = ?, next_review_date = ?, reminder_sent = 0`,
-                [employee_id, effectiveDate, nextReviewDate.toISOString().slice(0, 10), effectiveDate, nextReviewDate.toISOString().slice(0, 10)]
-            );
-
-            await conn.commit();
-
-            await recordLog({
-                actorId: user.id,
-                action: `Updated salary for employee ${employee_id} via ${increment_type}`,
-                category: "Payroll",
-                status: "Success",
-                details: { employee_id, increment_type, newTotal: newBasicSalary + newAllowances }
-            });
-
-            return res.json({
-                message: "Salary updated successfully",
-                new_salary: newBasicSalary + newAllowances
-            });
-
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
-        }
-
-    } catch (error) {
-        console.error("grantIncrement error:", error);
-        return res.status(500).json({ message: "Failed to grant increment" });
-    }
-};
-
-/**
- * GET /api/v1/payroll/increment/history/:employeeId
- * View increment history for employee
- */
-const getIncrementHistory = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-
         const { employeeId } = req.params;
 
-        // Users can view their own history, admins can view anyone's
-        if (Number(employeeId) !== user.id && !isAdminLike(user)) {
+        // Permission check: admin or self
+        if (!isAdminLike(user) && Number(user?.id) !== Number(employeeId)) {
             return res.status(403).json({ message: "Forbidden" });
         }
 
         const [rows] = await pool.execute(
-            `SELECT si.*, e.Employee_Name as applied_by_name
-       FROM salary_increments si
-       JOIN employee_records e ON e.id = si.applied_by_employee_id
-       WHERE si.employee_id = ?
-       ORDER BY si.applied_at DESC`,
+            "SELECT * FROM payroll_base_settings WHERE employee_id = ? LIMIT 1",
             [employeeId]
         );
 
-        return res.json({ history: rows });
-
+        return res.json(rows[0] || null);
     } catch (error) {
-        console.error("getIncrementHistory error:", error);
-        return res.status(500).json({ message: "Failed to get increment history" });
+        console.error("getSalaryDetails error:", error);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
 /**
- * GET /api/v1/payroll/increment/reminders
- * Admin/HR view employees due for annual increment
+ * 2. PAYROLL GENERATION (ADMIN)
+ * POST /api/v1/payroll/generate
  */
-const getIncrementReminders = async (req, res) => {
+const generatePayroll = async (req, res) => {
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
         if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
 
-        const today = new Date().toISOString().slice(0, 10);
-        const thirtyDaysLater = new Date();
-        thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
-
-        const [rows] = await pool.execute(
-            `SELECT ir.*, 
-              e.Employee_Name as employee_name, 
-              e.Employee_ID as employee_code,
-              ps.basic_salary,
-              ps.allowances
-       FROM increment_reminders ir
-       JOIN employee_records e ON e.id = ir.employee_id
-       LEFT JOIN payroll_salaries ps ON ps.employee_id = ir.employee_id
-       WHERE ir.next_review_date <= ? AND ir.next_review_date >= ?
-       ORDER BY ir.next_review_date ASC`,
-            [thirtyDaysLater.toISOString().slice(0, 10), today]
-        );
-
-        return res.json({ reminders: rows });
-
-    } catch (error) {
-        console.error("getIncrementReminders error:", error);
-        return res.status(500).json({ message: "Failed to get increment reminders" });
-    }
-};
-
-/**
- * POST /api/v1/payroll/calculate/:month/:year
- * Calculate monthly payroll with deductions
- */
-const calculateMonthlyPayroll = async (req, res) => {
-    try {
-        const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
-        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
-
-        const { month, year } = req.params;
-        const monthNum = parseInt(month);
-        const yearNum = parseInt(year);
-
-        if (!monthNum || !yearNum || monthNum < 1 || monthNum > 12) {
-            return res.status(400).json({ message: "Invalid month or year" });
-        }
+        const { month, year } = req.body;
+        if (!month || !year) return res.status(400).json({ message: "Month and Year required" });
 
         const conn = await pool.getConnection();
-
         try {
             await conn.beginTransaction();
 
-            // Get all employees with salaries
+            // Fetch active employees with locked salary
             const [employees] = await conn.execute(
-                `SELECT ps.employee_id, ps.basic_salary, ps.allowances, e.Employee_Name
-                 FROM payroll_salaries ps
-                 JOIN employee_records e ON e.id = ps.employee_id
-                 WHERE ps.is_locked = 1 AND e.is_active = 1`
+                "SELECT id, monthly_salary FROM employee_records WHERE is_active = 1 AND salary_locked = 1"
             );
-
-            // Get grace period from attendance rules
-            const [rules] = await conn.execute(
-                "SELECT grace_minutes FROM attendance_rules WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
-            );
-            const graceMinutes = rules.length > 0 ? Number(rules[0].grace_minutes) : 15;
-
-            let processedCount = 0;
 
             for (const emp of employees) {
-                const employeeId = emp.employee_id;
-                const basicSalary = Number(emp.basic_salary);
-                const allowances = Number(emp.allowances);
-                const grossSalary = basicSalary + allowances;
+                // Fetch attendance stats for the month
+                const [attendance] = await conn.execute(`
+                    SELECT 
+                        COUNT(CASE WHEN status IN ('ABSENT', 'UNPAID_LEAVE', 'NOT_MARKED') THEN 1 END) as leave_days,
+                        COUNT(CASE WHEN status = 'LATE' THEN 1 END) as late_days
+                    FROM attendance_daily 
+                    WHERE employee_id = ? AND MONTH(attendance_date) = ? AND YEAR(attendance_date) = ?
+                `, [emp.id, month, year]);
 
-                // Calculate deductions
-                const [attendance] = await conn.execute(
-                    `SELECT 
-                        SUM(CASE WHEN status = 'LATE' AND late_minutes > ? THEN 1 ELSE 0 END) as late_days,
-                        SUM(CASE WHEN status = 'ABSENT' THEN 1 ELSE 0 END) as absent_days
-                     FROM attendance_daily
-                     WHERE employee_id = ? AND MONTH(attendance_date) = ? AND YEAR(attendance_date) = ?`,
-                    [graceMinutes, employeeId, monthNum, yearNum]
-                );
+                const leaves = Number(attendance[0].leave_days || 0);
+                const lates = Number(attendance[0].late_days || 0);
 
-                const lateDays = Number(attendance[0]?.late_days || 0);
-                const absentDays = Number(attendance[0]?.absent_days || 0);
+                const salary = Number(emp.monthly_salary || 0);
+                const dailyRate = salary > 0 ? (salary / 30) : 0;
 
-                let lateDaysDeduction = 0;
-                let unauthorizedOffsDeduction = 0;
+                // Rules: 2 Paid Leaves allowed per month
+                const deductibleLeaves = Math.max(0, leaves - 2);
+                const leaveDeduction = deductibleLeaves * dailyRate;
 
-                // Apply deduction rules
-                if (lateDays >= 4) {
-                    lateDaysDeduction = 1000;
-                }
+                // New Late Rule: No deduction for first 4 lates. Every late after 4th cuts 1 day.
+                const deductibleLates = Math.max(0, lates - 4);
+                const lateDeduction = deductibleLates * dailyRate;
 
-                if (absentDays >= 2) {
-                    unauthorizedOffsDeduction = 1000;
-                }
+                const totalDeductions = Math.round(leaveDeduction + lateDeduction);
+                const netSalary = Math.max(0, salary - totalDeductions);
 
-                const totalDeduction = lateDaysDeduction + unauthorizedOffsDeduction;
-                const netSalary = grossSalary - totalDeduction;
+                console.log(`[PayrollGen] ID:${emp.id} Sal:${salary} Lvs:${leaves} Lts:${lates} Ded:${totalDeductions} Net:${netSalary}`);
 
-                // Insert/Update deductions record
-                await conn.execute(
-                    `INSERT INTO payroll_deductions 
-                     (employee_id, month, year, late_days_count, late_days_deduction, 
-                      unauthorized_offs_count, unauthorized_offs_deduction, total_deduction)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE 
-                        late_days_count = ?, late_days_deduction = ?,
-                        unauthorized_offs_count = ?, unauthorized_offs_deduction = ?,
-                        total_deduction = ?`,
-                    [
-                        employeeId, monthNum, yearNum, lateDays, lateDaysDeduction,
-                        absentDays, unauthorizedOffsDeduction, totalDeduction,
-                        lateDays, lateDaysDeduction, absentDays, unauthorizedOffsDeduction, totalDeduction
-                    ]
-                );
+                const refNum = `PS-${emp.id}-${month}${year}-${Date.now().toString().slice(-4)}`;
 
-                // Insert/Update monthly payroll record
-                await conn.execute(
-                    `INSERT INTO payroll_monthly 
-                     (employee_id, month, year, basic_salary, allowances, gross_salary, 
-                      total_deductions, net_salary, status)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'GENERATED')
-                     ON DUPLICATE KEY UPDATE 
-                        basic_salary = ?, allowances = ?, gross_salary = ?,
-                        total_deductions = ?, net_salary = ?, generated_at = NOW()`,
-                    [
-                        employeeId, monthNum, yearNum, basicSalary, allowances, grossSalary,
-                        totalDeduction, netSalary,
-                        basicSalary, allowances, grossSalary, totalDeduction, netSalary
-                    ]
-                );
-
-                processedCount++;
+                await conn.execute(`
+                    INSERT INTO payroll_records (
+                        employee_id, month, year, reference_number,
+                        attendance_late_days, attendance_leave_days,
+                        gross_salary, late_deduction, leave_deduction, total_deductions, net_salary,
+                        status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT')
+                    ON DUPLICATE KEY UPDATE
+                        attendance_late_days = VALUES(attendance_late_days),
+                        attendance_leave_days = VALUES(attendance_leave_days),
+                        gross_salary = VALUES(gross_salary),
+                        late_deduction = VALUES(late_deduction),
+                        leave_deduction = VALUES(leave_deduction),
+                        total_deductions = VALUES(total_deductions),
+                        net_salary = VALUES(net_salary),
+                        updated_at = NOW()
+                `, [
+                    emp.id, month, year, refNum,
+                    lates, leaves,
+                    salary, lateDeduction, leaveDeduction, totalDeductions, netSalary
+                ]);
             }
 
             await conn.commit();
-
-            await recordLog({
-                actorId: user.id,
-                action: `Generated payroll for ${monthNum}/${yearNum}`,
-                category: "Payroll",
-                status: "Success",
-                details: { month: monthNum, year: yearNum, employeesProcessed: processedCount }
-            });
-
-            return res.json({
-                message: `Payroll calculated successfully for ${processedCount} employees`,
-                month: monthNum,
-                year: yearNum,
-                employees_processed: processedCount
-            });
-
+            return res.json({ message: `Draft payroll generated for ${employees.length} employees.` });
         } catch (err) {
             await conn.rollback();
             throw err;
         } finally {
             conn.release();
         }
-
     } catch (error) {
-        console.error("calculateMonthlyPayroll error:", error);
-        return res.status(500).json({ message: "Failed to calculate payroll" });
+        console.error("generatePayroll error:", error);
+        return res.status(500).json({ message: "Failed to generate payroll" });
     }
 };
 
 /**
- * GET /api/v1/payroll/history
- * Get payroll history for current user or all employees (admin)
+ * 3. FINALIZE PAYROLL
+ * POST /api/v1/payroll/finalize
  */
-const getPayrollHistory = async (req, res) => {
+const finalizePayroll = async (req, res) => {
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
 
-        const { employee_id, month, year } = req.query;
+        const { month, year } = req.body;
+        await pool.execute(
+            "UPDATE payroll_records SET status = 'FINAL', transfer_date = CURDATE() WHERE month = ? AND year = ? AND status = 'DRAFT'",
+            [month, year]
+        );
 
-        let query = `
-            SELECT pm.*, e.Employee_Name as employee_name, e.Employee_ID as employee_code
-            FROM payroll_monthly pm
-            JOIN employee_records e ON e.id = pm.employee_id
-            WHERE 1=1
-        `;
-        const params = [];
-
-        // Non-admin users can only see their own payroll
-        if (employee_id && isAdminLike(user)) {
-            query += " AND pm.employee_id = ?";
-            params.push(employee_id);
-        } else if (!isAdminLike(user)) {
-            query += " AND pm.employee_id = ?";
-            params.push(user.id);
-        }
-
-        if (month) {
-            query += " AND pm.month = ?";
-            params.push(parseInt(month));
-        }
-
-        if (year) {
-            query += " AND pm.year = ?";
-            params.push(parseInt(year));
-        }
-
-        query += " ORDER BY pm.year DESC, pm.month DESC";
-
-        const [rows] = await pool.execute(query, params);
-
-        return res.json({ payroll: rows });
-
+        return res.json({ message: `Payroll for ${month}/${year} has been finalized.` });
     } catch (error) {
-        console.error("getPayrollHistory error:", error);
-        return res.status(500).json({ message: "Failed to get payroll history" });
+        console.error("finalizePayroll error:", error);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
 /**
- * GET /api/v1/payroll/deductions/:month/:year
- * Get deductions breakdown for a specific month
+ * 4. INCREMENT SYSTEM
+ * POST /api/v1/payroll/increment
  */
-const getDeductions = async (req, res) => {
+const applyIncrement = async (req, res) => {
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
 
-        const { month, year } = req.params;
-        const { employee_id } = req.query;
+        const { employee_id, increment_type, value, notes, effective_date } = req.body;
 
-        const monthNum = parseInt(month);
-        const yearNum = parseInt(year);
+        const [emp] = await pool.execute("SELECT monthly_salary FROM employee_records WHERE id = ?", [employee_id]);
+        if (!emp.length) return res.status(404).json({ message: "Employee not found" });
 
-        if (!monthNum || !yearNum) {
-            return res.status(400).json({ message: "Invalid month or year" });
+        const oldSalary = Number(emp[0].monthly_salary);
+        let newSalary = oldSalary;
+
+        if (increment_type === 'FIXED') {
+            newSalary = oldSalary + Number(value);
+        } else {
+            newSalary = oldSalary + (oldSalary * Number(value) / 100);
         }
 
-        let query = `
-            SELECT pd.*, e.Employee_Name as employee_name, e.Employee_ID as employee_code
-            FROM payroll_deductions pd
-            JOIN employee_records e ON e.id = pd.employee_id
-            WHERE pd.month = ? AND pd.year = ?
-        `;
-        const params = [monthNum, yearNum];
+        const conn = await pool.getConnection();
+        try {
+            await conn.beginTransaction();
 
-        // Non-admin users can only see their own deductions
-        if (employee_id && isAdminLike(user)) {
-            query += " AND pd.employee_id = ?";
-            params.push(employee_id);
-        } else if (!isAdminLike(user)) {
-            query += " AND pd.employee_id = ?";
-            params.push(user.id);
+            // Update main table
+            await conn.execute("UPDATE employee_records SET monthly_salary = ? WHERE id = ?", [newSalary, employee_id]);
+
+            // record history
+            await conn.execute(`
+                INSERT INTO increment_history (employee_id, old_salary, new_salary, increment_type, increment_value, effective_date, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [employee_id, oldSalary, newSalary, increment_type, value, effective_date || new Date(), notes]);
+
+            await conn.commit();
+            return res.json({ message: "Increment applied successfully.", new_salary: newSalary });
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         }
-
-        const [rows] = await pool.execute(query, params);
-
-        return res.json({ deductions: rows });
-
     } catch (error) {
-        console.error("getDeductions error:", error);
-        return res.status(500).json({ message: "Failed to get deductions" });
+        console.error("applyIncrement error:", error);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
 /**
- * GET /api/v1/payroll/salaries/all
- * List all employees with their current salaries
+ * 5. SELF-SERVICE
  */
-const listAllSalaries = async (req, res) => {
+const getMyPayrollList = async (req, res) => {
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
+        const [rows] = await pool.execute(
+            "SELECT id, month, year, net_salary, status, created_at FROM payroll_records WHERE employee_id = ? AND status = 'FINAL' ORDER BY year DESC, month DESC",
+            [user.id]
+        );
+        return res.json(rows);
+    } catch (error) {
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const getPayrollDetail = async (req, res) => {
+    try {
+        const user = req.session?.user;
+        const { id } = req.params;
+        const [rows] = await pool.execute(`
+            SELECT 
+                pr.*, 
+                e.Employee_Name as name, e.Official_Email as email, e.Designations as designation, e.Department as department,
+                pb.contractual_pay, pb.transport_allowance, pb.attendance_bonus, pb.mobile_allowance,
+                pb.tardiness_allowance, pb.night_allowance, pb.house_allowance, pb.fuel_allowance,
+                pb.adhoc_allowance, pb.misc_allowance, pb.relocation_allowance,
+                pb.food_deduction, pb.health_deduction
+            FROM payroll_records pr
+            JOIN employee_records e ON e.id = pr.employee_id
+            LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
+            WHERE pr.id = ?
+        `, [id]);
+
+        if (!rows.length) return res.status(404).json({ message: "Record not found" });
+
+        // Security check
+        if (rows[0].employee_id !== user.id && !isAdminLike(user)) {
+            return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        return res.json(rows[0]);
+    } catch (error) {
+        console.error("getPayrollDetail error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const listAllPayroll = async (req, res) => {
+    try {
+        const user = req.session?.user;
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+        const { month, year } = req.query;
+        const [rows] = await pool.execute(`
+            SELECT pr.*, e.Employee_Name as name, e.Employee_ID as code
+            FROM payroll_records pr
+            JOIN employee_records e ON e.id = pr.employee_id
+            WHERE pr.month = ? AND pr.year = ?
+        `, [month, year]);
+
+        return res.json(rows);
+    } catch (error) {
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const getIncrementHistory = async (req, res) => {
+    try {
+        const user = req.session?.user;
+        const { employeeId } = req.params;
+
+        if (!isAdminLike(user) && Number(user?.id) !== Number(employeeId)) {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const [rows] = await pool.execute(
+            "SELECT * FROM increment_history WHERE employee_id = ? ORDER BY created_at DESC",
+            [employeeId]
+        );
+
+        return res.json(rows);
+    } catch (error) {
+        console.error("getIncrementHistory error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const updatePayrollRecord = async (req, res) => {
+    try {
+        const user = req.session?.user;
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+        const { id } = req.params;
+        const { net_salary, total_deductions, attendance_late_days, attendance_leave_days } = req.body;
+
+        // Ensure record exists and is in DRAFT status
+        const [existing] = await pool.execute(
+            "SELECT status FROM payroll_records WHERE id = ?",
+            [id]
+        );
+
+        if (!existing[0]) return res.status(404).json({ message: "Record not found" });
+        if (existing[0].status !== 'DRAFT') return res.status(400).json({ message: "Only drafts can be updated manually" });
+
+        await pool.execute(`
+            UPDATE payroll_records 
+            SET net_salary = ?, total_deductions = ?, 
+                attendance_late_days = ?, attendance_leave_days = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        `, [net_salary, total_deductions, attendance_late_days, attendance_leave_days, id]);
+
+        return res.json({ message: "Payroll draft updated successfully" });
+    } catch (error) {
+        console.error("updatePayrollRecord error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const listAllSalaryDetails = async (req, res) => {
+    try {
+        const user = req.session?.user;
         if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
 
         const [rows] = await pool.execute(`
             SELECT 
-                e.id, e.Employee_Name, e.Employee_ID, e.Department, e.Designations,
-                s.basic_salary, s.allowances, s.updated_at
+                e.id, e.Employee_Name as name, e.Employee_ID as code, e.Designations as designation, 
+                e.Department as department, e.monthly_salary as total_gross, e.salary_locked,
+                pb.contractual_pay, pb.transport_allowance, pb.attendance_bonus, pb.mobile_allowance,
+                pb.tardiness_allowance, pb.night_allowance, pb.house_allowance, pb.fuel_allowance,
+                pb.adhoc_allowance, pb.misc_allowance, pb.relocation_allowance,
+                pb.food_deduction, pb.health_deduction
             FROM employee_records e
-            LEFT JOIN payroll_salaries s ON s.employee_id = e.id
+            LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
             WHERE e.is_active = 1
             ORDER BY e.Employee_Name ASC
         `);
 
-        return res.json({ salaries: rows });
+        return res.json(rows);
     } catch (error) {
-        console.error("listAllSalaries error:", error);
-        return res.status(500).json({ message: "Failed to list salaries" });
+        console.error("listAllSalaryDetails error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const exportSalaryReport = async (req, res) => {
+    try {
+        const user = req.session?.user;
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+        const [rows] = await pool.execute(`
+            SELECT 
+                e.Employee_ID as "Employee Code", e.Employee_Name as "Name", e.Designations as "Designation", 
+                e.Department as "Department",
+                pb.contractual_pay as "Contractual Pay", pb.transport_allowance as "Transport", 
+                pb.attendance_bonus as "Att. Bonus", pb.mobile_allowance as "Mobile",
+                pb.tardiness_allowance as "Tardiness", pb.night_allowance as "Night", 
+                pb.house_allowance as "House", pb.fuel_allowance as "Fuel",
+                pb.adhoc_allowance as "Ad-Hoc", pb.misc_allowance as "Misc", 
+                pb.relocation_allowance as "Relocation",
+                pb.food_deduction as "Food Deduction", pb.health_deduction as "Health Deduction",
+                e.monthly_salary as "Total Gross Salary"
+            FROM employee_records e
+            LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
+            WHERE e.is_active = 1
+            ORDER BY e.Employee_Name ASC
+        `);
+
+        const workbook = xlsx.utils.book_new();
+        const worksheet = xlsx.utils.json_to_sheet(rows);
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Salary Breakdown");
+
+        const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=Salary_Breakdown_Report.xlsx");
+        return res.send(buffer);
+    } catch (error) {
+        console.error("exportSalaryReport error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const deletePayrollRecord = async (req, res) => {
+    try {
+        const user = req.session?.user;
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+        const { id } = req.params;
+
+        // Ensure record exists and is in DRAFT status
+        const [existing] = await pool.execute(
+            "SELECT status FROM payroll_records WHERE id = ?",
+            [id]
+        );
+
+        if (!existing[0]) return res.status(404).json({ message: "Record not found" });
+        if (existing[0].status !== 'DRAFT') return res.status(400).json({ message: "Only drafts can be deleted" });
+
+        await pool.execute("DELETE FROM payroll_records WHERE id = ?", [id]);
+
+        return res.json({ message: "Payroll record deleted successfully" });
+    } catch (error) {
+        console.error("deletePayrollRecord error:", error);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
 /**
- * POST /api/v1/payroll/salaries/bulk-update
- * Update salaries for multiple employees at once
+ * 4b. BULK INCREMENT
+ * POST /api/v1/payroll/bulk-increment
  */
-const bulkUpdateSalaries = async (req, res) => {
+const applyBulkIncrement = async (req, res) => {
+    let conn;
     try {
         const user = req.session?.user;
-        if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
         if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
 
-        const { update_type, amount, percentage, employee_ids, reason } = req.body;
-
-        if (!update_type || !['AMOUNT', 'PERCENTAGE'].includes(update_type)) {
-            return res.status(400).json({ message: "Invalid update type" });
-        }
-
-        if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
+        const { employee_ids, increment_type, value, notes, effective_date } = req.body;
+        if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
             return res.status(400).json({ message: "No employees selected" });
         }
 
-        const conn = await pool.getConnection();
+        conn = await pool.getConnection();
+        await conn.beginTransaction();
 
-        try {
-            await conn.beginTransaction();
+        for (const empId of employee_ids) {
+            const [emp] = await conn.execute("SELECT monthly_salary FROM employee_records WHERE id = ?", [empId]);
+            if (!emp.length) continue;
 
-            const effectiveDate = new Date().toISOString().slice(0, 10);
-            const nextReviewDate = new Date();
-            nextReviewDate.setFullYear(nextReviewDate.getFullYear() + 1);
-            const nextReviewStr = nextReviewDate.toISOString().slice(0, 10);
+            const oldSalary = Number(emp[0].monthly_salary);
+            let newSalary = oldSalary;
 
-            for (const empId of employee_ids) {
-                // Get current salary
-                const [salary] = await conn.execute(
-                    "SELECT basic_salary, allowances FROM payroll_salaries WHERE employee_id = ?",
-                    [empId]
-                );
-
-                const currentBasic = salary.length > 0 ? Number(salary[0].basic_salary) : 0;
-                const currentAllowances = salary.length > 0 ? Number(salary[0].allowances) : 0;
-                const currentTotal = currentBasic + currentAllowances;
-
-                let actualIncrementAmount = 0;
-                if (update_type === 'AMOUNT') {
-                    actualIncrementAmount = Number(amount || 0);
-                } else if (update_type === 'PERCENTAGE') {
-                    actualIncrementAmount = currentTotal * (Number(percentage || 0) / 100);
-                }
-
-                const newBasicSalary = currentBasic + actualIncrementAmount;
-
-                // Update or Insert salary
-                if (salary.length > 0) {
-                    await conn.execute(
-                        `UPDATE payroll_salaries SET basic_salary = ?, is_locked = 1, updated_at = NOW() WHERE employee_id = ?`,
-                        [newBasicSalary, empId]
-                    );
-                } else {
-                    await conn.execute(
-                        `INSERT INTO payroll_salaries (employee_id, basic_salary, allowances, is_locked) VALUES (?, ?, ?, 1)`,
-                        [empId, newBasicSalary, currentAllowances]
-                    );
-                }
-
-                // Record history
-                await conn.execute(
-                    `INSERT INTO salary_increments 
-                     (employee_id, previous_salary, increment_amount, increment_percentage, new_salary, 
-                      increment_type, applied_by_employee_id, effective_date, reason)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        empId, currentTotal, actualIncrementAmount,
-                        update_type === 'PERCENTAGE' ? percentage : null,
-                        newBasicSalary + currentAllowances, update_type, user.id, effectiveDate,
-                        reason || `Bulk ${update_type} update`
-                    ]
-                );
-
-                // Update reminder
-                await conn.execute(
-                    `INSERT INTO increment_reminders (employee_id, last_increment_date, next_review_date, reminder_sent)
-                     VALUES (?, ?, ?, 0)
-                     ON DUPLICATE KEY UPDATE last_increment_date = ?, next_review_date = ?, reminder_sent = 0`,
-                    [empId, effectiveDate, nextReviewStr, effectiveDate, nextReviewStr]
-                );
+            if (increment_type === 'FIXED') {
+                newSalary = oldSalary + Number(value);
+            } else {
+                newSalary = oldSalary + (oldSalary * Number(value) / 100);
             }
 
-            await conn.commit();
+            await conn.execute("UPDATE employee_records SET monthly_salary = ? WHERE id = ?", [newSalary, empId]);
 
-            await recordLog({
-                actorId: user.id,
-                action: `Bulk updated salaries for ${employee_ids.length} employees`,
-                category: "Payroll",
-                status: "Success",
-                details: { update_type, count: employee_ids.length }
-            });
-
-            return res.json({ message: `Successfully updated salaries for ${employee_ids.length} employees` });
-
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
+            await conn.execute(`
+                INSERT INTO increment_history (employee_id, old_salary, new_salary, increment_type, increment_value, effective_date, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [empId, oldSalary, newSalary, increment_type, value, effective_date || new Date(), notes]);
         }
 
+        await conn.commit();
+        return res.json({ message: `Bulk increment applied to ${employee_ids.length} employees.` });
     } catch (error) {
-        console.error("bulkUpdateSalaries error:", error);
-        return res.status(500).json({ message: "Failed to bulk update salaries" });
+        if (conn) await conn.rollback();
+        console.error("applyBulkIncrement error:", error);
+        return res.status(500).json({ message: "Server error" });
+    } finally {
+        if (conn) conn.release();
     }
 };
 
 module.exports = {
-    setSalary,
-    getMySalary,
-    getEmployeeSalary,
-    requestIncrement,
-    getIncrementRequests,
-    approveIncrement,
-    rejectIncrement,
-    grantIncrement,
+    lockSalary,
+    getSalaryDetails,
     getIncrementHistory,
-    getIncrementReminders,
-    calculateMonthlyPayroll,
-    getPayrollHistory,
-    getDeductions,
-    listAllSalaries,
-    bulkUpdateSalaries
+    generatePayroll,
+    finalizePayroll,
+    applyIncrement,
+    applyBulkIncrement,
+    getMyPayrollList,
+    getPayrollDetail,
+    listAllPayroll,
+    listAllSalaryDetails,
+    exportSalaryReport,
+    updatePayrollRecord,
+    deletePayrollRecord
 };

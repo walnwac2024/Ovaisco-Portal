@@ -15,7 +15,7 @@ const PendingIncrementRequests = () => {
     const fetchPendingRequests = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/payroll/increments/pending');
+            const response = await api.get('/payroll/increment/requests');
             setRequests(response.data.requests || []);
         } catch (error) {
             console.error('Error fetching pending requests:', error);

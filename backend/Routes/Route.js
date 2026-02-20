@@ -1,6 +1,8 @@
 // backend/Routes/Route.js
 const express = require("express");
 const router = express.Router();
+
+router.get("/debug-ping", (req, res) => res.json({ message: "pong" }));
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
@@ -241,29 +243,21 @@ router.get("/gamification/badges/:employeeId", isAuthenticated, Gamification.get
 // Payroll routes
 const Payroll = require("../Controller/Payroll/PayrollController");
 
-// Salary management
-router.post("/payroll/salary", isAuthenticated, requireFeatures("payroll_manage_salary"), Payroll.setSalary);
-router.get("/payroll/salary/me", isAuthenticated, requireFeatures("payroll_view_own"), Payroll.getMySalary);
-router.get("/payroll/salary/:employeeId", isAuthenticated, requireFeaturesOrSelf("payroll_view_all", "employeeId"), Payroll.getEmployeeSalary);
+// Minimal Payroll Routes
+router.post("/payroll/lock-salary", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.lockSalary);
+router.get("/payroll/base-settings/:employeeId", isAuthenticated, Payroll.getSalaryDetails);
+router.get("/payroll/increment/history/:employeeId", isAuthenticated, Payroll.getIncrementHistory);
+router.post("/payroll/generate", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.generatePayroll);
+router.post("/payroll/finalize", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.finalizePayroll);
+router.post("/payroll/increment", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.applyIncrement);
+router.post("/payroll/bulk-increment", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.applyBulkIncrement);
+router.put("/payroll/update/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.updatePayrollRecord);
+router.delete("/payroll/record/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.deletePayrollRecord);
 
-// Increment requests (employees)
-router.post("/payroll/increment/request", isAuthenticated, requireFeatures("payroll_request_increment"), Payroll.requestIncrement);
-router.get("/payroll/increment/history/:employeeId", isAuthenticated, requireFeaturesOrSelf("payroll_view_all", "employeeId"), Payroll.getIncrementHistory);
-
-// Increment management (admin/HR)
-router.get("/payroll/increment/requests", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.getIncrementRequests);
-router.post("/payroll/increment/approve/:requestId", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.approveIncrement);
-router.post("/payroll/increment/reject/:requestId", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.rejectIncrement);
-router.post("/payroll/increment/grant", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.grantIncrement);
-router.get("/payroll/increment/reminders", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.getIncrementReminders);
-
-// Bulk Salary updates
-router.get("/payroll/salaries/all", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.listAllSalaries);
-router.post("/payroll/salaries/bulk-update", isAuthenticated, requireFeatures("payroll_manage_increments"), Payroll.bulkUpdateSalaries);
-
-// Payroll calculation & history
-router.post("/payroll/calculate/:month/:year", isAuthenticated, requireFeatures("payroll_calculate"), Payroll.calculateMonthlyPayroll);
-router.get("/payroll/history", isAuthenticated, requireFeatures("payroll_view_reports"), Payroll.getPayrollHistory);
-router.get("/payroll/deductions/:month/:year", isAuthenticated, requireFeatures("payroll_view_reports"), Payroll.getDeductions);
+router.get("/payroll/self/list", isAuthenticated, Payroll.getMyPayrollList);
+router.get("/payroll/detail/:id", isAuthenticated, Payroll.getPayrollDetail);
+router.get("/payroll/admin/list", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.listAllPayroll);
+router.get("/payroll/admin/salary-overview", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.listAllSalaryDetails);
+router.get("/payroll/admin/export-salaries", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.exportSalaryReport);
 
 module.exports = router;

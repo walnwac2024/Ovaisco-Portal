@@ -1,0 +1,25 @@
+{
+  "employee": {
+    "id": 318,
+    "monthly_salary": "30000.00",
+    "salary_locked": 1
+  },
+  "payroll": {
+    "id": 4,
+    "employee_id": 318,
+    "month": 2,
+    "year": 2026,
+    "reference_number": "PS-318-22026-7106",
+    "attendance_late_days": 1,
+    "attendance_leave_days": 0,
+    "gross_salary": "30000.00",
+    "late_deduction": "0.00",
+    "leave_deduction": "0.00",
+    "total_deductions": "0.00",
+    "net_salary": "30000.00",
+    "status": "DRAFT",
+    "transfer_date": null,
+    "created_at": "2026-02-19T05:16:07.000Z",
+    "updated_at": "2026-02-19T05:16:07.000Z"
+  }
+}
