@@ -181,6 +181,7 @@ app.use("/api/v1", (req, res, next) => {
   const isExempt =
     (req.method === "PATCH" && pathForCsrf.includes("/notifications/") && pathForCsrf.endsWith("/read")) ||
     pathForCsrf.includes("/attendance/punch") ||
+    pathForCsrf.includes("/attendance/amt-sync") ||
     pathForCsrf.includes("/payroll/lock-salary");
 
   if (isExempt) {
