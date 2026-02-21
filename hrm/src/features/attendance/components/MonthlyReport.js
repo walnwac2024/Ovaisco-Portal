@@ -223,10 +223,20 @@ export default function MonthlyReport({ employeeId, initialYear, initialMonth, o
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                            {row.first_in ? new Date(row.first_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                            <div className="flex items-center gap-2">
+                                                {row.first_in ? new Date(row.first_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                {row.source_in === 'BIOMETRIC' && (
+                                                    <span className="bg-emerald-100 text-emerald-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter ring-1 ring-emerald-200">Bio</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                            {row.last_out ? new Date(row.last_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                            <div className="flex items-center gap-2">
+                                                {row.last_out ? new Date(row.last_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                {row.source_out === 'BIOMETRIC' && (
+                                                    <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter ring-1 ring-blue-200">Bio</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                                             {row.worked_minutes ? (

@@ -1,27 +1,29 @@
 // hrm/public/service-worker.js
 // Service Worker for PWA offline support and caching
 
-const CACHE_NAME = 'hrm-v1';
+// Dynamically generate cache name based on current date (changes daily or on reload)
+// Mismatched cache names will force cache clearing on activate.
+const CACHE_NAME = 'hrm-v' + new Date().getTime();
+
+// Define minimal URLs for offline fallback, don't proactively cache 'main.js' since Webpack hashes them
 const urlsToCache = [
     '/',
-    '/static/css/main.css',
-    '/static/js/main.js',
     '/manifest.json',
 ];
 
-// Install event - cache static assets
+// Install event - cache minimal static assets
 self.addEventListener('install', (event) => {
+    self.skipWaiting(); // Force the waiting service worker to become the active service worker
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('Opened cache');
+                console.log('Opened cache:', CACHE_NAME);
                 return cache.addAll(urlsToCache);
             })
     );
-    self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up ALL old caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -35,65 +37,46 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    self.clients.claim();
+    self.clients.claim(); // Take control of all open pages
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK FIRST approach for everything (Fixes the cache issue)
 self.addEventListener('fetch', (event) => {
     // Skip cross-origin requests
     if (!event.request.url.startsWith(self.location.origin)) {
         return;
     }
 
-    // API requests - network first, cache fallback
-    if (event.request.url.includes('/api/')) {
-        event.respondWith(
-            fetch(event.request)
-                .then((response) => {
-                    // Clone the response
-                    const responseToCache = response.clone();
-
-                    // Cache successful GET requests
-                    if (event.request.method === 'GET' && response.status === 200) {
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseToCache);
-                        });
-                    }
-
-                    return response;
-                })
-                .catch(() => {
-                    // If network fails, try cache
-                    return caches.match(event.request);
-                })
-        );
+    // Only handle GET requests
+    if (event.request.method !== 'GET') {
         return;
     }
 
-    // Static assets - cache first, network fallback
     event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                if (response) {
-                    return response;
-                }
-
-                return fetch(event.request).then((response) => {
-                    // Don't cache non-successful responses
-                    if (!response || response.status !== 200 || response.type !== 'basic') {
-                        return response;
-                    }
-
-                    const responseToCache = response.clone();
-
+        fetch(event.request)
+            .then((networkResponse) => {
+                // If network response is good, clone it and cache it, then return it
+                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                    const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, responseToCache);
                     });
-
-                    return response;
-                });
+                }
+                return networkResponse;
+            })
+            .catch(() => {
+                // Network failed (offline), try the cache
+                console.log('Network failed, falling back to cache:', event.request.url);
+                return caches.match(event.request);
             })
     );
+});
+
+// Listen for message to skip waiting (force update)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // Background sync for offline actions

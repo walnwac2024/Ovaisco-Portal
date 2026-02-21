@@ -519,10 +519,11 @@ const punch = async (req, res) => {
             office_id_first_in = ?,
             photo_in = ?,
             late_minutes = ?,
-            status = ?
+            status = ?,
+            source_in = ?
         WHERE id = ?
         `,
-        [now, Number(office_id), photoPath, lateMinutes, status, daily.id]
+        [now, Number(office_id), photoPath, lateMinutes, status, isAdmin ? "ADMIN" : "WEB", daily.id]
       );
     } else {
       if (!daily.first_in) {
@@ -546,10 +547,11 @@ const punch = async (req, res) => {
             office_id_last_out = ?,
             photo_out = ?,
             worked_minutes = ?,
-            status = ?
+            status = ?,
+            source_out = ?
         WHERE id = ?
         `,
-        [now, Number(office_id), photoPath, workedMinutes, finalStatus, daily.id]
+        [now, Number(office_id), photoPath, workedMinutes, finalStatus, isAdmin ? "ADMIN" : "WEB", daily.id]
       );
     }
 
@@ -731,6 +733,8 @@ const getMonthlyReport = async (req, res) => {
         d.status,
         d.late_minutes,
         d.worked_minutes,
+        d.source_in,
+        d.source_out,
         s.name as shift_name,
         o_in.name as office_in,
         o_out.name as office_out
@@ -1029,6 +1033,8 @@ const getAttendanceLogs = async (req, res) => {
         d.status,
         d.late_minutes as lateMinutes,
         d.worked_minutes as workedMinutes,
+        d.source_in,
+        d.source_out,
         s.name as shiftName,
         o_in.name as officeIn,
         o_out.name as officeOut
@@ -1142,6 +1148,211 @@ const listLocationAudit = async (req, res) => {
   }
 };
 
+/**
+ * POST /attendance/amt-sync
+ * Endpoint for AMT Attendance Management System to push biometric attendance data.
+ * Accepts a single object or an array of objects.
+ * Expected payload from AMT:
+ * {
+ *   BiometricID: "EM/001",
+ *   LogDateTime: "2026-02-21 09:15:00",
+ *   DeviceSrno: "DEV-123",
+ *   DeviceName: "Main Gate"
+ * }
+ */
+const syncAmtAttendance = async (req, res) => {
+  try {
+    const payloads = Array.isArray(req.body) ? req.body : [req.body];
+
+    if (!payloads.length || !payloads[0].BiometricID) {
+      return res.status(400).json({ status: "error", message: "Invalid payload format" });
+    }
+
+    const conn = await pool.getConnection();
+    let processed = 0;
+    let failed = 0;
+
+    try {
+      // 1. Fetch all employees to map BiometricID (Employee_ID in DB) to internal ID
+      const [empRows] = await conn.execute("SELECT id, Employee_ID FROM employee_records WHERE is_active = 1");
+      const empMap = new Map();
+      empRows.forEach(e => {
+        if (e.Employee_ID) {
+          empMap.set(String(e.Employee_ID).trim().toLowerCase(), e.id);
+        }
+      });
+
+      // We'll get default rule and offices, but biometric might not strict to an office.
+      // We will map it to the first active office or null.
+      const [officeRows] = await conn.execute("SELECT id FROM offices WHERE is_active = 1 LIMIT 1");
+      const defaultOfficeId = officeRows[0]?.id || null;
+
+      const rule = await getActiveRule();
+      const grace = Number(rule.grace_minutes || 0);
+
+      await conn.beginTransaction();
+
+      for (const log of payloads) {
+        const biometricId = String(log.BiometricID || "").trim().toLowerCase();
+        const employeeId = empMap.get(biometricId);
+
+        if (!employeeId) {
+          console.warn(`[AMT Sync] BiometricID not found: ${log.BiometricID}`);
+          failed++;
+          continue;
+        }
+
+        const logDateTime = log.LogDateTime; // expected format 'YYYY-MM-DD HH:mm:ss' or ISO
+        if (!logDateTime) {
+          failed++;
+          continue;
+        }
+
+        const punchDateObj = new Date(logDateTime);
+        if (isNaN(punchDateObj.getTime())) {
+          failed++;
+          continue;
+        }
+
+        const todayDateStr = toYMD(punchDateObj);
+        const shift = await resolveShiftForDate(todayDateStr);
+        let shiftId = shift ? shift.id : null;
+        let shiftStart = shift ? new Date(`${todayDateStr}T${shift.start_time}`) : null;
+
+        // Ensure daily row exists
+        const [dailyRows] = await conn.execute(
+          `SELECT * FROM attendance_daily WHERE employee_id = ? AND attendance_date = ? LIMIT 1 FOR UPDATE`,
+          [employeeId, todayDateStr]
+        );
+
+        let dailyRecord;
+        if (!dailyRows.length) {
+          const [insertRes] = await conn.execute(
+            `INSERT INTO attendance_daily (employee_id, attendance_date, shift_id, status) VALUES (?, ?, ?, 'PRESENT')`,
+            [employeeId, todayDateStr, shiftId]
+          );
+
+          const [newDaily] = await conn.execute(
+            `SELECT * FROM attendance_daily WHERE id = ? FOR UPDATE`,
+            [insertRes.insertId]
+          );
+          dailyRecord = newDaily[0];
+        } else {
+          dailyRecord = dailyRows[0];
+        }
+
+        // Check if this specific punch is already recorded (prevent duplicates)
+        const [existingPunches] = await conn.execute(
+          `SELECT id FROM attendance_punches WHERE employee_id = ? AND punched_at = ? AND source = 'BIOMETRIC'`,
+          [employeeId, punchDateObj]
+        );
+
+        if (existingPunches.length > 0) {
+          // Skip exact duplicate
+          processed++;
+          continue;
+        }
+
+        // Determine if it's IN or OUT. If first_in is empty, it's IN. Otherwise OUT.
+        let punchType = "IN";
+        if (dailyRecord.first_in && punchDateObj > new Date(dailyRecord.first_in)) {
+          punchType = "OUT";
+        }
+
+        // Insert into punches
+        await conn.execute(
+          `INSERT INTO attendance_punches
+           (employee_id, office_id, punch_type, punched_at, source, note)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            employeeId,
+            defaultOfficeId,
+            punchType,
+            punchDateObj,
+            "BIOMETRIC",
+            `Device: ${log.DeviceName || log.DeviceSrno || 'Unknown'}`
+          ]
+        );
+
+        // Update daily record logic
+        if (!dailyRecord.first_in || punchDateObj < new Date(dailyRecord.first_in)) {
+          // This becomes the new FIRST IN
+          let lateMinutes = 0;
+          let newStatus = dailyRecord.status === 'NOT_MARKED' ? 'PRESENT' : dailyRecord.status;
+
+          if (shiftStart) {
+            const lateMs = punchDateObj.getTime() - shiftStart.getTime();
+            const lateMinRaw = Math.floor(lateMs / 60000);
+            if (lateMinRaw > grace) {
+              lateMinutes = lateMinRaw;
+              newStatus = 'LATE';
+            }
+          }
+
+          let updateCols = [
+            "first_in = ?",
+            "office_id_first_in = ?",
+            "late_minutes = ?",
+            "status = ?",
+            "source_in = ?"
+          ];
+          let updateParams = [punchDateObj, defaultOfficeId, lateMinutes, newStatus, "BIOMETRIC"];
+
+          // Re-calculate worked minutes if last_out exists
+          if (dailyRecord.last_out) {
+            const workedMs = new Date(dailyRecord.last_out).getTime() - punchDateObj.getTime();
+            const workedMinutes = Math.max(0, Math.floor(workedMs / 60000));
+            updateCols.push("worked_minutes = ?");
+            updateParams.push(workedMinutes);
+          }
+
+          updateParams.push(dailyRecord.id);
+
+          await conn.execute(
+            `UPDATE attendance_daily SET ${updateCols.join(", ")} WHERE id = ?`,
+            updateParams
+          );
+        } else if (!dailyRecord.last_out || punchDateObj > new Date(dailyRecord.last_out)) {
+
+          // This becomes the new LAST OUT
+          const workedMs = punchDateObj.getTime() - new Date(dailyRecord.first_in).getTime();
+          const workedMinutes = Math.max(0, Math.floor(workedMs / 60000));
+
+          const finalStatus = dailyRecord.status === "NOT_MARKED" ? "PRESENT" : dailyRecord.status;
+
+          await conn.execute(
+            `UPDATE attendance_daily 
+              SET last_out = ?, office_id_last_out = ?, worked_minutes = ?, status = ?, source_out = ?
+              WHERE id = ?`,
+            [punchDateObj, defaultOfficeId, workedMinutes, finalStatus, "BIOMETRIC", dailyRecord.id]
+          );
+        }
+
+        processed++;
+      }
+
+      await conn.commit();
+
+      return res.json({
+        status: "success",
+        message: "Attendance synced successfully",
+        processed,
+        failed
+      });
+
+    } catch (dbErr) {
+      await conn.rollback();
+      console.error("syncAmtAttendance DB error:", dbErr);
+      return res.status(500).json({ status: "error", message: "Database transaction failed" });
+    } finally {
+      conn.release();
+    }
+  } catch (err) {
+    console.error("syncAmtAttendance generic error:", err);
+    return res.status(500).json({ status: "error", message: "Server error" });
+  }
+};
+
 module.exports = {
   listOffices,
   getToday,
@@ -1152,4 +1363,5 @@ module.exports = {
   getMonthlyReportAll,
   getAttendanceLogs,
   listLocationAudit,
+  syncAmtAttendance,
 };

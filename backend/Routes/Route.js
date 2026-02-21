@@ -183,6 +183,7 @@ router.put("/employees/:id/documents/:docId/file", isAuthenticated, requireRole(
 router.get("/employees/:id/documents/:docId/download", isAuthenticated, downloadEmployeeDocument);
 
 // Attendance routes
+router.post("/attendance/amt-sync", Attendance.syncAmtAttendance);
 router.get("/attendance/offices", isAuthenticated, Attendance.listOffices);
 router.get("/attendance/today", isAuthenticated, Attendance.getToday);
 router.post("/attendance/punch", isAuthenticated, Attendance.punch);

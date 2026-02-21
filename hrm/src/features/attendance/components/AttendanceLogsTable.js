@@ -73,6 +73,9 @@ export default function AttendanceLogsTable({ rows, loading }) {
                                             {row.checkIn ? (
                                                 <>
                                                     <span className="text-emerald-600">{row.checkIn}</span>
+                                                    {row.source_in === 'BIOMETRIC' && (
+                                                        <span className="bg-emerald-100 text-emerald-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter ring-1 ring-emerald-200">Bio</span>
+                                                    )}
                                                     {row.photoIn && (
                                                         <div className="relative group/photo">
                                                             <img
@@ -94,6 +97,9 @@ export default function AttendanceLogsTable({ rows, loading }) {
                                             {row.checkOut ? (
                                                 <>
                                                     <span className="text-blue-600">{row.checkOut}</span>
+                                                    {row.source_out === 'BIOMETRIC' && (
+                                                        <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter ring-1 ring-blue-200">Bio</span>
+                                                    )}
                                                     {row.photoOut && (
                                                         <div className="relative group/photo">
                                                             <img
