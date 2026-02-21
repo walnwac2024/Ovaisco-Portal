@@ -1163,7 +1163,7 @@ const listLocationAudit = async (req, res) => {
 const syncAmtAttendance = async (req, res) => {
   try {
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
-
+     console.log("payloads Bio matric id",payloads);
     if (!payloads.length || !payloads[0].BiometricID) {
       return res.status(400).json({ status: "error", message: "Invalid payload format" });
     }
@@ -1173,12 +1173,28 @@ const syncAmtAttendance = async (req, res) => {
     let failed = 0;
 
     try {
-      // 1. Fetch all employees to map BiometricID (Employee_ID in DB) to internal ID
-      const [empRows] = await conn.execute("SELECT id, Employee_ID FROM employee_records WHERE is_active = 1");
+      // 1. Fetch all employees to map BiometricID (biometric_id OR Employee_ID) to internal ID
+      const [empRows] = await conn.execute("SELECT id, Employee_ID, biometric_id FROM employee_records WHERE is_active = 1");
       const empMap = new Map();
+      const biometricMap = new Map(); // Dedicated column match
+      const numericMap = new Map();   // Fallback for machine IDs like '6', '00000008'
+
       empRows.forEach(e => {
+        // 1. Match by Dedicated biometric_id column
+        if (e.biometric_id) {
+          biometricMap.set(String(e.biometric_id).trim().toLowerCase(), e.id);
+        }
+
+        // 2. Match by Employee_ID (legacy/direct)
         if (e.Employee_ID) {
-          empMap.set(String(e.Employee_ID).trim().toLowerCase(), e.id);
+          const rawId = String(e.Employee_ID).trim().toLowerCase();
+          empMap.set(rawId, e.id);
+
+          // 3. Smart Match Fallback (numeric only)
+          const numericPart = rawId.replace(/\D/g, '').replace(/^0+/, '');
+          if (numericPart && !numericMap.has(numericPart)) {
+            numericMap.set(numericPart, e.id);
+          }
         }
       });
 
@@ -1194,7 +1210,22 @@ const syncAmtAttendance = async (req, res) => {
 
       for (const log of payloads) {
         const biometricId = String(log.BiometricID || "").trim().toLowerCase();
-        const employeeId = empMap.get(biometricId);
+
+        // Priority 1: Match by biometric_id column
+        let employeeId = biometricMap.get(biometricId);
+
+        // Priority 2: Match by exact Employee_ID
+        if (!employeeId) {
+          employeeId = empMap.get(biometricId);
+        }
+
+        // Priority 3: Smart Match Fallback (numeric only)
+        if (!employeeId) {
+          const bioNumeric = biometricId.replace(/\D/g, '').replace(/^0+/, '');
+          if (bioNumeric) {
+            employeeId = numericMap.get(bioNumeric);
+          }
+        }
 
         if (!employeeId) {
           console.warn(`[AMT Sync] BiometricID not found: ${log.BiometricID}`);
