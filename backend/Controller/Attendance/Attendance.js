@@ -1,5 +1,6 @@
 const { pool } = require("../../Utils/db");
 const { recordLog } = require("../../Utils/AuditUtils");
+const FaceService = require("../../Utils/FaceService");
 const https = require("https");
 const xlsx = require('xlsx');
 const fs = require('fs');
@@ -369,9 +370,64 @@ const punch = async (req, res) => {
         const dir = path.join(__dirname, "..", "..", "uploads", "attendance");
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         photoPath = `uploads/attendance/${filename}`;
-        fs.writeFileSync(path.join(__dirname, "..", "..", photoPath), buffer);
+        const fullPhotoPath = path.join(__dirname, "..", "..", photoPath);
+        fs.writeFileSync(fullPhotoPath, buffer);
+
+        // --- AI FACE MATCHING & REGISTRATION ---
+        const [rows] = await conn.execute(
+          "SELECT profile_img, face_registration FROM employee_records WHERE id = ?",
+          [targetEmployeeId]
+        );
+
+        if (rows.length > 0) {
+          const { profile_img, face_registration } = rows[0];
+          const referenceImg = face_registration || profile_img;
+          const isNewRegistration = !face_registration;
+
+          if (referenceImg) {
+            const storedImgPath = path.join(__dirname, "..", "..", referenceImg);
+
+            if (fs.existsSync(storedImgPath)) {
+              console.log(`[FaceID] Matching started for emp: ${targetEmployeeId} using ${isNewRegistration ? 'profile_img' : 'face_registration'}`);
+              try {
+                const distance = await FaceService.compareFaces(fullPhotoPath, storedImgPath);
+                console.log(`[FaceID] Match distance: ${distance}`);
+
+                const THRESHOLD = 0.55;
+                if (distance > THRESHOLD) {
+                  if (fs.existsSync(fullPhotoPath)) fs.unlinkSync(fullPhotoPath);
+                  return res.status(403).json({ message: "Face verification failed. Captured image does not match the reference photo." });
+                }
+
+                // SUCCESS: Handle Registration vs Matching
+                if (isNewRegistration) {
+                  console.log(`[FaceID] REGISTERING: Success against profile_img. Saving to face_registration.`);
+                  await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+                } else {
+                  // Already registered, destroy the live captured photo as requested
+                  if (fs.existsSync(fullPhotoPath)) {
+                    fs.unlinkSync(fullPhotoPath);
+                    photoPath = null;
+                  }
+                }
+              } catch (faceErr) {
+                console.error("[FaceID] Comparison Error:", faceErr.message);
+                if (fs.existsSync(fullPhotoPath)) fs.unlinkSync(fullPhotoPath);
+                return res.status(403).json({ message: faceErr.message || "Face detection failed. Please ensure your face is visible." });
+              }
+            } else {
+              // Reference exists in DB but file missing on disk -> Register current as new reference
+              console.warn(`[FaceID] Reference photo missing on disk (${storedImgPath}). Registering current capture.`);
+              await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+            }
+          } else {
+            // First time registration (no photos at all)
+            console.log(`[FaceID] INITIAL REGISTRATION for emp: ${targetEmployeeId}`);
+            await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+          }
+        }
       } catch (err) {
-        console.error("Failed to save punch photo:", err);
+        console.error("Failed to process punch photo:", err);
       }
     }
 
@@ -1163,7 +1219,7 @@ const listLocationAudit = async (req, res) => {
 const syncAmtAttendance = async (req, res) => {
   try {
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
-     console.log("payloads Bio matric id",payloads);
+    console.log("payloads Bio matric id", payloads);
     if (!payloads.length || !payloads[0].BiometricID) {
       return res.status(400).json({ status: "error", message: "Invalid payload format" });
     }

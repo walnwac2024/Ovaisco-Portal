@@ -57,7 +57,7 @@ if (envPasskey) {
     }
 } else if (!process.stdin.isTTY) {
     console.log("\n❌ ACCESS DENIED - NON-INTERACTIVE TERMINAL DETECTED");
-    process.write("Please provide passkey via OWNER_PASSKEY_B environment variable.\n");
+    process.stdout.write("Please provide passkey via OWNER_PASSKEY_B environment variable.\n");
     process.exit(1);
 } else {
     getHiddenInput('ENTER OWNER PASSKEY (FRAG-B): ', (passkey) => {

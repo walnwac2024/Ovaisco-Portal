@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
 import BirthdayCelebration from "../components/common/BirthdayCelebration";
 import TimeSyncModal from "../components/common/TimeSyncModal";
+import * as faceapi from 'face-api.js';
+const FaceRecognitionModal = React.lazy(() => import("../features/attendance/components/FaceRecognitionModal"));
 // import AttendancePhotoModal from "../features/attendance/components/AttendancePhotoModal";
 
 const BACKEND_URL = BASE_URL;
@@ -97,7 +99,7 @@ function badge(status) {
   }
 }
 
-export default function Dashboard() {
+function DashboardHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -119,6 +121,8 @@ export default function Dashboard() {
   const [selectedBirthday, setSelectedBirthday] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [timeSync, setTimeSync] = useState({ show: false, drift: 0 });
+  const [showFaceModal, setShowFaceModal] = useState(false);
+  const [pendingPunchType, setPendingPunchType] = useState('IN');
   // const [photoModal, setPhotoModal] = useState({ show: false, type: 'IN' });
   // const [pendingPunch, setPendingPunch] = useState(null);
 
@@ -258,6 +262,25 @@ export default function Dashboard() {
     if (!user?.id) return;
     loadAttendance();
 
+    // --- PRELOAD FACE-API MODELS ---
+    const preloadModels = async () => {
+      try {
+        const MODEL_URL = process.env.PUBLIC_URL + '/models';
+        if (!faceapi.nets.ssdMobilenetv1.params) {
+          console.log('[Dashboard] Preloading AI Models in background...');
+          await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+            faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+          ]);
+          console.log('[Dashboard] AI Models Preloaded Successfully.');
+        }
+      } catch (err) {
+        console.warn('[Dashboard] AI Model preloading failed. It will retry when modal opens.', err);
+      }
+    };
+    preloadModels();
+
     // Real-time polling for team status (every 30 seconds)
     const interval = setInterval(() => {
       loadAttendance(true);
@@ -311,49 +334,34 @@ export default function Dashboard() {
         setError("Please select an office first.");
         return;
       }
+      setPendingPunchType(type);
+      setShowFaceModal(true);
+    } catch (err) {
+      setError(err.message || "Something went wrong.");
+    }
+  };
 
-      setError("");
+  const handleFaceCaptured = async (photoBase64) => {
+    try {
+      setShowFaceModal(false);
       setPunching(true);
+      setError("");
 
-      // 1. Get Location
-      let coords = null;
-      try {
-        coords = await getCurrentPosition();
-      } catch (err) {
-        setError(err.message);
-        setPunching(false);
-        return;
-      }
-
+      const coords = await getCurrentPosition();
       const { latitude, longitude } = coords;
-
-      // 2. Client-side Geofence Check
-      const office = offices.find((o) => String(o.id) === String(selectedOfficeId));
-      if (office && office.latitude && office.longitude) {
-        const dist = calculateDistance(
-          latitude,
-          longitude,
-          Number(office.latitude),
-          Number(office.longitude)
-        );
-        const radius = office.allowed_radius_meters || 200;
-        if (dist > radius) {
-          setError(
-            `You are not within the authorized radius for ${office.name
-            }. You are approximately ${Math.round(dist)}m away.`
-          );
-          setPunching(false);
-          return;
-        }
-      }
 
       const res = await punchAttendance({
         office_id: Number(selectedOfficeId),
-        punch_type: type,
+        punch_type: pendingPunchType,
         clientTime: new Date().toISOString(),
         latitude,
         longitude,
-        photo: null, // Photo removed as requested
+        accuracy: coords.accuracy,
+        altitude: coords.altitude,
+        altitudeAccuracy: coords.altitudeAccuracy,
+        heading: coords.heading,
+        speed: coords.speed,
+        photo: photoBase64,
       });
 
       setTodayData((prev) => ({
@@ -366,15 +374,9 @@ export default function Dashboard() {
     } catch (e) {
       if (e?.response?.status === 403) {
         const data = e.response.data;
-        if (data.drift !== undefined) {
-          setTimeSync({ show: true, drift: Math.round(data.drift) });
-          setError(`SECURITY VIOLATION: Your device time is out of sync.`);
-        } else {
-          setError(data.message || "Attendance blocked.");
-        }
+        setError(data.message || "Face Verification Failed or Security Constraint.");
       } else {
-        const msg = e?.response?.data?.message || "Failed to mark attendance.";
-        setError(msg);
+        setError(e?.response?.data?.message || "Failed to mark attendance.");
       }
     } finally {
       setPunching(false);
@@ -391,6 +393,14 @@ export default function Dashboard() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+      <React.Suspense fallback={null}>
+        <FaceRecognitionModal
+          isOpen={showFaceModal}
+          onClose={() => setShowFaceModal(false)}
+          onCapture={handleFaceCaptured}
+          employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
+        />
+      </React.Suspense>
       {/* LEFT COLUMN */}
       <section className="lg:col-span-3 space-y-3 sm:space-y-4">
         {/* Profile Card */}
@@ -977,3 +987,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+export default DashboardHome;
