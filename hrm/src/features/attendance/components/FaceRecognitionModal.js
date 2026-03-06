@@ -207,7 +207,7 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                 </div>
 
                 {/* Camera Area */}
-                <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+                <div className="relative aspect-square sm:aspect-video bg-black flex items-center justify-center overflow-hidden">
                     {error ? (
                         <div className="text-center p-6 bg-red-50 text-red-600 rounded-lg m-4 border border-red-100">
                             <p className="text-sm font-medium">{error}</p>
@@ -225,8 +225,8 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                                 audio={false}
                                 screenshotFormat="image/jpeg"
                                 videoConstraints={{
-                                    width: 640,
-                                    height: 480,
+                                    width: 480,
+                                    height: 360,
                                     facingMode: "user",
                                     frameRate: { ideal: 30, max: 60 }
                                 }}
@@ -238,40 +238,40 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                             {/* High-Tech Scanner Frame */}
                             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                                 {/* Thin Glowing Border */}
-                                <div className={`absolute inset-6 rounded-[2rem] border-2 transition-all duration-700 ${faceDetected
+                                <div className={`absolute inset-4 sm:inset-6 rounded-2xl sm:rounded-[2rem] border-2 transition-all duration-700 ${faceDetected
                                     ? 'border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.3)]'
                                     : 'border-white/10'
                                     }`} />
 
                                 {/* Corner Accents */}
-                                <div className={`absolute inset-6 rounded-[2rem] transition-opacity duration-500 ${faceDetected ? 'opacity-100' : 'opacity-20'}`}>
-                                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-500 rounded-tl-xl" />
-                                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-500 rounded-tr-xl" />
-                                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-500 rounded-bl-xl" />
-                                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-500 rounded-br-xl" />
+                                <div className={`absolute inset-4 sm:inset-6 rounded-2xl sm:rounded-[2rem] transition-opacity duration-500 ${faceDetected ? 'opacity-100' : 'opacity-20'}`}>
+                                    <div className="absolute top-0 left-0 w-6 h-6 sm:w-8 sm:h-8 border-t-4 border-l-4 border-emerald-500 rounded-tl-xl" />
+                                    <div className="absolute top-0 right-0 w-6 h-6 sm:w-8 sm:h-8 border-t-4 border-r-4 border-emerald-500 rounded-tr-xl" />
+                                    <div className="absolute bottom-0 left-0 w-6 h-6 sm:w-8 sm:h-8 border-b-4 border-l-4 border-emerald-500 rounded-bl-xl" />
+                                    <div className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 border-b-4 border-r-4 border-emerald-500 rounded-br-xl" />
                                 </div>
 
                                 {/* Dynamic Scanning Line */}
                                 {faceDetected && !isLivenessConfirmed && (
-                                    <div className="absolute top-0 left-6 right-6 h-1 bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent animate-scan" style={{
+                                    <div className="absolute top-0 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent animate-scan" style={{
                                         animation: 'scan 2s linear infinite'
                                     }} />
                                 )}
 
                                 {/* Subtle Status Bar inside Camera */}
-                                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 w-full max-w-[80%]">
-                                    <div className={`px-4 py-1.5 rounded-full backdrop-blur-md border transition-all duration-300 flex items-center gap-2 ${faceDetected
+                                <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 sm:gap-2 w-full max-w-[90%] sm:max-w-[80%]">
+                                    <div className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full backdrop-blur-md border transition-all duration-300 flex items-center gap-2 ${faceDetected
                                         ? 'bg-black/40 border-emerald-500/30 text-emerald-400'
                                         : 'bg-black/20 border-white/10 text-white/60'
                                         }`}>
-                                        <div className={`w-2 h-2 rounded-full ${faceDetected ? 'bg-emerald-500 animate-pulse' : 'bg-white/30'}`} />
-                                        <span className="text-[11px] font-bold tracking-widest uppercase">
+                                        <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${faceDetected ? 'bg-emerald-500 animate-pulse' : 'bg-white/30'}`} />
+                                        <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase">
                                             {faceDetected ? (isLivenessConfirmed ? 'Face Verified' : 'Scanning Face...') : 'Searching for Face'}
                                         </span>
                                     </div>
 
                                     {faceDetected && !isLivenessConfirmed && (
-                                        <div className="text-[14px] font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight animate-bounce">
+                                        <div className="text-[12px] sm:text-[14px] font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-tight animate-bounce">
                                             BLINK NOW TO VERIFY
                                         </div>
                                     )}
@@ -291,17 +291,17 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                 </div>
 
                 {/* Footer / Status */}
-                <div className="p-6 space-y-4">
-                    <div className={`p-4 rounded-2xl border text-center transition-all duration-500 backdrop-blur-sm ${isLivenessConfirmed
+                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                    <div className={`p-3 sm:p-4 rounded-2xl border text-center transition-all duration-500 backdrop-blur-sm ${isLivenessConfirmed
                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
                         : 'bg-slate-50 border-slate-100 text-slate-500'
                         }`}>
-                        <p className="text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                        <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                             {!modelsLoaded && <RefreshCw className="animate-spin" size={14} />}
                             {status}
                         </p>
                         {!isLivenessConfirmed && modelsLoaded && (
-                            <div className="mt-2 w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                            <div className="mt-2 w-full bg-gray-200 h-1 rounded-full overflow-hidden">
                                 <div
                                     className="bg-emerald-500 h-full transition-all duration-300"
                                     style={{ width: `${(blinkCount / REQUIRED_BLINKS) * 100}%` }}
@@ -310,17 +310,17 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                         )}
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                            className="flex-1 order-2 sm:order-1 py-2 sm:py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={capturePhoto}
                             disabled={!isLivenessConfirmed}
-                            className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${isLivenessConfirmed
+                            className={`flex-1 order-1 sm:order-2 py-3 sm:py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${isLivenessConfirmed
                                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700'
                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 }`}
