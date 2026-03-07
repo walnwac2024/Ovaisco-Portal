@@ -32,11 +32,17 @@ const downloadPayslip = (data, action = 'print') => {
     // Fixed deductions from salary setup
     const foodDed = Number(data.food_deduction || 0);
     const healthDed = Number(data.health_deduction || 0);
+    const monthAdj = Number(data.month_adjustment || 0);
+    const advSalary = Number(data.advance_salary || 0);
+    const eobi = Number(data.eobi || 0);
+    const asapAll = Number(data.asap_allowance || 0);
+    const efap = Number(data.efap || 0);
+    const unpaidLvs = Number(data.unpaid_leaves || 0);
 
     // Attendance-based deductions
     const leaveDed = Number(data.leave_deduction || 0);
     const lateDed = Number(data.late_deduction || 0);
-    const totalFixedDed = foodDed + healthDed;
+    const totalFixedDed = foodDed + healthDed + monthAdj + advSalary + eobi + asapAll + efap + unpaidLvs;
     const totalAttendanceDed = leaveDed + lateDed;
     const grandTotalDed = totalFixedDed + totalAttendanceDed;
 
@@ -283,8 +289,48 @@ const downloadPayslip = (data, action = 'print') => {
                 <td class="val">${fmt(data.misc_allowance)}</td>
                 <td class="mlbl">Relocation Allow.</td>
                 <td class="mval">${fmt(data.relocation_allowance)}</td>
-                <td class="rlbl"></td>
-                <td class="rval"></td>
+                <td class="rlbl">Month Adjustment</td>
+                <td class="rval">${fmt(data.month_adjustment)}</td>
+            </tr>
+            <tr>
+                <td class="lbl"></td>
+                <td class="val"></td>
+                <td class="mlbl"></td>
+                <td class="mval"></td>
+                <td class="rlbl">Advance Salary</td>
+                <td class="rval">${fmt(data.advance_salary)}</td>
+            </tr>
+            <tr>
+                <td class="lbl"></td>
+                <td class="val"></td>
+                <td class="mlbl"></td>
+                <td class="mval"></td>
+                <td class="rlbl">EOBI</td>
+                <td class="rval">${fmt(data.eobi)}</td>
+            </tr>
+            <tr>
+                <td class="lbl"></td>
+                <td class="val"></td>
+                <td class="mlbl"></td>
+                <td class="mval"></td>
+                <td class="rlbl">ASAP Allowance</td>
+                <td class="rval">${fmt(data.asap_allowance)}</td>
+            </tr>
+            <tr>
+                <td class="lbl"></td>
+                <td class="val"></td>
+                <td class="mlbl"></td>
+                <td class="mval"></td>
+                <td class="rlbl">EFAP</td>
+                <td class="rval">${fmt(data.efap)}</td>
+            </tr>
+            <tr>
+                <td class="lbl"></td>
+                <td class="val"></td>
+                <td class="mlbl"></td>
+                <td class="mval"></td>
+                <td class="rlbl">Unpaid Leaves</td>
+                <td class="rval">${fmt(data.unpaid_leaves)}</td>
             </tr>
 
             <!-- Net Salary -->

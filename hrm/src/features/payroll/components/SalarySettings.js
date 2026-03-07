@@ -20,6 +20,12 @@ const ALLOWANCE_FIELDS = [
 const DEDUCTION_FIELDS = [
     { id: 'food_deduction', label: 'Food Deduction', description: 'Fixed monthly food deduction' },
     { id: 'health_deduction', label: 'Health / Medical Deduction', description: 'Fixed monthly health/medical deduction' },
+    { id: 'month_adjustment', label: 'Month Adjustment', description: 'Adjustment for the month' },
+    { id: 'advance_salary', label: 'Advance Salary', description: 'Deduction for salary advance' },
+    { id: 'eobi', label: 'EOBI', description: 'EOBI deduction' },
+    { id: 'asap_allowance', label: 'ASAP Allowance', description: 'ASAP deduction' },
+    { id: 'efap', label: 'EFAP', description: 'EFAP deduction' },
+    { id: 'unpaid_leaves', label: 'Unpaid Leaves', description: 'Fixed deduction for unpaid leaves' },
 ];
 
 const ALL_FIELDS = [...ALLOWANCE_FIELDS, ...DEDUCTION_FIELDS];
@@ -91,18 +97,31 @@ const SalarySettings = () => {
         setAllowances(prev => ({ ...prev, [field]: value }));
     };
 
-    const calculateTotal = () => {
+    const calculateGross = () => {
         return ALLOWANCE_FIELDS.reduce((sum, f) => sum + (Number(allowances[f.id]) || 0), 0);
     };
 
+    const calculateFixedDeductions = () => {
+        return DEDUCTION_FIELDS.reduce((sum, f) => sum + (Number(allowances[f.id]) || 0), 0);
+    };
+
+    const totalGross = calculateGross();
+    const totalFixedDeductions = calculateFixedDeductions();
+    const totalNet = totalGross - totalFixedDeductions;
+
     const handleLock = async () => {
         if (!selectedEmployee) return;
-        const total = calculateTotal();
-        if (total <= 0) {
+        
+        // We use totalGross here which is calculated above from ALLOWANCE_FIELDS
+        const currentGross = totalGross; 
+        
+        if (currentGross <= 0) {
             toast.warn("Total salary must be greater than 0");
             return;
         }
-        if (!window.confirm(`Are you sure you want to lock the salary for ${selectedEmployee.name} at Rs. ${total}? This cannot be edited directly later.`)) return;
+
+        if (!window.confirm(`Are you sure you want to lock the salary for ${selectedEmployee.name} at Rs. ${currentGross}? This cannot be edited directly later.`)) return;
+        
         try {
             setSaving(true);
             await api.post('/payroll/lock-salary', {
@@ -111,7 +130,7 @@ const SalarySettings = () => {
             });
             toast.success("Salary locked successfully!");
             fetchEmployees();
-            setSelectedEmployee({ ...selectedEmployee, salary_locked: 1, monthly_salary: total });
+            setSelectedEmployee({ ...selectedEmployee, salary_locked: 1, monthly_salary: currentGross });
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to lock salary");
         } finally {
@@ -120,8 +139,6 @@ const SalarySettings = () => {
     };
 
     if (loading) return <div className="p-8 text-center text-slate-500 font-bold">Loading employees...</div>;
-
-    const totalSalary = calculateTotal();
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
@@ -324,16 +341,42 @@ const SalarySettings = () => {
                         {/* Footer / Summary */}
                         <div className="p-6 border-t border-slate-100 bg-white shrink-0">
                             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                                <div className="flex items-center gap-5">
-                                    <div className="w-14 h-14 rounded-2xl bg-customRed/10 text-customRed flex items-center justify-center shadow-inner border border-customRed/5">
-                                        <CreditCard className="w-7 h-7" />
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100 shadow-sm">
+                                            <CreditCard className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Gross Salary</p>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-xs font-black text-slate-400">Rs.</span>
+                                                <span className="text-xl font-black text-slate-900 leading-none tracking-tight">
+                                                    {totalGross.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+
                                     <div>
-                                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Monthly Gross Salary</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-sm font-black text-slate-400">Rs.</span>
-                                            <span className="text-3xl font-black text-slate-900 leading-none tracking-tight">
-                                                {totalSalary.toLocaleString()}
+                                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest leading-none mb-1">Deductions</p>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-black text-red-300">-Rs.</span>
+                                            <span className="text-xl font-black text-red-500 leading-none tracking-tight">
+                                                {totalFixedDeductions.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+
+                                    <div>
+                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Est. Net</p>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-black text-emerald-400">Rs.</span>
+                                            <span className="text-xl font-black text-emerald-700 leading-none tracking-tight">
+                                                {totalNet.toLocaleString()}
                                             </span>
                                         </div>
                                     </div>
@@ -342,7 +385,7 @@ const SalarySettings = () => {
                                 {!selectedEmployee.salary_locked ? (
                                     <button
                                         onClick={handleLock}
-                                        disabled={saving || totalSalary <= 0}
+                                        disabled={saving || totalGross <= 0}
                                         className="flex items-center gap-3 bg-slate-900 text-white px-12 py-5 rounded-[2rem] hover:bg-slate-800 transition-all font-black shadow-2xl shadow-slate-200 disabled:opacity-50 active:scale-95 group overflow-hidden relative"
                                     >
                                         {saving ?

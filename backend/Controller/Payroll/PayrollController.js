@@ -41,7 +41,13 @@ const lockSalary = async (req, res) => {
             misc_allowance = 0,
             relocation_allowance = 0,
             food_deduction = 0,
-            health_deduction = 0
+            health_deduction = 0,
+            month_adjustment = 0,
+            advance_salary = 0,
+            eobi = 0,
+            asap_allowance = 0,
+            efap = 0,
+            unpaid_leaves = 0
         } = req.body;
 
         if (!employee_id) return res.status(400).json({ message: "Missing employee ID" });
@@ -69,8 +75,9 @@ const lockSalary = async (req, res) => {
                 mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
                 fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
                 food_deduction, health_deduction,
+                month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves,
                 is_locked, locked_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
             ON DUPLICATE KEY UPDATE
                 contractual_pay = VALUES(contractual_pay),
                 transport_allowance = VALUES(transport_allowance),
@@ -85,13 +92,20 @@ const lockSalary = async (req, res) => {
                 relocation_allowance = VALUES(relocation_allowance),
                 food_deduction = VALUES(food_deduction),
                 health_deduction = VALUES(health_deduction),
+                month_adjustment = VALUES(month_adjustment),
+                advance_salary = VALUES(advance_salary),
+                eobi = VALUES(eobi),
+                asap_allowance = VALUES(asap_allowance),
+                efap = VALUES(efap),
+                unpaid_leaves = VALUES(unpaid_leaves),
                 is_locked = 1,
                 locked_at = NOW()
         `, [
             employee_id, contractual_pay, transport_allowance, attendance_bonus,
             mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
             fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
-            food_deduction, health_deduction
+            food_deduction, health_deduction,
+            month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves
         ]);
 
         // 2. Update employee_records
@@ -176,6 +190,23 @@ const generatePayroll = async (req, res) => {
                     WHERE employee_id = ? AND MONTH(attendance_date) = ? AND YEAR(attendance_date) = ?
                 `, [emp.id, month, year]);
 
+                // Fetch fixed deductions from base settings
+                const [baseSettings] = await conn.execute(
+                    "SELECT food_deduction, health_deduction, month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves FROM payroll_base_settings WHERE employee_id = ? LIMIT 1",
+                    [emp.id]
+                );
+
+                const settings = baseSettings[0] || {};
+                const fixedDeductions =
+                    Number(settings.food_deduction || 0) +
+                    Number(settings.health_deduction || 0) +
+                    Number(settings.month_adjustment || 0) +
+                    Number(settings.advance_salary || 0) +
+                    Number(settings.eobi || 0) +
+                    Number(settings.asap_allowance || 0) +
+                    Number(settings.efap || 0) +
+                    Number(settings.unpaid_leaves || 0);
+
                 const leaves = Number(attendance[0].leave_days || 0);
                 const lates = Number(attendance[0].late_days || 0);
 
@@ -190,7 +221,7 @@ const generatePayroll = async (req, res) => {
                 const deductibleLates = Math.max(0, lates - 4);
                 const lateDeduction = deductibleLates * dailyRate;
 
-                const totalDeductions = Math.round(leaveDeduction + lateDeduction);
+                const totalDeductions = Math.round(leaveDeduction + lateDeduction + fixedDeductions);
                 const netSalary = Math.max(0, salary - totalDeductions);
 
                 console.log(`[PayrollGen] ID:${emp.id} Sal:${salary} Lvs:${leaves} Lts:${lates} Ded:${totalDeductions} Net:${netSalary}`);
@@ -333,7 +364,8 @@ const getPayrollDetail = async (req, res) => {
                 pb.contractual_pay, pb.transport_allowance, pb.attendance_bonus, pb.mobile_allowance,
                 pb.tardiness_allowance, pb.night_allowance, pb.house_allowance, pb.fuel_allowance,
                 pb.adhoc_allowance, pb.misc_allowance, pb.relocation_allowance,
-                pb.food_deduction, pb.health_deduction
+                pb.food_deduction, pb.health_deduction,
+                pb.month_adjustment, pb.advance_salary, pb.eobi, pb.asap_allowance, pb.efap, pb.unpaid_leaves
             FROM payroll_records pr
             JOIN employee_records e ON e.id = pr.employee_id
             LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
@@ -438,7 +470,8 @@ const listAllSalaryDetails = async (req, res) => {
                 pb.contractual_pay, pb.transport_allowance, pb.attendance_bonus, pb.mobile_allowance,
                 pb.tardiness_allowance, pb.night_allowance, pb.house_allowance, pb.fuel_allowance,
                 pb.adhoc_allowance, pb.misc_allowance, pb.relocation_allowance,
-                pb.food_deduction, pb.health_deduction
+                pb.food_deduction, pb.health_deduction,
+                pb.month_adjustment, pb.advance_salary, pb.eobi, pb.asap_allowance, pb.efap, pb.unpaid_leaves
             FROM employee_records e
             LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
             WHERE e.is_active = 1
@@ -468,6 +501,9 @@ const exportSalaryReport = async (req, res) => {
                 pb.adhoc_allowance as "Ad-Hoc", pb.misc_allowance as "Misc", 
                 pb.relocation_allowance as "Relocation",
                 pb.food_deduction as "Food Deduction", pb.health_deduction as "Health Deduction",
+                pb.month_adjustment as "Month Adjustment", pb.advance_salary as "Advance Salary",
+                pb.eobi as "EOBI", pb.asap_allowance as "ASAP Allowance",
+                pb.efap as "EFAP", pb.unpaid_leaves as "Unpaid Leaves",
                 e.monthly_salary as "Total Gross Salary"
             FROM employee_records e
             LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
