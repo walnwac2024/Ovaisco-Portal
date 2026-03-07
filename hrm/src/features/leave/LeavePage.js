@@ -380,7 +380,7 @@ export default function LeavePage() {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-4 text-right">
-                                                    {(l.status === "pending" || (["super_admin", "admin", "hr", "developer"].includes(user?.role?.toLowerCase()))) && (
+                                                    {(l.status === "pending" || ((user?.features || []).some(f => ['leave_manage', 'leave_approve'].includes(f.toLowerCase())))) && (
                                                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
                                                             {l.status !== 'approved' && (
                                                                 <button
@@ -492,8 +492,8 @@ export default function LeavePage() {
                             </div>
                         )}
                     </div>
-                </div>
-            </section>
-        </div>
+                </div >
+            </section >
+        </div >
     );
 }

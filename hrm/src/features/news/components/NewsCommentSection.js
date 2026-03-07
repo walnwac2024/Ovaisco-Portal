@@ -73,9 +73,7 @@ export default function NewsCommentSection({ newsId, currentUser }) {
         return `${BASE_URL}${cleanPath}`;
     };
 
-    const roleList = currentUser?.roles || [];
-    if (currentUser?.role) roleList.push(currentUser.role);
-    const isAdmin = roleList.some(r => ["admin", "super_admin", "hr", "developer"].includes(String(r).toLowerCase()));
+    const isAdmin = (currentUser?.features || []).some(f => ['news_manage', 'news_delete'].includes(f.toLowerCase()));
 
     return (
         <div className="mt-6 border-t border-slate-50 pt-6">

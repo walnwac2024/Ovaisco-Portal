@@ -151,9 +151,7 @@ function DashboardHome() {
   };
 
   const isAdmin = useMemo(() => {
-    const roles = (user?.roles || []).map(r => String(r).toLowerCase());
-    if (user?.role) roles.push(user.role.toLowerCase());
-    return roles.some(r => ["admin", "super_admin", "hr", "developer"].includes(r));
+    return hasFeature("dashboard_admin_view");
   }, [user]);
 
   const canCheckIn = useMemo(() => {

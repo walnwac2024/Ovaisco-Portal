@@ -165,7 +165,7 @@ export default function Topbar({ logoSrc }) {
     })
     .filter((m) => m.key !== "permissions" && m.key !== "system_settings");
 
-  const isAdmin = user?.roles?.some(r => ["super_admin", "admin", "hr", "developer"].includes(r.toLowerCase()));
+  const isAdmin = (user?.features || []).some(f => ['system_settings_view'].includes(f.toLowerCase()));
 
   const activeMenu = menu.find((m) => location.pathname.startsWith(m.to));
   let activeLabel = activeMenu?.label ?? "";

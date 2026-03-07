@@ -22,6 +22,7 @@ export default function ProtectedRoute({
   children,
   redirectTo = "/login",
   requireRoles, // optional: e.g., ['admin', 'super_admin']
+  requireFeatures, // optional: e.g., ['system_settings_view']
 }) {
   const { loading, isAuthenticated, user } = useAuth();
   const location = useLocation();
@@ -43,6 +44,15 @@ export default function ProtectedRoute({
   // Optional: role-based guard
   if (requireRoles?.length && !requireRoles.includes(user?.role)) {
     return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Optional: feature-based guard
+  if (requireFeatures?.length) {
+    const userFeats = (user?.features || []).map(f => f.toLowerCase());
+    const hasRequired = requireFeatures.some(f => userFeats.includes(f.toLowerCase()));
+    if (!hasRequired) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   // Render nested route (Outlet) or provided children

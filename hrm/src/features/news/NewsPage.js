@@ -19,9 +19,7 @@ export default function NewsPage() {
     const [emojiSearch, setEmojiSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState("smileys");
 
-    const roleList = user?.roles || [];
-    if (user?.role) roleList.push(user.role);
-    const canPublish = roleList.some(r => ["admin", "super_admin", "hr", "developer"].includes(String(r).toLowerCase()));
+    const canPublish = (user?.features || []).some(f => ['news_create', 'news_publish', 'news_manage'].includes(f.toLowerCase()));
 
     const loadData = async () => {
         try {

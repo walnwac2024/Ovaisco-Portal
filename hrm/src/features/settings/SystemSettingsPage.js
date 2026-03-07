@@ -24,8 +24,7 @@ export default function SystemSettingsPage() {
     const { user } = useAuth();
     const { data, loading, createItem, updateItem, deleteItem, toggleActive } = useSystemSettings(activeTab);
 
-    // Check if user has admin access
-    const isAdmin = user?.roles?.some(r => ["super_admin", "admin", "hr", "developer"].includes(r.toLowerCase()));
+    const isAdmin = (user?.features || []).some(f => ['system_settings_view'].includes(f.toLowerCase()));
 
     // Filter data based on search
     const filteredData = data.filter((item) =>

@@ -14,19 +14,6 @@ function isAuthenticated(req, res, next) {
 }
 
 function hasFullAccess(user) {
-  if (!user) return false;
-
-  const level = Number(user.flags?.level || 0);
-  if (level > 6) return true;
-
-  const roles = Array.isArray(user.roles) ? user.roles : [];
-  const rolesLower = roles.map(r => String(r).toLowerCase());
-
-  if (rolesLower.includes("super_admin")) return true;
-  if (rolesLower.includes("admin")) return true;
-  if (rolesLower.includes("hr")) return true;
-  if (rolesLower.includes("developer")) return true;
-
   return false;
 }
 

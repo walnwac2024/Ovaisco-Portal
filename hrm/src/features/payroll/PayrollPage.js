@@ -13,9 +13,7 @@ const PayrollPage = () => {
     const [activeKey, setActiveKey] = useState('my-salary');
 
     const isAdmin = useMemo(() => {
-        const roles = user?.roles || [];
-        if (user?.role) roles.push(user.role);
-        return roles.some(r => ['admin', 'super_admin', 'hr', 'developer'].includes(String(r).toLowerCase()));
+        return false;
     }, [user]);
 
     const userPermissions = user?.features || [];

@@ -147,7 +147,7 @@ export default function App() {
                 <Route
                   path="/settings/system"
                   element={
-                    <ProtectedRoute requireRoles={['super_admin', 'admin', 'hr', 'developer']}>
+                    <ProtectedRoute requireFeatures={['system_settings_view']}>
                       <SystemSettingsPage />
                     </ProtectedRoute>
                   }

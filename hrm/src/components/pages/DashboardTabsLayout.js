@@ -5,9 +5,7 @@ export default function DashboardTabsLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();
 
-  const roleList = user?.roles || [];
-  if (user?.role) roleList.push(user.role);
-  const isAdmin = roleList.some(r => ["admin", "super_admin", "hr", "developer"].includes(String(r).toLowerCase()));
+  const isAdmin = (user?.features || []).some(f => ['system_settings_view'].includes(f.toLowerCase()));
   const feats = new Set(user?.features || []);
 
   const allTabs = [
