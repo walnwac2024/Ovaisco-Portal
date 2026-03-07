@@ -213,7 +213,91 @@ const login = async (req, res) => {
 
 // GET /auth/me
 const me = async (req, res) => {
-  return res.status(200).json({ user: req.session?.user ?? null });
+  const sessionUser = req.session?.user;
+  if (!sessionUser?.id) {
+    return res.status(200).json({ user: null });
+  }
+
+  try {
+    const empId = sessionUser.id;
+
+    // 1) Fetch primary role
+    const [roleRows] = await pool.execute(
+      `SELECT ut.id,
+              ut.type,
+              ut.permission_level,
+              ut.Create_permission AS can_create,
+              ut.Edit_permission   AS can_edit,
+              ut.View_permission   AS can_view
+         FROM employee_user_types eut
+         JOIN users_types ut ON ut.id = eut.user_type_id
+        WHERE eut.employee_id = ?
+          AND eut.is_primary = 1`,
+      [empId]
+    );
+
+    let roles = roleRows.map((r) => r.type);
+    if (!roles.length) roles = ["guest"];
+
+    let level = 0;
+    let canCreate = false;
+    let canEdit = false;
+    let canView = false;
+
+    for (const r of roleRows) {
+      level = Math.max(level, Number(r.permission_level) || 0);
+      if (Number(r.can_create) > 0) canCreate = true;
+      if (Number(r.can_edit) > 0) canEdit = true;
+      if (Number(r.can_view) > 0) canView = true;
+    }
+
+    if (level > 6) {
+      canCreate = true;
+      canEdit = true;
+      canView = true;
+    }
+
+    // 2) Fetch permissions
+    const [permRows] = await pool.execute(
+      `SELECT DISTINCT p.code
+         FROM user_type_permission up
+         JOIN permissions p ON p.id = up.permission_id
+         JOIN employee_user_types eut ON eut.user_type_id = up.user_type_id
+        WHERE eut.employee_id = ?
+          AND eut.is_primary = 1`,
+      [empId]
+    );
+
+    let features = permRows.map((r) => r.code);
+
+    if (level >= 10) {
+      const [allPerms] = await pool.execute("SELECT code FROM permissions");
+      features = [...new Set([...features, ...allPerms.map(p => p.code)])];
+    }
+
+    // 3) Update session and save
+    req.session.user = {
+      ...sessionUser,
+      role: roles[0] || null,
+      roles,
+      flags: {
+        level,
+        create: canCreate,
+        edit: canEdit,
+        view: canView,
+      },
+      features,
+    };
+
+    req.session.save((saveErr) => {
+      if (saveErr) console.error("Session save error in /auth/me:", saveErr);
+      return res.status(200).json({ user: req.session.user });
+    });
+  } catch (err) {
+    console.error("Error refreshing permissions in /auth/me:", err);
+    // Fallback to existing session if DB fails
+    return res.status(200).json({ user: sessionUser });
+  }
 };
 
 // POST /auth/logout
