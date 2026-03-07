@@ -33,17 +33,17 @@ const MySalaryList = () => {
 
     return (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-slate-900">My Salary Records</h2>
                     <p className="text-sm text-slate-500">View and download your monthly payslips</p>
                 </div>
-                <div className="flex gap-2">
-                    <button className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-sm transition-colors">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button className="flex-1 sm:flex-none justify-center items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-sm transition-colors flex">
                         <Filter className="w-4 h-4" />
                         Filters
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 bg-customRed text-white rounded-lg text-sm transition-opacity hover:opacity-90">
+                    <button className="flex-1 sm:flex-none justify-center items-center gap-2 px-3 py-2 bg-customRed text-white rounded-lg text-sm transition-opacity hover:opacity-90 flex">
                         <Download className="w-4 h-4" />
                         Export All
                     </button>

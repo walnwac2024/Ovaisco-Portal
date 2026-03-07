@@ -111,17 +111,17 @@ const SalarySettings = () => {
 
     const handleLock = async () => {
         if (!selectedEmployee) return;
-        
+
         // We use totalGross here which is calculated above from ALLOWANCE_FIELDS
-        const currentGross = totalGross; 
-        
+        const currentGross = totalGross;
+
         if (currentGross <= 0) {
             toast.warn("Total salary must be greater than 0");
             return;
         }
 
         if (!window.confirm(`Are you sure you want to lock the salary for ${selectedEmployee.name} at Rs. ${currentGross}? This cannot be edited directly later.`)) return;
-        
+
         try {
             setSaving(true);
             await api.post('/payroll/lock-salary', {
@@ -141,9 +141,9 @@ const SalarySettings = () => {
     if (loading) return <div className="p-8 text-center text-slate-500 font-bold">Loading employees...</div>;
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-auto md:h-[calc(100vh-140px)]">
             {/* Employee List */}
-            <div className="md:col-span-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+            <div className="md:col-span-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden h-[400px] md:h-auto">
                 <div className="p-4 border-b border-slate-100 bg-slate-50 space-y-4">
                     <div className="flex justify-between items-center">
                         <h3 className="font-bold text-slate-900 flex items-center gap-2">
