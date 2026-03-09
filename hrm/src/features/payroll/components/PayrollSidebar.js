@@ -2,7 +2,9 @@ import React from 'react';
 import SharedSidebar from '../../../components/common/SharedSidebar';
 import { FaHistory, FaUserEdit, FaCalculator } from 'react-icons/fa';
 
-const PayrollSidebar = ({ activeKey, onNavigate, isAdmin, userPermissions = [] }) => {
+const PayrollSidebar = ({ activeKey, onNavigate, isAdmin, userPermissions = [], user }) => {
+    const canManagePayroll = user?.flags?.exact_create >= 15;
+
     const items = [
         {
             id: 'my-salary',
@@ -34,7 +36,10 @@ const PayrollSidebar = ({ activeKey, onNavigate, isAdmin, userPermissions = [] }
             icon: <FaCalculator />,
             permission: 'payroll_overview_view',
         }
-    ];
+    ].filter(item => {
+        if (item.id === 'my-salary') return true;
+        return canManagePayroll;
+    });
 
     return (
         <SharedSidebar

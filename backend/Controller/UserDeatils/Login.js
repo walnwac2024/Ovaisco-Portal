@@ -113,11 +113,19 @@ const login = async (req, res) => {
     let canEdit = false;
     let canView = false;
 
+    let exactCreate = null;
+    let exactEdit = null;
+    let exactView = null;
+
     for (const r of roleRows) {
       level = Math.max(level, Number(r.permission_level) || 0);
       if (Number(r.can_create) > 0) canCreate = true;
       if (Number(r.can_edit) > 0) canEdit = true;
       if (Number(r.can_view) > 0) canView = true;
+
+      exactCreate = r.can_create;
+      exactEdit = r.can_edit;
+      exactView = r.can_view;
     }
 
     if (level > 6) {
@@ -165,6 +173,9 @@ const login = async (req, res) => {
         create: canCreate,
         edit: canEdit,
         view: canView,
+        exact_create: exactCreate,
+        exact_edit: exactEdit,
+        exact_view: exactView,
       },
       features,
     };
@@ -244,11 +255,19 @@ const me = async (req, res) => {
     let canEdit = false;
     let canView = false;
 
+    let exactCreate = null;
+    let exactEdit = null;
+    let exactView = null;
+
     for (const r of roleRows) {
       level = Math.max(level, Number(r.permission_level) || 0);
       if (Number(r.can_create) > 0) canCreate = true;
       if (Number(r.can_edit) > 0) canEdit = true;
       if (Number(r.can_view) > 0) canView = true;
+
+      exactCreate = r.can_create;
+      exactEdit = r.can_edit;
+      exactView = r.can_view;
     }
 
     if (level > 6) {
@@ -285,6 +304,9 @@ const me = async (req, res) => {
         create: canCreate,
         edit: canEdit,
         view: canView,
+        exact_create: exactCreate,
+        exact_edit: exactEdit,
+        exact_view: exactView,
       },
       features,
     };

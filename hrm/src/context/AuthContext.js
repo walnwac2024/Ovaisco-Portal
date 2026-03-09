@@ -40,6 +40,7 @@ export function AuthProvider({ children }) {
     try {
       await initCsrf();
       const meRes = await api.get("/auth/me");
+      console.log("the meRes:",meRes)
       const meUser = normalizeUser(meRes.data?.user || null);
       setUser(meUser);
 

@@ -10,6 +10,7 @@ import './PayrollPage.css';
 
 const PayrollPage = () => {
     const { user } = useAuth();
+    console.log("the user that present in the auth:", user)
     const [activeKey, setActiveKey] = useState('my-salary');
 
     const isAdmin = useMemo(() => {
@@ -34,14 +35,15 @@ const PayrollPage = () => {
                     onNavigate={setActiveKey}
                     isAdmin={isAdmin}
                     userPermissions={userPermissions}
+                    user={user}
                 />
 
                 <section className="flex-1 min-w-0">
                     {activeKey === 'my-salary' && <MySalaryList />}
-                    {activeKey === 'payroll-run' && hasAccess('payroll_run_manage') && <PayrollRun />}
-                    {activeKey === 'salary-setup' && hasAccess('payroll_salary_setup') && <SalarySettings />}
-                    {activeKey === 'increments' && hasAccess('payroll_increment_manage') && <IncrementManagement />}
-                    {activeKey === 'salary-overview' && hasAccess('payroll_overview_view') && <SalaryOverview />}
+                    {activeKey === 'payroll-run' && hasAccess('payroll_run_manage') && user.flags.exact_create >= 15 && <PayrollRun />}
+                    {activeKey === 'salary-setup' && hasAccess('payroll_salary_setup') && user.flags.exact_create >= 15 && <SalarySettings />}
+                    {activeKey === 'increments' && hasAccess('payroll_increment_manage') && user.flags.exact_create >= 15 && <IncrementManagement />}
+                    {activeKey === 'salary-overview' && hasAccess('payroll_overview_view') && user.flags.exact_create >= 15 && <SalaryOverview />}
                 </section>
             </div>
         </div>
