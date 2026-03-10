@@ -25,7 +25,7 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
 
     const loadModels = React.useCallback(async () => {
         // If models are already in memory (preloaded by Dashboard), don't show loading states
-        if (faceapi.nets.ssdMobilenetv1 && faceapi.nets.ssdMobilenetv1.params) {
+        if (faceapi.nets.tinyFaceDetector && faceapi.nets.tinyFaceDetector.params) {
             setModelsLoaded(true);
             return;
         }
@@ -36,12 +36,12 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
             // This is a fallback in case preloading failed or wasn't finished
             const MODEL_URL = process.env.PUBLIC_URL + '/models';
             await Promise.all([
-                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
             ]);
             setModelsLoaded(true);
-            console.log('[Diagnostic] Models Loaded via Fallback');
+            console.log('[Diagnostic] Models Loaded via Fallback (Tiny)');
         } catch (err) {
             console.error('Error loading models:', err);
             setError('Biometric engine failed to start.');
@@ -93,7 +93,8 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
             if (video) {
                 const rs = video.readyState;
                 const vw = video.videoWidth;
-                if (rs < 4 || vw === 0) {
+                const vh = video.videoHeight;
+                if (rs < 4 || vw === 0 || vh === 0) {
                     if (isMounted) requestRef = requestAnimationFrame(detect);
                     return;
                 }
@@ -105,7 +106,7 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
             try {
                 const detections = await faceapi.detectSingleFace(
                     video,
-                    new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 })
+                    new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
                 ).withFaceLandmarks();
 
                 if (!isMounted || isLivenessConfirmedRef.current) return;
@@ -225,8 +226,8 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                                 audio={false}
                                 screenshotFormat="image/jpeg"
                                 videoConstraints={{
-                                    width: 480,
-                                    height: 360,
+                                    width: { ideal: 640 },
+                                    height: { ideal: 480 },
                                     facingMode: "user",
                                     frameRate: { ideal: 30, max: 60 }
                                 }}

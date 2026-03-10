@@ -264,14 +264,14 @@ function DashboardHome() {
     const preloadModels = async () => {
       try {
         const MODEL_URL = process.env.PUBLIC_URL + '/models';
-        if (!faceapi.nets.ssdMobilenetv1.params) {
-          console.log('[Dashboard] Preloading AI Models in background...');
+        if (!faceapi.nets.tinyFaceDetector.params) {
+          console.log('[Dashboard] Preloading AI Models (Tiny) in background...');
           await Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
             faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
             faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
           ]);
-          console.log('[Dashboard] AI Models Preloaded Successfully.');
+          console.log('[Dashboard] AI Models (Tiny) Preloaded Successfully.');
         }
       } catch (err) {
         console.warn('[Dashboard] AI Model preloading failed. It will retry when modal opens.', err);
