@@ -6,10 +6,13 @@ import {
   User, Mail, Phone, MapPin, Calendar,
   Briefcase, ShieldCheck, Camera, PenLine,
   Lock, CheckCircle2, Award, Medal,
-  Star, Trophy, Milestone, Loader2, Timer
+  Star, Trophy, Milestone, Loader2, Timer,
+  Eye, EyeOff
 } from "lucide-react";
 
 function Field({ label, value, readOnly = false, onChange, type = "text" }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   if (readOnly) {
     return (
       <div className="flex flex-col gap-1">
@@ -21,25 +24,42 @@ function Field({ label, value, readOnly = false, onChange, type = "text" }) {
     );
   }
 
+  const isPassword = type === "password";
+  const inputType = isPassword ? (showPassword ? "text" : "password") : type;
+
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
         {label}
       </label>
-      {type === "textarea" ? (
-        <textarea
-          className="textarea min-h-[70px]"
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : (
-        <input
-          type={type}
-          className="input"
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
+      <div className="relative group">
+        {type === "textarea" ? (
+          <textarea
+            className="textarea min-h-[70px] w-full"
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        ) : (
+          <>
+            <input
+              type={inputType}
+              className={`input w-full ${isPassword ? 'pr-10' : ''}`}
+              value={value || ""}
+              onChange={(e) => onChange(e.target.value)}
+            />
+            {isPassword && (
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-customRed dark:text-slate-500 dark:hover:text-customRed transition-colors"
+                tabIndex="-1"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -71,7 +91,6 @@ export default function ProfilePage() {
 
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
-  const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
   const [pwError, setPwError] = useState("");
@@ -162,13 +181,14 @@ export default function ProfilePage() {
   };
 
   const handlePasswordSave = async () => {
-    if (!pwCurrent || !pwNew || !pwConfirm) { setPwError("All fields are required."); return; }
-    if (pwNew !== pwConfirm) { setPwError("Passwords do not match."); return; }
+    if (!pwCurrent || !pwNew) { setPwError("All fields are required."); return; }
     setPwSaving(true);
+    setPwError("");
+    setPwMsg("");
     try {
       await api.post("/auth/change-password", { currentPassword: pwCurrent, newPassword: pwNew });
       setPwMsg("Password updated successfully.");
-      setPwCurrent(""); setPwNew(""); setPwConfirm("");
+      setPwCurrent(""); setPwNew("");
     } catch (err) { setPwError(err.response?.data?.message || "Failed to change password."); } finally { setPwSaving(false); }
   };
 
