@@ -226,10 +226,10 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
                                 audio={false}
                                 screenshotFormat="image/jpeg"
                                 videoConstraints={{
+                                    facingMode: "user",
                                     width: { ideal: 640 },
                                     height: { ideal: 480 },
-                                    facingMode: "user",
-                                    frameRate: { ideal: 30, max: 60 }
+                                    frameRate: { ideal: 30 }
                                 }}
                                 style={{ transform: 'scaleX(-1)' }}
                                 className="w-full h-full object-cover"

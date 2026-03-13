@@ -28,8 +28,8 @@ async function compareFaces(capturedImagePath, storedImagePath) {
     const img1 = await canvas.loadImage(capturedImagePath);
     const img2 = await canvas.loadImage(storedImagePath);
 
-    const detections1 = await faceapi.detectSingleFace(img1, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-    const detections2 = await faceapi.detectSingleFace(img2, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    const detections1 = await faceapi.detectSingleFace(img1, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 })).withFaceLandmarks().withFaceDescriptor();
+    const detections2 = await faceapi.detectSingleFace(img2, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 })).withFaceLandmarks().withFaceDescriptor();
 
     if (!detections1) throw new Error("No face detected in the captured photo.");
     if (!detections2) throw new Error("No face detected in the profile photo.");

@@ -19,7 +19,7 @@ import { BASE_URL } from "../utils/api";
 import BirthdayCelebration from "../components/common/BirthdayCelebration";
 import TimeSyncModal from "../components/common/TimeSyncModal";
 import * as faceapi from 'face-api.js';
-const FaceRecognitionModal = React.lazy(() => import("../features/attendance/components/FaceRecognitionModal"));
+import FaceRecognitionModal from "../features/attendance/components/FaceRecognitionModal";
 // import AttendancePhotoModal from "../features/attendance/components/AttendancePhotoModal";
 
 const BACKEND_URL = BASE_URL;
@@ -391,14 +391,12 @@ function DashboardHome() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
-      <React.Suspense fallback={null}>
-        <FaceRecognitionModal
-          isOpen={showFaceModal}
-          onClose={() => setShowFaceModal(false)}
-          onCapture={handleFaceCaptured}
-          employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
-        />
-      </React.Suspense>
+      <FaceRecognitionModal
+        isOpen={showFaceModal}
+        onClose={() => setShowFaceModal(false)}
+        onCapture={handleFaceCaptured}
+        employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
+      />
       {/* LEFT COLUMN */}
       <section className="lg:col-span-3 space-y-3 sm:space-y-4">
         {/* Profile Card */}
