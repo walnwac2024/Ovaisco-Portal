@@ -29,6 +29,7 @@ const Timeline = require("../Controller/Employees/TimelineController");
 const Settings = require("../Controller/Settings/SettingsController");
 const SystemSettings = require("../Controller/Settings/SystemSettingsController");
 const Gamification = require("../Controller/Gamification/GamificationController");
+const Office = require("../Controller/Office/OfficeController");
 
 
 const {
@@ -246,6 +247,8 @@ const Payroll = require("../Controller/Payroll/PayrollController");
 
 // Minimal Payroll Routes
 router.post("/payroll/lock-salary", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.lockSalary);
+router.post("/payroll/unlock-salary", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.unlockSalary);
+router.post("/payroll/import-bulk-salary", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.bulkImportSalaries);
 router.get("/payroll/base-settings/:employeeId", isAuthenticated, Payroll.getSalaryDetails);
 router.get("/payroll/increment/history/:employeeId", isAuthenticated, Payroll.getIncrementHistory);
 router.post("/payroll/generate", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.generatePayroll);
@@ -260,5 +263,12 @@ router.get("/payroll/detail/:id", isAuthenticated, Payroll.getPayrollDetail);
 router.get("/payroll/admin/list", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.listAllPayroll);
 router.get("/payroll/admin/salary-overview", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.listAllSalaryDetails);
 router.get("/payroll/admin/export-salaries", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.exportSalaryReport);
+
+// Office Management Requisition routes
+router.post("/office/requisitions", isAuthenticated, requireFeatures("office_req_apply"), Office.createRequisition);
+router.get("/office/requisitions", isAuthenticated, Office.listRequisitions);
+router.get("/office/requisitions/:id", isAuthenticated, Office.getRequisitionById);
+router.patch("/office/requisitions/:id/approve-hr", isAuthenticated, requireFeatures("office_req_approve_hr"), Office.approveHR);
+router.patch("/office/requisitions/:id/approve-accounts", isAuthenticated, requireFeatures("office_req_approve_accounts"), Office.approveAccounts);
 
 module.exports = router;

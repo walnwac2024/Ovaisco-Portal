@@ -6,6 +6,7 @@ import SalarySettings from './components/SalarySettings';
 import PayrollRun from './components/PayrollRun';
 import IncrementManagement from './components/IncrementManagement';
 import SalaryOverview from './components/SalaryOverview';
+import BulkSalaryImport from './components/BulkSalaryImport';
 import './PayrollPage.css';
 
 const PayrollPage = () => {
@@ -44,6 +45,7 @@ const PayrollPage = () => {
                     {activeKey === 'salary-setup' && hasAccess('payroll_salary_setup') && user.flags.exact_create >= 15 && <SalarySettings />}
                     {activeKey === 'increments' && hasAccess('payroll_increment_manage') && user.flags.exact_create >= 15 && <IncrementManagement />}
                     {activeKey === 'salary-overview' && hasAccess('payroll_overview_view') && user.flags.exact_create >= 15 && <SalaryOverview />}
+                    {activeKey === 'bulk-import' && hasAccess('payroll_salary_setup') && user.flags.exact_create >= 15 && <BulkSalaryImport />}
                 </section>
             </div>
         </div>

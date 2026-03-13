@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Lock, Unlock, Save, User, CreditCard, CircleAlert, CircleHelp, Search, X } from 'lucide-react';
+import { Lock, Unlock, Save, User, CreditCard, CircleAlert, CircleHelp, Search, X, RefreshCw } from 'lucide-react';
 
 const ALLOWANCE_FIELDS = [
     { id: 'contractual_pay', label: 'Contractual Pay', description: 'Base salary as per contract' },
@@ -133,6 +133,25 @@ const SalarySettings = () => {
             setSelectedEmployee({ ...selectedEmployee, salary_locked: 1, monthly_salary: currentGross });
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to lock salary");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleUnlock = async () => {
+        if (!selectedEmployee) return;
+        if (!window.confirm(`Are you sure you want to unlock the salary for ${selectedEmployee.name}? This will allow direct editing of all fields.`)) return;
+
+        try {
+            setSaving(true);
+            await api.post('/payroll/unlock-salary', {
+                employee_id: selectedEmployee.id
+            });
+            toast.success("Salary unlocked successfully!");
+            fetchEmployees();
+            setSelectedEmployee({ ...selectedEmployee, salary_locked: 0 });
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to unlock salary");
         } finally {
             setSaving(false);
         }
@@ -395,9 +414,20 @@ const SalarySettings = () => {
                                         <span>Save &amp; Lock Salary</span>
                                     </button>
                                 ) : (
-                                    <div className="text-sm font-black text-emerald-600 bg-emerald-50 px-8 py-4 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</div>
-                                        RECORD VALIDATED
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-sm font-black text-emerald-600 bg-emerald-50 px-6 py-4 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</div>
+                                            RECORD VALIDATED
+                                        </div>
+                                        <button
+                                            onClick={handleUnlock}
+                                            disabled={saving}
+                                            className="flex items-center gap-2 bg-amber-500 text-white px-6 py-4 rounded-2xl hover:bg-amber-600 transition-all font-black shadow-lg shadow-amber-200/50 active:scale-95"
+                                            title="Unlock for editing"
+                                        >
+                                            {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Unlock className="w-5 h-5" />}
+                                            <span>Update / Unlock</span>
+                                        </button>
                                     </div>
                                 )}
                             </div>

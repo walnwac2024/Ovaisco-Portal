@@ -133,6 +133,180 @@ const lockSalary = async (req, res) => {
     }
 };
 
+const unlockSalary = async (req, res) => {
+    const conn = await pool.getConnection();
+    try {
+        const user = req.session?.user;
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+        const { employee_id } = req.body;
+        if (!employee_id) return res.status(400).json({ message: "Missing employee ID" });
+
+        await conn.beginTransaction();
+
+        // 1. Update payroll_base_settings to unlock
+        await conn.execute(
+            "UPDATE payroll_base_settings SET is_locked = 0 WHERE employee_id = ?",
+            [employee_id]
+        );
+
+        // 2. Update employee_records to unlock
+        await conn.execute(
+            "UPDATE employee_records SET salary_locked = 0 WHERE id = ?",
+            [employee_id]
+        );
+
+        await conn.commit();
+
+        await recordLog({
+            actorId: user.id,
+            action: `Unlocked salary for employee ID ${employee_id}`,
+            category: "Payroll",
+            status: "Success"
+        });
+
+        return res.json({ message: "Salary unlocked successfully." });
+    } catch (error) {
+        if (conn) await conn.rollback();
+        console.error("unlockSalary error:", error);
+        return res.status(500).json({ message: error.message || "Server error" });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+/**
+ * Bulk Import Salaries
+ * POST /api/v1/payroll/import-bulk-salary
+ */
+const bulkImportSalaries = async (req, res) => {
+    let conn;
+    try {
+        const user = req.session?.user;
+        if (!isAdminLike(user)) return res.status(403).json({ message: "Forbidden" });
+
+        const { records } = req.body; // Array of objects
+        if (!Array.isArray(records) || records.length === 0) {
+            return res.status(400).json({ message: "No records provided" });
+        }
+
+        conn = await pool.getConnection();
+        await conn.beginTransaction();
+
+        const results = { success: 0, failed: 0, errors: [] };
+
+        for (const record of records) {
+            try {
+                const {
+                    employee_id,
+                    contractual_pay = 0,
+                    transport_allowance = 0,
+                    attendance_bonus = 0,
+                    mobile_allowance = 0,
+                    tardiness_allowance = 0,
+                    night_allowance = 0,
+                    house_allowance = 0,
+                    fuel_allowance = 0,
+                    adhoc_allowance = 0,
+                    misc_allowance = 0,
+                    relocation_allowance = 0,
+                    food_deduction = 0,
+                    health_deduction = 0,
+                    month_adjustment = 0,
+                    advance_salary = 0,
+                    eobi = 0,
+                    asap_allowance = 0,
+                    efap = 0,
+                    unpaid_leaves = 0
+                } = record;
+
+                if (!employee_id) throw new Error("Missing Employee ID in record");
+
+                const monthly_salary =
+                    Number(contractual_pay) +
+                    Number(transport_allowance) +
+                    Number(attendance_bonus) +
+                    Number(mobile_allowance) +
+                    Number(tardiness_allowance) +
+                    Number(night_allowance) +
+                    Number(house_allowance) +
+                    Number(fuel_allowance) +
+                    Number(adhoc_allowance) +
+                    Number(misc_allowance) +
+                    Number(relocation_allowance);
+
+                // Update/Insert into payroll_base_settings
+                await conn.execute(`
+                    INSERT INTO payroll_base_settings (
+                        employee_id, contractual_pay, transport_allowance, attendance_bonus,
+                        mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
+                        fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
+                        food_deduction, health_deduction,
+                        month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves,
+                        is_locked, locked_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        contractual_pay = VALUES(contractual_pay),
+                        transport_allowance = VALUES(transport_allowance),
+                        attendance_bonus = VALUES(attendance_bonus),
+                        mobile_allowance = VALUES(mobile_allowance),
+                        tardiness_allowance = VALUES(tardiness_allowance),
+                        night_allowance = VALUES(night_allowance),
+                        house_allowance = VALUES(house_allowance),
+                        fuel_allowance = VALUES(fuel_allowance),
+                        adhoc_allowance = VALUES(adhoc_allowance),
+                        misc_allowance = VALUES(misc_allowance),
+                        relocation_allowance = VALUES(relocation_allowance),
+                        food_deduction = VALUES(food_deduction),
+                        health_deduction = VALUES(health_deduction),
+                        month_adjustment = VALUES(month_adjustment),
+                        advance_salary = VALUES(advance_salary),
+                        eobi = VALUES(eobi),
+                        asap_allowance = VALUES(asap_allowance),
+                        efap = VALUES(efap),
+                        unpaid_leaves = VALUES(unpaid_leaves),
+                        is_locked = 1,
+                        locked_at = NOW()
+                `, [
+                    employee_id, contractual_pay, transport_allowance, attendance_bonus,
+                    mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
+                    fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
+                    food_deduction, health_deduction,
+                    month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves
+                ]);
+
+                // Update employee_records
+                await conn.execute(
+                    "UPDATE employee_records SET monthly_salary = ?, salary_locked = 1, salary_locked_at = NOW() WHERE id = ?",
+                    [monthly_salary, employee_id]
+                );
+
+                results.success++;
+            } catch (err) {
+                results.failed++;
+                results.errors.push({ employee_id: record.employee_id, message: err.message });
+            }
+        }
+
+        await conn.commit();
+
+        await recordLog({
+            actorId: user.id,
+            action: `Bulk imported salary settings for ${results.success} employees.`,
+            category: "Payroll",
+            status: "Success"
+        });
+
+        return res.json({ message: "Bulk import process completed", ...results });
+    } catch (error) {
+        if (conn) await conn.rollback();
+        console.error("bulkImportSalaries error:", error);
+        return res.status(500).json({ message: error.message || "Server error" });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
 /**
  * GET Detailed Salary base settings
  * GET /api/v1/payroll/base-settings/:employeeId
@@ -615,5 +789,7 @@ module.exports = {
     listAllSalaryDetails,
     exportSalaryReport,
     updatePayrollRecord,
-    deletePayrollRecord
+    deletePayrollRecord,
+    unlockSalary,
+    bulkImportSalaries
 };

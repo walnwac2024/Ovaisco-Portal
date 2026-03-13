@@ -35,6 +35,12 @@ const PayrollSidebar = ({ activeKey, onNavigate, isAdmin, userPermissions = [], 
             label: 'Salary Overview',
             icon: <FaCalculator />,
             permission: 'payroll_overview_view',
+        },
+        {
+            id: 'bulk-import',
+            label: 'Bulk Import',
+            icon: <FaUserEdit />,
+            permission: 'payroll_salary_setup',
         }
     ].filter(item => {
         if (item.id === 'my-salary') return true;
