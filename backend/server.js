@@ -182,7 +182,9 @@ app.use("/api/v1", (req, res, next) => {
     (req.method === "PATCH" && pathForCsrf.includes("/notifications/") && pathForCsrf.endsWith("/read")) ||
     pathForCsrf.includes("/attendance/punch") ||
     pathForCsrf.includes("/attendance/amt-sync") ||
-    pathForCsrf.includes("/payroll/lock-salary");
+    pathForCsrf.includes("/payroll/lock-salary") ||
+    pathForCsrf.includes("/push/subscribe") ||
+    pathForCsrf.includes("/push/unsubscribe");
 
   if (isExempt) {
     return next();

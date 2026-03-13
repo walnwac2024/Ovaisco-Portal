@@ -67,7 +67,13 @@ self.addEventListener('fetch', (event) => {
             .catch(() => {
                 // Network failed (offline), try the cache
                 console.log('Network failed, falling back to cache:', event.request.url);
-                return caches.match(event.request);
+                return caches.match(event.request).then((cachedResponse) => {
+                    return cachedResponse || new Response('Network error occurred and no cache available', {
+                        status: 503,
+                        statusText: 'Service Unavailable',
+                        headers: new Headers({ 'Content-Type': 'text/plain' })
+                    });
+                });
             })
     );
 });
