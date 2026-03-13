@@ -242,18 +242,20 @@ const port = Number(process.env.PORT || 5000);
 const host = "0.0.0.0";
 
 // Auto-migrate: add new payroll columns if missing
-const { pool: migratePool } = require('./Utils/db');
+const { pool } = require('./Utils/db');
 (async () => {
+  // Wait a moment for everything to settle
+  await new Promise(r => setTimeout(r, 2000));
   try {
-    const [columns] = await migratePool.execute("DESCRIBE payroll_base_settings");
+    const [columns] = await pool.execute("DESCRIBE payroll_base_settings");
     const existingColumns = columns.map(c => c.Field);
 
     if (!existingColumns.includes('food_deduction')) {
-      await migratePool.execute("ALTER TABLE payroll_base_settings ADD COLUMN food_deduction DECIMAL(10,2) DEFAULT 0");
+      await pool.execute("ALTER TABLE payroll_base_settings ADD COLUMN food_deduction DECIMAL(10,2) DEFAULT 0");
       console.log("✅ Added food_deduction to payroll_base_settings");
     }
     if (!existingColumns.includes('health_deduction')) {
-      await migratePool.execute("ALTER TABLE payroll_base_settings ADD COLUMN health_deduction DECIMAL(10,2) DEFAULT 0");
+      await pool.execute("ALTER TABLE payroll_base_settings ADD COLUMN health_deduction DECIMAL(10,2) DEFAULT 0");
       console.log("✅ Added health_deduction to payroll_base_settings");
     }
     console.log("✅ Payroll schema verification done.");

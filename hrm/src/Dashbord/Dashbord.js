@@ -13,7 +13,7 @@ import {
 } from "../features/leave/services/leaveService";
 import { getDashboardData } from "../features/dashboard/services/dashboardService";
 import { listNews } from "../features/news/newsService";
-import { Megaphone, ChevronRight, Gift, PartyPopper } from "lucide-react";
+import { Megaphone, ChevronRight, Gift, PartyPopper, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
 import BirthdayCelebration from "../components/common/BirthdayCelebration";
@@ -369,6 +369,7 @@ function DashboardHome() {
         grace_minutes: res.grace_minutes,
         attendance: res.attendance,
       }));
+      setError(""); // Success, clear any old error
     } catch (e) {
       if (e?.response?.status === 403) {
         const data = e.response.data;
@@ -579,9 +580,18 @@ function DashboardHome() {
                   : "btn-outline !text-rose-600 !hover:bg-rose-50 !shadow-rose-600/20"
                   } w-full shadow-lg`}
               >
-                {punching ? "..." : "Check Out"}
+                {punching ? "Processing..." : "Check Out"}
               </button>
             </div>
+
+            {punching && (
+              <div className="flex items-center justify-center gap-2 p-2 bg-emerald-50 border border-emerald-100 rounded-lg animate-pulse">
+                <RefreshCw size={14} className="animate-spin text-emerald-600" />
+                <span className="text-[12px] font-bold text-emerald-700 uppercase tracking-widest">
+                  Verifying Face...
+                </span>
+              </div>
+            )}
 
             {/* Today summary */}
             <div className="rounded-lg border p-2.5 sm:p-3 text-[12px] sm:text-[13px] text-gray-700">

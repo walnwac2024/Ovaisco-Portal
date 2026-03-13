@@ -28,11 +28,24 @@ async function compareFaces(capturedImagePath, storedImagePath) {
     const img1 = await canvas.loadImage(capturedImagePath);
     const img2 = await canvas.loadImage(storedImagePath);
 
-    const detections1 = await faceapi.detectSingleFace(img1, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 })).withFaceLandmarks().withFaceDescriptor();
-    const detections2 = await faceapi.detectSingleFace(img2, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 })).withFaceLandmarks().withFaceDescriptor();
+    let detections1 = await faceapi.detectSingleFace(img1, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 })).withFaceLandmarks().withFaceDescriptor();
 
-    if (!detections1) throw new Error("No face detected in the captured photo.");
-    if (!detections2) throw new Error("No face detected in the profile photo.");
+    // Fallback for Captured photo
+    if (!detections1) {
+        console.log('[FaceID] Fallback detection attempt for captured photo...');
+        detections1 = await faceapi.detectSingleFace(img1, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.20, inputSize: 320 })).withFaceLandmarks().withFaceDescriptor();
+    }
+
+    // For Reference photo (img2), we try multiple thresholds to be extremely robust
+    let detections2 = await faceapi.detectSingleFace(img2, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 })).withFaceLandmarks().withFaceDescriptor();
+
+    if (!detections2) {
+        console.log('[FaceID] Fallback detection attempt for reference photo...');
+        detections2 = await faceapi.detectSingleFace(img2, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.20, inputSize: 320 })).withFaceLandmarks().withFaceDescriptor();
+    }
+
+    if (!detections1) throw new Error("No face detected in the captured photo. Please ensure your face is clearly visible and try again.");
+    if (!detections2) throw new Error("No face detected in your stored reference photo. Please update your profile photo or re-register your face.");
 
     const distance = faceapi.euclideanDistance(detections1.descriptor, detections2.descriptor);
     return distance; // Lower is better match
