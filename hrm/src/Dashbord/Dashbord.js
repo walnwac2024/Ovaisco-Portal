@@ -106,6 +106,9 @@ function DashboardHome() {
   const [timeSync, setTimeSync] = useState({ show: false, drift: 0 });
   const [showFaceModal, setShowFaceModal] = useState(false);
   const [pendingPunchType, setPendingPunchType] = useState('IN');
+  const [showPunchOptions, setShowPunchOptions] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: "", message: "", onConfirm: null });
+  const [notifyModal, setNotifyModal] = useState({ show: false, type: "success", message: "" });
 
   const attendance = todayData?.attendance || null;
   const shift = todayData?.shift || null;
@@ -152,46 +155,94 @@ function DashboardHome() {
 
   useEffect(() => { loadAttendance(); }, []);
 
-  const handleRegisterBiometric = async () => {
-    if (!window.isSecureContext) {
-      const msg = "❌ Biometric registration requires a 'Secure Context'. Please use 'localhost' or an 'HTTPS' connection. Regular IP addresses (like 192.168.x.x) are blocked by the browser for security.";
-      setError(msg);
-      alert(msg);
-      return;
+  const handlePunch = async (type) => {
+    if (!selectedOfficeId) { 
+      setNotifyModal({ show: true, type: "error", message: "Please select an office location first." });
+      return; 
     }
+    setPendingPunchType(type);
+    setShowPunchOptions(true); // Both IN and OUT now show options
+  };
 
+  const handleBiometricPunch = async () => {
+    setShowPunchOptions(false);
     try {
       setPunching(true);
       setError("");
-      const { registerBiometric } = await import("../features/attendance/services/biometricService");
-      const res = await registerBiometric(`${user?.Employee_Name || 'My'} Device`);
-      if (res.verified) {
-        alert("✅ Biometric device (Fingerprint/FaceID) linked successfully! You can now use 'Biometric Punch'.");
+      const { authenticateBiometric } = await import("../features/attendance/services/biometricService");
+      
+      let authRes;
+      try {
+        authRes = await authenticateBiometric();
+      } catch (err) {
+        if (err?.response?.data?.message?.includes("No biometric device registered") || err.message?.includes("No biometric device registered")) {
+          setConfirmModal({
+            show: true,
+            title: "Device Not Linked",
+            message: "This device is not linked to your account. Would you like to link it now for biometric attendance?",
+            onConfirm: async () => {
+              setConfirmModal(prev => ({ ...prev, show: false }));
+              const regRes = await handleRegisterBiometricInternal();
+              if (regRes && regRes.verified) {
+                  const retryAuth = await authenticateBiometric();
+                  if (retryAuth && retryAuth.verified) {
+                      await finishBiometricPunch();
+                  }
+              }
+            }
+          });
+          setPunching(false);
+          return;
+        } else {
+          throw err;
+        }
       }
-      loadAttendance(true);
+      
+      if (authRes && authRes.verified) {
+        await finishBiometricPunch();
+      }
     } catch (err) {
-      console.error("Registration error:", err);
-      let msg = err?.response?.data?.message || err.message || "Registration failed";
-
-      if (err.name === 'NotAllowedError') {
-        msg = "Device compatibility issue: Your browser/device blocked the request. If you are on Windows, ensure 'Windows Hello' (Fingerprint or PIN) is set up. If you cancelled the prompt, please try again.";
-      } else if (err.name === 'InvalidStateError') {
-        msg = "This device is already registered.";
-      } else if (err.name === 'SecurityError') {
-        msg = "Security Error: The site domain does not match the biometric configuration.";
-      }
-
-      setError(msg);
-      alert(msg);
+      console.error("Biometric Punch Error:", err);
+      let msg = err?.response?.data?.message || err.message || "Biometric failed";
+      setNotifyModal({ show: true, type: "error", message: msg });
     } finally {
       setPunching(false);
     }
   };
 
-  const handlePunch = async (type) => {
-    if (!selectedOfficeId) { setError("Please select an office."); return; }
-    setPendingPunchType(type);
-    setShowFaceModal(true);
+  const finishBiometricPunch = async () => {
+    const coords = await getCurrentPosition();
+    const res = await punchAttendance({
+      office_id: Number(selectedOfficeId),
+      punch_type: pendingPunchType,
+      clientTime: new Date().toISOString(),
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      accuracy: coords.accuracy,
+      biometric_verified: true
+    });
+    setTodayData(prev => ({ ...prev, attendance: res.attendance }));
+    loadAttendance(true);
+    setNotifyModal({ show: true, type: "success", message: "Attendance marked successfully via Biometrics!" });
+  };
+
+  const handleRegisterBiometricInternal = async () => {
+    if (!window.isSecureContext) {
+      setNotifyModal({ show: true, type: "error", message: "Biometric registration requires a 'Secure Context' (HTTPS/localhost)." });
+      return null;
+    }
+    try {
+      const { registerBiometric } = await import("../features/attendance/services/biometricService");
+      const res = await registerBiometric(`${user?.Employee_Name || 'My'} Device`);
+      if (res.verified) {
+        setNotifyModal({ show: true, type: "success", message: "Device linked successfully! You can now use Biometric Punch." });
+      }
+      return res;
+    } catch (err) {
+      console.error("Registration error:", err);
+      setNotifyModal({ show: true, type: "error", message: err?.response?.data?.message || err.message || "Registration failed" });
+      return null;
+    }
   };
 
   const handleFaceCaptured = async (faceDescriptor) => {
@@ -211,8 +262,9 @@ function DashboardHome() {
       });
       setTodayData(prev => ({ ...prev, attendance: res.attendance }));
       loadAttendance(true);
+      setNotifyModal({ show: true, type: "success", message: "Attendance marked successfully via Face Recognition!" });
     } catch (err) {
-      setError(err?.response?.data?.message || "Attendance failed");
+      setNotifyModal({ show: true, type: "error", message: err?.response?.data?.message || "Face recognition failed. Please try again." });
     } finally {
       setPunching(false);
     }
@@ -242,6 +294,106 @@ function DashboardHome() {
         onCapture={handleFaceCaptured}
         employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
       />
+
+      {/* Check-In Options Overlay */}
+      {showPunchOptions && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100">
+            <div className="p-8 text-center border-b border-slate-50 relative">
+              <button 
+                onClick={() => setShowPunchOptions(false)}
+                className="absolute top-6 right-6 p-2 text-slate-300 hover:text-customRed transition-colors rounded-xl hover:bg-red-50"
+              >
+                <Icon name="X" size={20} />
+              </button>
+              <div className={`w-16 h-16 ${pendingPunchType === 'IN' ? 'bg-red-50 text-customRed' : 'bg-slate-900 text-white'} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm`}>
+                <Icon name={pendingPunchType === 'IN' ? "LogIn" : "LogOut"} size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Check {pendingPunchType === 'IN' ? 'In' : 'Out'}</h3>
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Select Method</p>
+            </div>
+            <div className="p-6 grid gap-4">
+              <button
+                onClick={() => { setShowPunchOptions(false); setShowFaceModal(true); }}
+                className="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 hover:border-customRed/20 hover:bg-red-50/30 transition-all group flex-1"
+              >
+                <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-customRed group-hover:scale-110 transition-transform">
+                  <Icon name="ScanFace" size={24} />
+                </div>
+                <div className="text-left">
+                  <div className="text-[13px] font-black text-slate-800 uppercase tracking-tight">By Image</div>
+                  <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Face Recognition</div>
+                </div>
+              </button>
+              
+              <button
+                onClick={handleBiometricPunch}
+                className="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 hover:border-emerald-200/50 hover:bg-emerald-50/50 transition-all group flex-1"
+              >
+                <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-emerald-500 group-hover:scale-110 transition-transform">
+                  <Icon name="Fingerprint" size={24} />
+                </div>
+                <div className="text-left">
+                  <div className="text-[13px] font-black text-slate-800 uppercase tracking-tight">By Biometric</div>
+                  <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Touch ID / Face ID</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Beautiful Confirm Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-5 shadow-sm">
+                <Icon name="AlertTriangle" size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">{confirmModal.title}</h3>
+              <p className="text-[12px] text-slate-500 font-medium leading-relaxed">{confirmModal.message}</p>
+            </div>
+            <div className="p-6 bg-slate-50/50 grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setConfirmModal({ ...confirmModal, show: false })}
+                className="py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all active:scale-95"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmModal.onConfirm}
+                className="py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-black transition-all active:scale-95"
+              >
+                Yes, Link It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Beautiful Notification Modal */}
+      {notifyModal.show && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+            <div className="p-8 text-center">
+              <div className={`w-16 h-16 ${notifyModal.type === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'} rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm`}>
+                <Icon name={notifyModal.type === 'success' ? "CheckCircle2" : "XCircle"} size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">{notifyModal.type === 'success' ? 'Success!' : 'Oops!'}</h3>
+              <p className="text-[12px] text-slate-500 font-medium leading-relaxed">{notifyModal.message}</p>
+            </div>
+            <div className="p-6">
+              <button 
+                onClick={() => setNotifyModal({ ...notifyModal, show: false })}
+                className={`w-full py-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-white transition-all active:scale-95 shadow-lg ${notifyModal.type === 'success' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-rose-500 shadow-rose-500/20'}`}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TimeSyncModal
         show={timeSync.show}
@@ -278,14 +430,6 @@ function DashboardHome() {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-[10px] text-customRed font-black rounded-full uppercase tracking-wider border border-red-100/50">
                   <Icon name="Briefcase" size={10} /> {dashboardData?.profile?.Department || user?.Department || "DEPT"}
                 </div>
-                <button
-                  onClick={handleRegisterBiometric}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 ${!window.isSecureContext ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'} text-[10px] font-bold rounded-full uppercase tracking-wider border transition-all active:scale-95 shadow-sm`}
-                  title={!window.isSecureContext ? "Requires HTTPS or Localhost" : "Link your Fingerprint or FaceID"}
-                  disabled={!window.isSecureContext}
-                >
-                  <Icon name="Fingerprint" size={12} /> {window.isSecureContext ? "Register Device" : "Insecure Site"}
-                </button>
               </div>
             </div>
           </div>
@@ -368,25 +512,6 @@ function DashboardHome() {
                   {punching && pendingPunchType === 'OUT' ? <Icon name="Loader2" className="animate-spin" size={18} /> : 'Out'}
                 </button>
               </div>
-
-              <button
-                onClick={async () => {
-                  try {
-                    setPunching(true);
-                    const { authenticateBiometric } = await import("../features/attendance/services/biometricService");
-                    const authRes = await authenticateBiometric();
-                    if (!authRes.verified) return;
-                    const coords = await getCurrentPosition();
-                    const type = canCheckIn ? "IN" : "OUT";
-                    const res = await punchAttendance({ office_id: Number(selectedOfficeId), punch_type: type, clientTime: new Date().toISOString(), latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy });
-                    setTodayData(prev => ({ ...prev, attendance: res.attendance }));
-                  } catch (err) { setError(err.message || "Biometric failed"); } finally { setPunching(false); }
-                }}
-                disabled={punching || (!canCheckIn && !canCheckOut)}
-                className="w-full h-12 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all text-[11px] font-black uppercase tracking-widest shadow-md shadow-emerald-500/10 active:scale-95"
-              >
-                <Icon name="Fingerprint" size={18} /> Biometric Punch
-              </button>
             </div>
 
             <div className="pt-6 grid grid-cols-3 gap-2 border-t border-slate-100/50">
@@ -411,8 +536,8 @@ function DashboardHome() {
           <div className="px-6 py-3.5 border-b border-slate-50 bg-slate-50/20 font-bold text-slate-500 uppercase tracking-widest">Leave Summary</div>
           <div className="divide-y divide-slate-50">
             {leaveBalances.map((item, i) => (
-              <div key={item.id || item.name || i} className="px-6 py-3 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
-                <span className="font-bold text-slate-500 uppercase group-hover:text-slate-800">{item.name}</span>
+              <div key={item.id || item.leave_type_name || i} className="px-6 py-3 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
+                <span className="font-bold text-slate-500 uppercase group-hover:text-slate-800">{item.leave_type_name}</span>
                 <span className="px-2 py-0.5 bg-slate-50 text-slate-800 font-bold rounded-lg border border-slate-100">{Number(item.balance).toFixed(1)}</span>
               </div>
             ))}

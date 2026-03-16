@@ -4,6 +4,13 @@ const {
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
+
+// Polyfill for Web Crypto API (required by simplewebauthn on Node < 19)
+if (typeof globalThis.crypto === 'undefined') {
+    const { crypto } = require('node:crypto');
+    globalThis.crypto = crypto;
+}
+
 const { pool } = require('../../Utils/db');
 const { isoUint8Array } = require('@simplewebauthn/server/helpers');
 

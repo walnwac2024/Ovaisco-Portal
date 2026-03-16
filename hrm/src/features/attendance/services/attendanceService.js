@@ -39,7 +39,10 @@ export async function punchAttendance({
   clientTime,
   latitude,
   longitude,
-  photo
+  accuracy,
+  photo,
+  face_descriptor,
+  biometric_verified
 }) {
   const { data } = await api.post("/attendance/punch", {
     office_id,
@@ -49,7 +52,10 @@ export async function punchAttendance({
     clientTime,
     latitude,
     longitude,
-    photo
+    accuracy,
+    photo,
+    face_descriptor,
+    biometric_verified
   });
   return data;
 }
