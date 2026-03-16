@@ -15,10 +15,15 @@ export default function DashboardTabsLayout() {
     { label: "Logs", to: "/dashboard/logs", adminOnly: true },
     { label: "Branding", to: "/dashboard/branding", adminOnly: true },
     { label: "Leaderboard", to: "/dashboard/leaderboard" },
+    {
+      label: "Office Management",
+      to: "/dashboard/office",
+      show: feats.has('office_req_apply') || feats.has('office_req_approve_hr') || feats.has('office_req_approve_accounts') || feats.has('office_req_view_all')
+    },
   ];
 
-  // Filter tabs: Show if Admin OR has the specific feature code
-  const tabs = allTabs.filter(t => !t.adminOnly || isAdmin);
+  // Filter tabs: Show if Admin OR has the specific feature code OR explicitly shown
+  const tabs = allTabs.filter(t => (!t.adminOnly || isAdmin) && (t.show === undefined || t.show));
 
   return (
     <>

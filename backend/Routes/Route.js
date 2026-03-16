@@ -30,6 +30,8 @@ const Settings = require("../Controller/Settings/SettingsController");
 const SystemSettings = require("../Controller/Settings/SystemSettingsController");
 const Gamification = require("../Controller/Gamification/GamificationController");
 // const Office = require("../Controller/Office/OfficeController");
+const Biometrics = require("../Controller/UserDeatils/BiometricController");
+
 
 
 const {
@@ -194,6 +196,13 @@ router.get("/attendance/report/monthly/all", isAuthenticated, Attendance.getMont
 router.get("/attendance/report/monthly", isAuthenticated, Attendance.getMonthlyReport);
 router.get("/attendance/logs", isAuthenticated, requireFeatures("attendance_view"), Attendance.getAttendanceLogs);
 router.get("/attendance/audit-locations", isAuthenticated, requireFeatures("attendance_audit"), Attendance.listLocationAudit);
+
+// Biometric Attendance
+router.get("/biometric/registration-options", isAuthenticated, Biometrics.getRegistrationOptions);
+router.post("/biometric/verify-registration", isAuthenticated, Biometrics.verifyRegistration);
+router.get("/biometric/authentication-options", isAuthenticated, Biometrics.getAuthenticationOptions);
+router.post("/biometric/verify-authentication", isAuthenticated, Biometrics.verifyAuthentication);
+
 
 // Attendance Settings
 router.get("/attendance/settings/shifts", isAuthenticated, requireFeatures("attendance_manage_settings"), AttendanceSettings.getShifts);

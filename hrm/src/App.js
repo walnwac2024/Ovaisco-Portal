@@ -35,6 +35,7 @@ const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPa
 const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
 const PayrollDetailsView = lazy(() => import("./features/payroll/components/PayrollDetailsView"));
 const SalarySettings = lazy(() => import("./features/payroll/components/SalarySettings"));
+const OfficePage = lazy(() => import("./features/office/OfficePage"));
 
 
 // Loading component
@@ -111,6 +112,7 @@ export default function App() {
                   <Route path="logs" element={<LogsPage />} />
                   <Route path="branding" element={<BrandingPage />} />
                   <Route path="leaderboard" element={<LeaderboardPage />} />
+                  <Route path="office/*" element={<OfficePage />} />
                 </Route>
 
                 {/* Other top-level pages */}

@@ -34,6 +34,7 @@ const TAB_META = {
   performance: { to: "/performance", Icon: FaChartLine, label: "Performance", isComingSoon: true },
   payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll" },
   reports: { to: "/reports", Icon: FaChartBar, label: "Reports" },
+  office: { to: "/dashboard/office", Icon: FaThLarge, label: "Office Management" },
   permissions: { to: "/dashboard/permissions", Icon: FaShieldAlt, label: "Permissions" },
   system_settings: { to: "/settings/system", Icon: FaCog, label: "Settings" },
 };
@@ -236,7 +237,7 @@ export default function Topbar({ logoSrc }) {
   }, [hasUnreadLeaves]);
 
   return (
-    <header className="w-full relative sticky top-0 z-[100]">
+    <header className="w-full sticky top-0 z-[100]">
       {/* Drawer Overlay */}
       {showMobileMenu && (
         <div

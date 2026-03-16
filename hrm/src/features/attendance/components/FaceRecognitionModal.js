@@ -3,9 +3,8 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import { X, Camera, RefreshCw } from 'lucide-react';
 
-console.log('--- [FaceRecognitionModal] VERSION 2.1 LOADED ---');
 
-const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
+export default function FaceRecognitionModal({ isOpen, onClose, onCapture, employeeName }) {
     const webcamRef = React.useRef(null);
     const canvasRef = React.useRef(null);
     const lastStateRef = React.useRef('OPEN'); // OPEN or CLOSED
@@ -340,4 +339,4 @@ const FaceRecognitionModal = ({ isOpen, onClose, onCapture, employeeName }) => {
     );
 };
 
-export default FaceRecognitionModal;
+

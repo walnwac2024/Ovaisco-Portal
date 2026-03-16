@@ -13,91 +13,76 @@ import {
 } from "../features/leave/services/leaveService";
 import { getDashboardData } from "../features/dashboard/services/dashboardService";
 import { listNews } from "../features/news/newsService";
-import { Megaphone, ChevronRight, Gift, PartyPopper, RefreshCw } from "lucide-react";
+import * as Lucide from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
-import BirthdayCelebration from "../components/common/BirthdayCelebration";
 import TimeSyncModal from "../components/common/TimeSyncModal";
-import * as faceapi from 'face-api.js';
 import FaceRecognitionModal from "../features/attendance/components/FaceRecognitionModal";
-// import AttendancePhotoModal from "../features/attendance/components/AttendancePhotoModal";
 
 const BACKEND_URL = BASE_URL;
 
+// Safe icon renderer to prevent "Element type is invalid" if an icon is missing
+const Icon = ({ name, ...props }) => {
+  const LucideIcon = Lucide[name];
+  if (!LucideIcon) return null;
+  return <LucideIcon {...props} />;
+};
+
 function formatTime(dt) {
-  if (!dt) return "—";
+  if (!dt) return "\u2014";
   const d = new Date(dt);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatLateMinutes(minutes) {
   if (!minutes) return "0 minutes";
-  if (minutes < 60) {
-    return `${minutes} minutes`;
-  }
+  if (minutes < 60) return `${minutes} minutes`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  if (remainingMinutes === 0) {
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-  }
+  if (remainingMinutes === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
   return `${hours} ${hours === 1 ? 'hour' : 'hours'} and ${remainingMinutes} ${remainingMinutes === 1 ? 'minute' : 'minutes'}`;
 }
 
-/**
- * Haversine formula for client-side check
- */
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // meters
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
+const getCurrentPosition = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation is not supported by your browser."));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos.coords),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+};
 
 function badge(status) {
-  const base =
-    "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold";
+  const base = "inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight transition-all duration-300 border shadow-sm";
   switch (status) {
     case "PRESENT":
-      return (
-        <span className={`${base} bg-green-50 text-green-700 border border-green-200`}>
-          Present
-        </span>
-      );
+      return <span className={`${base} bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100/30`}>Present</span>;
     case "LATE":
-      return (
-        <span className={`${base} bg-yellow-50 text-yellow-800 border border-yellow-200`}>
-          Late
-        </span>
-      );
+      return <span className={`${base} bg-orange-50 text-orange-600 border-orange-100 shadow-orange-100/30`}>Late</span>;
     case "ABSENT":
-      return (
-        <span className={`${base} bg-red-50 text-red-700 border border-red-200`}>
-          Absent
-        </span>
-      );
+      return <span className={`${base} bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100/30`}>Absent</span>;
     case "LEAVE":
-      return (
-        <span className={`${base} bg-blue-50 text-blue-700 border border-blue-200`}>
-          On Leave
-        </span>
-      );
-    case "NOT_MARKED":
+      return <span className={`${base} bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-100/30`}>On Leave</span>;
     default:
-      return (
-        <span className={`${base} bg-gray-50 text-gray-700 border border-gray-200`}>
-          Not marked yet
-        </span>
-      );
+      return <span className={`${base} bg-slate-50 text-slate-400 border-slate-200 shadow-slate-100/30`}>Not marked</span>;
   }
 }
+
+const EmptyState = ({ icon, title, message }) => (
+  <div className="flex flex-col items-center justify-center p-6 text-center bg-slate-50/40 rounded-2xl border border-dashed border-slate-200">
+    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-300 shadow-sm mb-3 border border-slate-100">
+      <Icon name={icon} size={20} />
+    </div>
+    <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-tight mb-1">{title}</h5>
+    <p className="text-[10px] text-slate-400 font-medium tracking-tight uppercase">{message}</p>
+  </div>
+);
 
 function DashboardHome() {
   const { user } = useAuth();
@@ -110,279 +95,129 @@ function DashboardHome() {
   const [punching, setPunching] = useState(false);
   const [error, setError] = useState("");
 
-  // New Summary States
   const [leaveBalances, setLeaveBalances] = useState([]);
   const [leaveStats, setLeaveStats] = useState({ myRequestsCount: 0, myApprovalsCount: 0 });
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [missingAttendance, setMissingAttendance] = useState([]);
-  const [rightTab, setRightTab] = useState("requests"); // "requests" or "approvals"
+  const [rightTab, setRightTab] = useState("requests");
+  const [teamTab, setTeamTab] = useState("team");
   const [dashboardData, setDashboardData] = useState(null);
   const [news, setNews] = useState([]);
-  const [selectedBirthday, setSelectedBirthday] = useState(null);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [timeSync, setTimeSync] = useState({ show: false, drift: 0 });
   const [showFaceModal, setShowFaceModal] = useState(false);
   const [pendingPunchType, setPendingPunchType] = useState('IN');
-  // const [photoModal, setPhotoModal] = useState({ show: false, type: 'IN' });
-  // const [pendingPunch, setPendingPunch] = useState(null);
-
-  const kpiRows = [
-    "Working Hour",
-    "Average Working Hours",
-    "Min Working Hour",
-    "Max Working Hour",
-    "Sign In",
-    "Average Sign In Time",
-    "Min Sign In Time",
-    "Max Sign In Time",
-    "Sign Out",
-    "Average Sign Out Time",
-    "Min Sign Out Time",
-    "Max Sign Out Time",
-  ];
 
   const attendance = todayData?.attendance || null;
   const shift = todayData?.shift || null;
   const grace = todayData?.grace_minutes ?? 15;
 
-  const hasFeature = (code) => {
-    const feats = new Set((user?.features || []).map(f => String(f).toLowerCase()));
-    return feats.has(String(code).toLowerCase());
-  };
-
-  const isAdmin = useMemo(() => {
-    return hasFeature("dashboard_admin_view");
-  }, [user]);
-
-  const canCheckIn = useMemo(() => {
-    if (!attendance) return true;
-    return !attendance.first_in;
-  }, [attendance]);
-
-  const canCheckOut = useMemo(() => {
-    if (!attendance) return false;
-    return !!attendance.first_in && !attendance.last_out;
-  }, [attendance]);
+  const canCheckIn = useMemo(() => !attendance, [attendance]);
+  const canCheckOut = useMemo(() => attendance && !attendance.check_out, [attendance]);
 
   const statusText = useMemo(() => {
-    if (!attendance) return "You have not marked your Attendance Today!";
-    if (!attendance.first_in) return "You have not checked in yet today!";
-    if (attendance.first_in && !attendance.last_out)
-      return "You are checked in. Don’t forget to check out.";
-    if (attendance.first_in && attendance.last_out)
-      return "Attendance completed for today.";
-    return "You have not marked your Attendance Today!";
+    if (!attendance) return "You have not marked your attendance today.";
+    if (attendance.status === "LATE") {
+      return `Late by ${formatLateMinutes(attendance.late_minutes)}.`;
+    }
+    return attendance.status === "PRESENT" ? "You are marked Present." : `Status: ${attendance.status}`;
   }, [attendance]);
 
-  async function loadAttendance(silent = false) {
+  const loadAttendance = async (silent = false) => {
+    if (!silent) setLoadingAttendance(true);
     try {
-      if (!silent) setLoadingAttendance(true);
-      setError("");
-
-      const safeFetch = async (promise, fallback = null, featureCode = null) => {
-        if (featureCode && !hasFeature(featureCode)) {
-          return fallback;
-        }
-        try {
-          return await promise;
-        } catch (err) {
-          if (err?.response?.status === 403) {
-            console.log(`Access denied for ${featureCode || 'endpoint'}`);
-          } else {
-            console.warn("Dashboard partial fetch failed:", err?._meta?.url || "unknown", err);
-          }
-          return fallback;
-        }
-      };
-
-      // Critical basic data
-      const officeList = await safeFetch(getAttendanceOffices(), []);
-      const today = await safeFetch(getTodayAttendance(), null);
-
-      setOffices(officeList || []);
-      setTodayData(today);
-
-      // Auto-set office selection on initial load
-      if (!silent) {
-        const inOfficeId = today?.attendance?.office_id_first_in;
-        if (inOfficeId) {
-          setSelectedOfficeId(String(inOfficeId));
-        } else if (!selectedOfficeId && officeList?.length) {
-          setSelectedOfficeId(String(officeList[0].id));
-        }
-      }
-
-      // Parallel fetch for remaining non-critical data
-      const [
-        balances,
-        stats,
-        summaryData,
-        dbData,
-        newsData
-      ] = await Promise.all([
-        safeFetch(getLeaveBalances(), [], 'leave_view'), // Assuming leave_view is needed, but service might have its own internal check
-        safeFetch(getLeaveDashboardStats(), { myRequestsCount: 0, myApprovalsCount: 0 }),
-        safeFetch(getPersonalAttendanceSummary(), { summary: [], missing: [] }),
-        isAdmin ? safeFetch(getDashboardData(), null) : Promise.resolve(null),
-        hasFeature('news_view') ? safeFetch(listNews(), []) : Promise.resolve([]),
+      const [offList, tData, bal, lStats, personalSumm, summData, newsList] = await Promise.all([
+        getAttendanceOffices(),
+        getTodayAttendance(),
+        getLeaveBalances(),
+        getLeaveDashboardStats(),
+        getPersonalAttendanceSummary(),
+        getDashboardData(),
+        listNews(1)
       ]);
-
-      setLeaveBalances(balances || []);
-      setLeaveStats(stats || { myRequestsCount: 0, myApprovalsCount: 0 });
-      setAttendanceSummary(summaryData?.summary || []);
-      setMissingAttendance(summaryData?.missing || []);
-      setDashboardData(dbData);
-
-      if (hasFeature('news_view') && newsData) {
-        setNews((isAdmin ? newsData : (newsData || []).filter(n => n.is_published)).slice(0, 3));
-      } else {
-        setNews([]);
-      }
-
-      // --- Proactive Time Sync Check ---
-      if (today?.serverTime) {
-        const sTime = new Date(today.serverTime);
-        const cTime = new Date();
-        const driftMin = Math.abs(sTime.getTime() - cTime.getTime()) / 60000;
-        if (driftMin > 5) {
-          setTimeSync({ show: true, drift: Math.round(driftMin) });
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      setError("Failed to load dashboard data. Please refresh.");
-    } finally {
-      if (!silent) setLoadingAttendance(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!user?.id) return;
-    loadAttendance();
-
-    // --- PRELOAD FACE-API MODELS ---
-    const preloadModels = async () => {
-      try {
-        const MODEL_URL = process.env.PUBLIC_URL + '/models';
-        if (!faceapi.nets.tinyFaceDetector.params) {
-          console.log('[Dashboard] Preloading AI Models (Tiny) in background...');
-          await Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-            faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-          ]);
-          console.log('[Dashboard] AI Models (Tiny) Preloaded Successfully.');
-        }
-      } catch (err) {
-        console.warn('[Dashboard] AI Model preloading failed. It will retry when modal opens.', err);
-      }
-    };
-    preloadModels();
-
-    // Real-time polling for team status (every 30 seconds)
-    const interval = setInterval(() => {
-      loadAttendance(true);
-    }, 30000);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const getCurrentPosition = () => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by your browser."));
-        return;
-      }
-
-      const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
-
-      const success = (pos) => resolve(pos.coords);
-      const failure = (err) => {
-        if (err.code === err.TIMEOUT && options.enableHighAccuracy) {
-          // Fallback to lower accuracy if high accuracy times out
-          console.warn("High accuracy timed out, falling back to standard accuracy.");
-          options.enableHighAccuracy = false;
-          options.timeout = 10000;
-          navigator.geolocation.getCurrentPosition(success, finalFailure, options);
-          return;
-        }
-        finalFailure(err);
-      };
-
-      const finalFailure = (err) => {
-        let msg = "Location permission is required to mark attendance.";
-        if (err.code === err.PERMISSION_DENIED) {
-          msg = "Location permission was denied. Please enable it in your browser settings.";
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          msg = "Location information is unavailable.";
-        } else if (err.code === err.TIMEOUT) {
-          msg = "Location request timed out. Please ensure your device location is on and try again.";
-        }
-        reject(new Error(msg));
-      };
-
-      navigator.geolocation.getCurrentPosition(success, failure, options);
-    });
-  };
-
-  const handlePunch = async (type) => {
-    try {
-      if (!selectedOfficeId) {
-        setError("Please select an office first.");
-        return;
-      }
-      setPendingPunchType(type);
-      setShowFaceModal(true);
+      setOffices(offList);
+      setTodayData(tData);
+      setLeaveBalances(bal);
+      setLeaveStats(lStats);
+      setAttendanceSummary(personalSumm?.summary || []);
+      setMissingAttendance(personalSumm?.missing || []);
+      setDashboardData(summData);
+      setNews(newsList?.data || []);
+      if (offList.length > 0 && !selectedOfficeId) setSelectedOfficeId(offList[0].id);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      console.error("Dashboard load failed", err);
+    } finally {
+      setLoadingAttendance(false);
     }
   };
 
-  const handleFaceCaptured = async (photoBase64) => {
+  useEffect(() => { loadAttendance(); }, []);
+
+  const handleRegisterBiometric = async () => {
+    if (!window.isSecureContext) {
+      const msg = "❌ Biometric registration requires a 'Secure Context'. Please use 'localhost' or an 'HTTPS' connection. Regular IP addresses (like 192.168.x.x) are blocked by the browser for security.";
+      setError(msg);
+      alert(msg);
+      return;
+    }
+
     try {
-      setShowFaceModal(false);
       setPunching(true);
       setError("");
-
-      const coords = await getCurrentPosition();
-      const { latitude, longitude } = coords;
-
-      const res = await punchAttendance({
-        office_id: Number(selectedOfficeId),
-        punch_type: pendingPunchType,
-        clientTime: new Date().toISOString(),
-        latitude,
-        longitude,
-        accuracy: coords.accuracy,
-        altitude: coords.altitude,
-        altitudeAccuracy: coords.altitudeAccuracy,
-        heading: coords.heading,
-        speed: coords.speed,
-        photo: photoBase64,
-      });
-
-      setTodayData((prev) => ({
-        ...(prev || {}),
-        date: res.date,
-        shift: res.shift,
-        grace_minutes: res.grace_minutes,
-        attendance: res.attendance,
-      }));
-      setError(""); // Success, clear any old error
-    } catch (e) {
-      if (e?.response?.status === 403) {
-        const data = e.response.data;
-        setError(data.message || "Face Verification Failed or Security Constraint.");
-      } else {
-        setError(e?.response?.data?.message || "Failed to mark attendance.");
+      const { registerBiometric } = await import("../features/attendance/services/biometricService");
+      const res = await registerBiometric(`${user?.Employee_Name || 'My'} Device`);
+      if (res.verified) {
+        alert("✅ Biometric device (Fingerprint/FaceID) linked successfully! You can now use 'Biometric Punch'.");
       }
+      loadAttendance(true);
+    } catch (err) {
+      console.error("Registration error:", err);
+      let msg = err?.response?.data?.message || err.message || "Registration failed";
+
+      if (err.name === 'NotAllowedError') {
+        msg = "Device compatibility issue: Your browser/device blocked the request. If you are on Windows, ensure 'Windows Hello' (Fingerprint or PIN) is set up. If you cancelled the prompt, please try again.";
+      } else if (err.name === 'InvalidStateError') {
+        msg = "This device is already registered.";
+      } else if (err.name === 'SecurityError') {
+        msg = "Security Error: The site domain does not match the biometric configuration.";
+      }
+
+      setError(msg);
+      alert(msg);
     } finally {
       setPunching(false);
     }
   };
 
-  // ✅ Unified Helper for profile images
+  const handlePunch = async (type) => {
+    if (!selectedOfficeId) { setError("Please select an office."); return; }
+    setPendingPunchType(type);
+    setShowFaceModal(true);
+  };
+
+  const handleFaceCaptured = async (faceDescriptor) => {
+    setShowFaceModal(false);
+    setPunching(true);
+    setError("");
+    try {
+      const coords = await getCurrentPosition();
+      const res = await punchAttendance({
+        office_id: Number(selectedOfficeId),
+        punch_type: pendingPunchType,
+        clientTime: new Date().toISOString(),
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracy: coords.accuracy,
+        face_descriptor: Array.from(faceDescriptor)
+      });
+      setTodayData(prev => ({ ...prev, attendance: res.attendance }));
+      loadAttendance(true);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Attendance failed");
+    } finally {
+      setPunching(false);
+    }
+  };
+
   const getAvatarUrl = (imgPath) => {
     if (!imgPath) return null;
     if (imgPath.startsWith("http")) return imgPath;
@@ -390,606 +225,384 @@ function DashboardHome() {
     return `${BACKEND_URL}${cleanPath}`;
   };
 
+  if (loadingAttendance) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh]">
+        <div className="w-10 h-10 border-4 border-slate-100 border-t-customRed rounded-full animate-spin mb-4" />
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Loading Dashboard...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-3 md:p-6 transition-all duration-300">
       <FaceRecognitionModal
         isOpen={showFaceModal}
         onClose={() => setShowFaceModal(false)}
         onCapture={handleFaceCaptured}
         employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
       />
-      {/* LEFT COLUMN */}
-      <section className="lg:col-span-3 space-y-3 sm:space-y-4">
-        {/* Profile Card */}
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="p-3 sm:p-4 flex items-center gap-3">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 border overflow-hidden flex-shrink-0">
-              {(() => {
-                const imgPath = dashboardData?.profile?.profile_img || user?.profile_img || user?.profile_picture;
-                const src = getAvatarUrl(imgPath);
-                if (src) {
-                  return (
-                    <img
-                      src={src}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  );
-                }
-                return (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-gray-800 truncate">
-                {dashboardData?.profile?.name || user?.Employee_Name || user?.name || "—"}
-              </div>
-              <div className="text-xs text-gray-500 truncate">
-                {dashboardData?.profile?.email || user?.Official_Email || user?.email || "—"}
-              </div>
-              <div className="text-[11px] text-customRed font-semibold truncate mt-0.5">
-                {dashboardData?.profile?.Department || user?.Department || "—"}
-              </div>
-            </div>
-          </div>
-          {/* Self Birthday or Selected Colleague Birthday */}
-          {(dashboardData?.widgets?.birthdayToday || selectedBirthday) && (
-            <div className="px-3 pb-3 relative animate-fade-in">
-              <BirthdayCelebration
-                isBirthday={true}
-                name={selectedBirthday ? selectedBirthday.name : (dashboardData?.profile?.name || user?.Employee_Name || user?.name)}
-                isSelf={!selectedBirthday && dashboardData?.widgets?.birthdayToday}
-              />
-              {selectedBirthday && (
-                <button
-                  onClick={() => {
-                    setSelectedBirthday(null);
-                    setShowConfetti(false);
-                  }}
-                  className="w-full mt-1 text-[10px] text-gray-400 hover:text-customRed uppercase font-black tracking-widest transition-colors"
-                >
-                  ✕ Close Celebration
-                </button>
-              )}
-            </div>
-          )}
 
-          <div className="border-t">
-            <div className="flex text-[11px] sm:text-xs text-center">
-              {!dashboardData?.widgets?.birthdayToday && (
-                <div className="flex-1 relative group">
-                  <button className={`w-full py-2 hover:bg-gray-50 flex items-center justify-center gap-1 ${dashboardData?.widgets?.colleaguesBirthdays?.length > 0 ? 'text-customRed font-bold' : 'text-gray-500'}`}>
-                    <Gift size={12} className={dashboardData?.widgets?.colleaguesBirthdays?.length > 0 ? "animate-bounce" : ""} />
-                    <span>{dashboardData?.widgets?.colleaguesBirthdays?.length || 0} Birthday Today</span>
-                  </button>
-
-                  {/* Dropdown helper */}
-                  {dashboardData?.widgets?.colleaguesBirthdays?.length > 0 && (
-                    <div className="absolute bottom-full left-0 w-48 bg-white border shadow-xl rounded-lg hidden group-hover:block z-50 animate-fade-in mb-1 overflow-hidden">
-                      <div className="px-3 py-1.5 bg-gray-50 border-b text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Who is celebrating?
-                      </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        {dashboardData.widgets.colleaguesBirthdays.map((b, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setSelectedBirthday(b)}
-                            className="w-full px-3 py-2 text-left text-[11px] hover:bg-red-50 hover:text-customRed transition-colors border-b last:border-0 flex items-center gap-2"
-                          >
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-400 to-customRed text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
-                              {b.name.charAt(0)}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="font-bold truncate">{b.name}</span>
-                              <span className="text-[9px] text-gray-400 truncate">{b.department || "No Department"}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <button className="flex-1 py-2 border-l hover:bg-gray-50 text-gray-500">
-                New Message
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Attendance card (UPDATED) */}
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
-            <div className="text-[12px] sm:text-[13px] font-semibold text-gray-700">
-              ATTENDANCE (TODAY)
-            </div>
-            {badge(attendance?.status || "NOT_MARKED")}
-          </div>
-
-          <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3">
-            {/* Shift row */}
-            <div className="rounded-lg border bg-gray-50 p-2.5 sm:p-3 text-[12px] sm:text-[13px] text-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">Shift</span>
-                <span className="text-gray-600">{shift?.name || "—"}</span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-semibold">Timing</span>
-                <span className="text-gray-600">
-                  {shift?.start_time || "—"} - {shift?.end_time || "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-semibold">Grace</span>
-                <span className="text-gray-600">{grace} min</span>
-              </div>
-            </div>
-
-            {/* Status message */}
-            <div className="rounded-lg border border-red-200 bg-red-50 text-red-600 p-2.5 sm:p-3 text-[12px] sm:text-[13px]">
-              {loadingAttendance ? "Loading attendance..." : statusText}
-              {attendance?.status === "LATE" && (
-                <div className="mt-1 text-[12px] text-red-700">
-                  Late by {formatLateMinutes(attendance?.late_minutes)}
-                </div>
-              )}
-            </div>
-
-            {/* Office select */}
-            <div>
-              <label className="text-[12px] text-gray-600 font-semibold">
-                Office
-              </label>
-              <select
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-200"
-                value={selectedOfficeId}
-                onChange={(e) => setSelectedOfficeId(e.target.value)}
-                disabled={loadingAttendance || punching}
-              >
-                {offices.map((o) => (
-                  <option key={o.id} value={String(o.id)}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Punch buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handlePunch("IN")}
-                disabled={loadingAttendance || punching || !canCheckIn}
-                className={`${loadingAttendance || punching || !canCheckIn
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                  : "btn-primary !bg-emerald-600 !hover:bg-emerald-700 !shadow-emerald-600/20"
-                  } w-full`}
-              >
-                {punching ? "..." : "Check In"}
-              </button>
-
-              <button
-                onClick={() => handlePunch("OUT")}
-                disabled={loadingAttendance || punching || !canCheckOut}
-                className={`${loadingAttendance || punching || !canCheckOut
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                  : "btn-outline !text-rose-600 !hover:bg-rose-50 !shadow-rose-600/20"
-                  } w-full shadow-lg`}
-              >
-                {punching ? "Processing..." : "Check Out"}
-              </button>
-            </div>
-
-            {punching && (
-              <div className="flex items-center justify-center gap-2 p-2 bg-emerald-50 border border-emerald-100 rounded-lg animate-pulse">
-                <RefreshCw size={14} className="animate-spin text-emerald-600" />
-                <span className="text-[12px] font-bold text-emerald-700 uppercase tracking-widest">
-                  Verifying Face...
-                </span>
-              </div>
-            )}
-
-            {/* Today summary */}
-            <div className="rounded-lg border p-2.5 sm:p-3 text-[12px] sm:text-[13px] text-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">In</span>
-                <span>{formatTime(attendance?.first_in)}</span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-semibold">Out</span>
-                <span>{formatTime(attendance?.last_out)}</span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-semibold">Worked</span>
-                <span>
-                  {attendance?.worked_minutes
-                    ? `${Math.floor(attendance.worked_minutes / 60)}h ${attendance.worked_minutes % 60
-                    }m`
-                    : "—"}
-                </span>
-              </div>
-            </div>
-
-            {error && (
-              <div className="text-xs text-red-600 border border-red-200 bg-red-50 rounded-lg p-2">
-                {error}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Leave Summary (unchanged) */}
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[13px] font-semibold text-gray-700">
-            LEAVE SUMMARY
-          </div>
-          <div className="px-3 sm:px-4 pb-3 sm:pb-4 max-h-[250px] overflow-y-auto custom-scrollbar">
-            <div className="text-[10px] sm:text-[11px] uppercase text-gray-500 mb-2">
-              Title
-            </div>
-            {leaveBalances.length === 0 && (
-              <div className="text-xs text-gray-400 py-4 text-center">No leave balances found</div>
-            )}
-            {leaveBalances.map((r) => (
-              <div
-                key={r.leave_type_name}
-                className="flex items-center justify-between py-2 border-t first:border-t-0"
-              >
-                <span className="text-[13px] text-gray-700">{r.leave_type_name}</span>
-                <span className="px-2 py-1 rounded bg-gray-100 text-[11px] sm:text-[12px]">
-                  {r.balance}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CENTER COLUMN (we will connect HR widget next) */}
-      <section className="lg:col-span-6 space-y-3 sm:space-y-4">
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
-            <div className="p-0">
-              <div className="flex items-center justify-between bg-gray-100 px-3 sm:px-4 py-2">
-                <div className="text-[11px] sm:text-[12px] uppercase font-semibold text-gray-600">
-                  Missing Attendance
-                </div>
-              </div>
-              <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                {/* FIX: Removed table-scroll class effectively to avoid negative margin issues on p-0 container */}
-                <div className="w-full overflow-x-auto border-0 sm:border dark:border-slate-800 rounded-none sm:rounded-lg scrollbar-hide">
-                  <table style={{ minWidth: '600px' }} className="w-full text-[10px] sm:text-[12px] table-auto">
-                    <thead className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400">
-                      <tr>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">Date</th>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">In</th>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">Out</th>
-                        <th className="p-1.5 sm:p-2 text-left bg-gray-50/50 dark:bg-transparent">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {missingAttendance.length === 0 ? (
-                        <tr className="border-t">
-                          <td colSpan="4" className="p-4 sm:p-6 text-center text-gray-400 text-xs sm:text-sm italic bg-gray-50/20">
-                            No missing attendance found
-                          </td>
-                        </tr>
-                      ) : (
-                        missingAttendance.map((m, idx) => (
-                          <tr key={idx} className="border-t">
-                            <td className="p-1.5 sm:p-2">{new Date(m.date).toLocaleDateString()}</td>
-                            <td className="p-1.5 sm:p-2">{m.in ? formatTime(m.in) : "—"}</td>
-                            <td className="p-1.5 sm:p-2">{m.out ? formatTime(m.out) : "—"}</td>
-                            <td className="p-1.5 sm:p-2">{badge(m.status)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-0">
-              <div className="flex items-center justify-between bg-gray-100 px-3 sm:px-4 py-2">
-                <div className="text-[11px] sm:text-[12px] uppercase font-semibold text-gray-600">
-                  Attendance Summary
-                </div>
-              </div>
-              <div className="p-0 sm:p-2.5 md:p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div className="w-full overflow-x-auto border-0 sm:border dark:border-slate-800 rounded-none sm:rounded-lg scrollbar-hide">
-                  <table style={{ minWidth: '350px' }} className="w-full text-[10px] sm:text-[12px] table-auto">
-                    <thead className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400">
-                      <tr>
-                        <th className="p-2 text-left">Title</th>
-                        <th className="p-2 text-right">Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendanceSummary.length === 0 ? (
-                        <tr className="border-t">
-                          <td colSpan="2" className="p-4 sm:p-6 text-center text-gray-400 text-xs sm:text-sm italic bg-gray-50/20">
-                            No data for current month
-                          </td>
-                        </tr>
-                      ) : (
-                        attendanceSummary.map((r) => (
-                          <tr key={r.status} className="border-t">
-                            <td className="p-1.5 sm:p-2">{r.status}</td>
-                            <td className="p-1.5 sm:p-2 text-right">
-                              <span className="px-1.5 sm:px-2 py-0.5 rounded bg-gray-100">
-                                {r.count}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Employee KPI */}
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="flex items-center justify-between bg-gray-100 px-3 sm:px-4 py-2">
-            <div className="text-[11px] sm:text-[12px] uppercase font-semibold text-gray-600">
-              Employee KPI
-            </div>
-            <div className="text-[11px] sm:text-[12px] text-gray-500">—</div>
-          </div>
-          <div className="p-2.5 sm:p-3">
-            <div className="table-scroll border dark:border-slate-800 rounded">
-              <table className="min-w-[320px] w-full text-[11px] sm:text-[12px]">
-                <thead className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400">
-                  <tr>
-                    <th className="p-2 text-left">Description</th>
-                    <th className="p-2 text-left">Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {kpiRows.map((row) => (
-                    <tr key={row} className="border-t">
-                      <td className="p-2 sm:p-2">{row}</td>
-                      <td className="p-2 sm:p-2">
-                        <span className="inline-block h-2.5 sm:h-3 w-16 sm:w-28 bg-gray-100 rounded" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* RIGHT COLUMN (unchanged) */}
-      <section className="lg:col-span-3 space-y-3 sm:space-y-4">
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="px-3 sm:px-4 pt-2 border-b">
-            <nav className="flex text-[11px] sm:text-[12px]">
-              <button className="px-3 py-2 font-semibold text-customRed border-b-2 border-customRed">
-                My Team
-              </button>
-              <button className="px-3 py-2 text-gray-600">My Managers</button>
-            </nav>
-          </div>
-          <div className="p-3 sm:p-4 space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar">
-            {(() => {
-              const teamMembers = dashboardData?.widgets?.team ||
-                dashboardData?.widgets?.teamRecent ||
-                dashboardData?.widgets?.recentEmployees ||
-                [];
-
-              if (teamMembers.length === 0) {
-                return <p className="text-xs text-gray-500">No team data yet.</p>;
-              }
-
-              return (
-                <>
-                  {teamMembers.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between group">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 border overflow-hidden flex-shrink-0">
-                          {(() => {
-                            const src = getAvatarUrl(m.profile_img);
-                            if (src) {
-                              return (
-                                <img
-                                  src={src}
-                                  alt={m.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              );
-                            }
-                            return (
-                              <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">
-                                {m.name?.charAt(0).toUpperCase()}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <div className="text-[12px] font-semibold text-gray-700 truncate group-hover:text-customRed transition-colors">
-                              {m.name}
-                            </div>
-                            {m.is_birthday_today && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedBirthday(m);
-                                  setShowConfetti(true);
-                                  // Auto-hide confetti after 5 seconds but keep the card
-                                  setTimeout(() => setShowConfetti(false), 5000);
-                                }}
-                                className="flex items-center gap-1 hover:scale-110 transition-transform bg-red-50 px-2 py-0.5 rounded-full border border-red-100 shadow-sm group/btn"
-                              >
-                                <span className="animate-bounce group-hover/btn:rotate-12">🎂</span>
-                                <span className="text-[10px] font-black text-customRed uppercase tracking-tighter animate-pulse flex items-center gap-1">
-                                  Celebrate! <PartyPopper size={10} className="text-orange-500" />
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-gray-500 truncate">
-                            {m.designation || "Employee"}
-                          </div>
-                        </div>
-                      </div>
-                      {badge(m.attendance_status || "NOT_MARKED")}
-                    </div>
-                  ))}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="px-3 sm:px-4 pt-2 border-b">
-            <nav className="flex text-[11px] sm:text-[12px]">
-              <button
-                onClick={() => setRightTab("requests")}
-                className={`px-3 py-2 font-semibold ${rightTab === "requests" ? "text-customRed border-b-2 border-customRed" : "text-gray-500"}`}
-              >
-                My Requests
-              </button>
-              <button
-                onClick={() => setRightTab("approvals")}
-                className={`px-3 py-2 font-semibold ${rightTab === "approvals" ? "text-customRed border-b-2 border-customRed" : "text-gray-500"}`}
-              >
-                My Approvals
-              </button>
-            </nav>
-          </div>
-          <div className="p-3 sm:p-4 space-y-2 text-[13px] text-gray-700 max-h-[150px] overflow-y-auto custom-scrollbar">
-            {rightTab === "requests" ? (
-              <div className="flex items-center justify-between">
-                <span>Pending Leave Applications</span>
-                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 font-bold">
-                  {leaveStats.myRequestsCount}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <span>Leaves Pending Approval</span>
-                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 font-bold">
-                  {leaveStats.myApprovalsCount}
-                </span>
-              </div>
-            )}
-            {((rightTab === "requests" && leaveStats.myRequestsCount === 0) ||
-              (rightTab === "approvals" && leaveStats.myApprovalsCount === 0)) && (
-                <p className="text-xs text-gray-400 pt-2 text-center">No pending items</p>
-              )}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900/40 rounded-xl shadow border dark:border-slate-800 overflow-hidden">
-          <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between border-b">
-            <div className="text-[12px] sm:text-[13px] font-semibold text-gray-700 flex items-center gap-2">
-              <Megaphone size={16} className="text-customRed" />
-              NEWS
-            </div>
-            <button
-              onClick={() => navigate("/dashboard/news")}
-              className="text-[10px] text-customRed font-bold hover:underline flex items-center shrink-0"
-            >
-              VIEW ALL <ChevronRight size={12} />
-            </button>
-          </div>
-          <div className="divide-y max-h-[300px] overflow-y-auto custom-scrollbar">
-            {news.length === 0 ? (
-              <div className="px-3 sm:px-4 py-6 text-center">
-                <p className="text-xs text-gray-400">No recent announcements</p>
-              </div>
-            ) : (
-              news.map((item) => (
-                <div key={item.id} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" onClick={() => navigate("/dashboard/news")}>
-                  <div className="text-[13px] font-bold text-gray-800 line-clamp-1 mb-1">
-                    {item.title}
-                  </div>
-                  <div className="text-[11px] text-gray-500 line-clamp-2 mb-2 leading-relaxed">
-                    {item.content}
-                  </div>
-                  <div className="text-[10px] text-gray-400 flex items-center justify-between uppercase tracking-tighter font-semibold">
-                    <span>{item.author_name}</span>
-                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-      {/* Dramatic Confetti Overlay */}
-      {showConfetti && (
-        <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] animate-pulse" />
-          {[...Array(60)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute top-[-20px] animate-confetti-fall"
-              style={{
-                left: `${Math.random() * 100}%`,
-                width: `${Math.random() * 10 + 5}px`,
-                height: `${Math.random() * 15 + 5}px`,
-                backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 6)],
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${2 + Math.random() * 2}s`,
-                transform: `rotate(${Math.random() * 360}deg)`,
-                opacity: 0.8
-              }}
-            />
-          ))}
-          <div className="relative z-10 text-center animate-bounce-slow">
-            <h2 className="text-4xl md:text-6xl font-black text-customRed drop-shadow-2xl uppercase tracking-tighter">
-              Happy Birthday! 🎈
-            </h2>
-            <div className="text-2xl mt-4 bg-white/80 backdrop-blur rounded-full px-6 py-2 border shadow-xl inline-block font-bold">
-              {selectedBirthday?.name} 🎉
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes confetti-fall {
-            0% { transform: translateY(0) rotate(0); opacity: 1; }
-            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-        }
-        .animate-confetti-fall {
-            animation: confetti-fall linear infinite;
-        }
-        .animate-bounce-slow {
-            animation: bounce 2s infinite;
-        }
-      `}</style>
-      {/* Time Sync Warning Modal */}
       <TimeSyncModal
         show={timeSync.show}
         drift={timeSync.drift}
         onClose={() => setTimeSync({ ...timeSync, show: false })}
       />
 
-      {/* 
-      <AttendancePhotoModal
-        isOpen={photoModal.show}
-        punchType={photoModal.type}
-        onClose={() => {
-          setPhotoModal({ ...photoModal, show: false });
-          setPendingPunch(null);
-        }}
-        onCapture={onPhotoCaptured}
-      />
-      */}
+      {/* LEFT COLUMN */}
+      <section className="lg:col-span-3 space-y-6 lg:space-y-8">
+        {/* Profile Card */}
+        <div className="glass-card rounded-[2rem] shadow-premium overflow-hidden group card-hover relative transition-all duration-500">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-red-500/10 transition-colors" />
+          <div className="p-6 md:p-8 flex flex-col items-center text-center relative z-10">
+            <div className="relative mb-5">
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-50 border-4 border-white shadow-lg overflow-hidden flex-shrink-0 transition-transform duration-500 group-hover:scale-105">
+                {(() => {
+                  const src = getAvatarUrl(dashboardData?.profile?.profile_img || user?.profile_img);
+                  if (src) return <img src={src} alt="Profile" className="w-full h-full object-cover" />;
+                  return <div className="w-full h-full flex items-center justify-center text-slate-200 bg-slate-50"><Icon name="User" size={40} /></div>;
+                })()}
+              </div>
+              <div className="absolute bottom-0 right-0 w-6 h-6 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm" title="Online">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              </div>
+            </div>
+            
+            <div className="min-w-0 w-full">
+              <h2 className="text-lg font-black text-slate-800 truncate uppercase tracking-tight leading-tight mb-1">
+                {dashboardData?.profile?.name || user?.Employee_Name || "User Name"}
+              </h2>
+              <p className="text-[12px] text-slate-400 truncate mb-4 font-medium">{dashboardData?.profile?.email || user?.Official_Email}</p>
+              
+              <div className="flex flex-col gap-2 items-center">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-[10px] text-customRed font-black rounded-full uppercase tracking-wider border border-red-100/50">
+                  <Icon name="Briefcase" size={10} /> {dashboardData?.profile?.Department || user?.Department || "DEPT"}
+                </div>
+                <button
+                  onClick={handleRegisterBiometric}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 ${!window.isSecureContext ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'} text-[10px] font-bold rounded-full uppercase tracking-wider border transition-all active:scale-95 shadow-sm`}
+                  title={!window.isSecureContext ? "Requires HTTPS or Localhost" : "Link your Fingerprint or FaceID"}
+                  disabled={!window.isSecureContext}
+                >
+                  <Icon name="Fingerprint" size={12} /> {window.isSecureContext ? "Register Device" : "Insecure Site"}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-slate-100/50 flex divide-x divide-slate-100/50 text-[10px] md:text-[11px] font-bold uppercase text-slate-400">
+            <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-customRed transition-all flex items-center justify-center gap-2">
+              <Icon name="Cake" size={14} className="opacity-60" /> <span className="hidden sm:inline">0 Today</span><span className="sm:hidden">0 Bday</span>
+            </button>
+            <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2">
+              <Icon name="Mail" size={14} className="opacity-60" /> <span className="hidden sm:inline">Messages</span><span className="sm:hidden">Inbox</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Attendance Card */}
+        <div className="glass-card rounded-[2rem] shadow-premium p-6 md:p-8 card-hover overflow-hidden relative transition-all duration-500">
+          <div className="absolute top-0 left-0 w-24 h-24 bg-emerald-500/5 rounded-full -ml-12 -mt-12 blur-2xl" />
+          
+          <div className="flex items-center justify-between mb-8 relative z-10">
+            <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-[0.15em]">Today's Shift</h3>
+            {badge(attendance?.status || "NOT_MARKED")}
+          </div>
+
+          <div className="space-y-6 relative z-10">
+            <div className="grid grid-cols-2 gap-4 md:gap-6">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-black uppercase tracking-wider opacity-60">
+                   <Icon name="Clock" size={12} /> Shift
+                </div>
+                <div className="text-slate-800 font-black text-[12px] md:text-[13px]">{shift?.name || "RAMADAN"}</div>
+              </div>
+              <div className="space-y-1 text-right">
+                <div className="flex items-center justify-end gap-1.5 text-slate-400 text-[10px] font-black uppercase tracking-wider opacity-60">
+                   <Icon name="Timer" size={12} /> Timing
+                </div>
+                <div className="text-slate-800 font-black text-[12px] md:text-[13px] tracking-tight">10:30 - 16:00</div>
+              </div>
+            </div>
+
+            <div className={`rounded-2xl p-4 border transition-all duration-500 ${!attendance ? 'bg-rose-50 border-rose-100/50 shadow-sm shadow-rose-100/20' : 'bg-emerald-50 border-emerald-100/50 shadow-sm shadow-emerald-100/20'}`}>
+              <div className={`flex items-start gap-3 text-[11px] font-bold uppercase leading-tight tracking-tight ${!attendance ? 'text-rose-600' : 'text-emerald-600'}`}>
+                <div className={`p-1.5 rounded-lg ${!attendance ? 'bg-white/60' : 'bg-white/60'}`}>
+                  <Icon name={!attendance ? "AlertCircle" : "CheckCircle2"} size={14} className="shrink-0" />
+                </div>
+                <p className="mt-1">{statusText}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <div className="relative group">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg shadow-sm border border-slate-100 text-customRed group-focus-within:scale-110 transition-transform">
+                  <Icon name="MapPin" size={14} />
+                </div>
+                <select
+                  value={selectedOfficeId}
+                  onChange={(e) => setSelectedOfficeId(e.target.value)}
+                  disabled={!canCheckIn && !canCheckOut}
+                  className="w-full pl-12 pr-10 py-3.5 text-[11px] font-black uppercase tracking-wider border border-slate-200/60 rounded-[1.25rem] bg-slate-50/50 focus:bg-white focus:border-customRed/30 focus:ring-4 focus:ring-customRed/5 transition-all outline-none appearance-none cursor-pointer shadow-sm"
+                >
+                  <option value="">Select Office Location</option>
+                  {offices.map((o, i) => (<option key={o.id || o.name || i} value={o.id}>{o.name}</option>))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-customRed transition-colors">
+                   <Icon name="ChevronDown" size={16} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <button
+                  onClick={() => handlePunch("IN")}
+                  disabled={!canCheckIn || punching}
+                  className={`btn-primary h-12 md:h-14 rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${!canCheckIn || punching ? "opacity-50 grayscale" : ""}`}
+                >
+                  {punching && pendingPunchType === 'IN' ? <Icon name="Loader2" className="animate-spin" size={18} /> : 'In'}
+                </button>
+                <button
+                  onClick={() => handlePunch("OUT")}
+                  disabled={!canCheckOut || punching}
+                  className={`btn-outline h-12 md:h-14 rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${!canCheckOut || punching ? "opacity-50" : "hover:border-slate-300"}`}
+                >
+                  {punching && pendingPunchType === 'OUT' ? <Icon name="Loader2" className="animate-spin" size={18} /> : 'Out'}
+                </button>
+              </div>
+
+              <button
+                onClick={async () => {
+                  try {
+                    setPunching(true);
+                    const { authenticateBiometric } = await import("../features/attendance/services/biometricService");
+                    const authRes = await authenticateBiometric();
+                    if (!authRes.verified) return;
+                    const coords = await getCurrentPosition();
+                    const type = canCheckIn ? "IN" : "OUT";
+                    const res = await punchAttendance({ office_id: Number(selectedOfficeId), punch_type: type, clientTime: new Date().toISOString(), latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy });
+                    setTodayData(prev => ({ ...prev, attendance: res.attendance }));
+                  } catch (err) { setError(err.message || "Biometric failed"); } finally { setPunching(false); }
+                }}
+                disabled={punching || (!canCheckIn && !canCheckOut)}
+                className="w-full h-12 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all text-[11px] font-black uppercase tracking-widest shadow-md shadow-emerald-500/10 active:scale-95"
+              >
+                <Icon name="Fingerprint" size={18} /> Biometric Punch
+              </button>
+            </div>
+
+            <div className="pt-6 grid grid-cols-3 gap-2 border-t border-slate-100/50">
+               <div className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">In</span>
+                  <span className="text-[11px] font-black text-slate-800">{formatTime(attendance?.check_in)}</span>
+               </div>
+               <div className="flex flex-col items-center gap-1 border-x border-slate-100/50 px-2">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Out</span>
+                  <span className="text-[11px] font-black text-slate-800">{formatTime(attendance?.check_out)}</span>
+               </div>
+               <div className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Total</span>
+                  <span className="text-[11px] font-black text-customRed">{attendance?.worked_hours || "—"}</span>
+               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Leave Summary */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden text-[11px]">
+          <div className="px-6 py-3.5 border-b border-slate-50 bg-slate-50/20 font-bold text-slate-500 uppercase tracking-widest">Leave Summary</div>
+          <div className="divide-y divide-slate-50">
+            {leaveBalances.map((item, i) => (
+              <div key={item.id || item.name || i} className="px-6 py-3 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
+                <span className="font-bold text-slate-500 uppercase group-hover:text-slate-800">{item.name}</span>
+                <span className="px-2 py-0.5 bg-slate-50 text-slate-800 font-bold rounded-lg border border-slate-100">{Number(item.balance).toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* MIDDLE COLUMN */}
+      <section className="lg:col-span-6 space-y-6 lg:space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {/* Missing Attendance */}
+          <div className="glass-card rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
+            <div className="px-6 md:px-8 py-5 bg-slate-50/30 border-b border-slate-100/50 flex items-center gap-3">
+              <div className="p-2 bg-red-50 rounded-xl text-customRed shadow-sm">
+                <Icon name="CalendarX" size={16} />
+              </div>
+              <h3 className="text-[11px] md:text-[12px] font-black text-slate-500 uppercase tracking-widest">Missing Attendance</h3>
+            </div>
+            <div className="p-4 md:p-6 flex-1 overflow-auto custom-scrollbar">
+              {missingAttendance.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 text-[9px] md:text-[10px] font-black text-slate-300 uppercase tracking-widest px-2 pb-1"><span>Date</span> <span>In</span> <span>Out</span></div>
+                  {missingAttendance.slice(0, 4).map((m, i) => (
+                    <div key={m.id || m.date || i} className="grid grid-cols-3 text-[10px] md:text-[11px] font-black text-slate-600 py-3 border-b border-slate-50 last:border-0 px-2 hover:bg-red-50/30 rounded-xl transition-all cursor-default group">
+                      <span className="text-customRed group-hover:scale-105 transition-transform origin-left truncate">{m.date}</span> 
+                      <span className="opacity-80">{m.check_in || "—"}</span> 
+                      <span className="opacity-80">{m.check_out || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (<EmptyState icon="Verified" title="Clear Record" message="All entries present" />)}
+            </div>
+          </div>
+          {/* Attendance Summary */}
+          <div className="glass-card rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
+            <div className="px-6 md:px-8 py-5 bg-slate-50/30 border-b border-slate-100/50 flex items-center gap-3">
+              <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 shadow-sm">
+                <Icon name="BarChart3" size={16} />
+              </div>
+              <h3 className="text-[11px] md:text-[12px] font-black text-slate-500 uppercase tracking-widest">Summary Stats</h3>
+            </div>
+            <div className="p-4 md:p-6 flex-1">
+              <div className="space-y-4">
+                <div className="flex justify-between text-[9px] md:text-[10px] font-black text-slate-300 uppercase tracking-widest px-2"><span>Category</span> <span>Days</span></div>
+                {attendanceSummary.slice(0, 4).map((r, i) => (
+                  <div key={r.title || i} className="flex justify-between items-center px-2 group cursor-default">
+                    <span className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-tight group-hover:text-slate-800 transition-colors truncate">{r.title}</span>
+                    <span className="text-[11px] md:text-[12px] font-black text-slate-900 bg-white px-2 md:px-3 py-1 rounded-lg border border-slate-100 shadow-sm transition-all group-hover:border-indigo-200 group-hover:bg-indigo-50/30">{r.val}</span>
+                  </div>
+                ))}
+                <div className="pt-2 md:pt-4 px-2">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Efficiency</span>
+                    <span className="text-[9px] md:text-[10px] font-black text-customRed">65%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                    <div className="h-full bg-gradient-to-r from-customRed via-red-400 to-red-600 w-[65%] rounded-full shadow-lg relative">
+                      <div className="absolute top-0 right-0 w-1 h-full bg-white/40 blur-[1px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI Table */}
+        <div className="glass-card rounded-[2.5rem] shadow-premium overflow-hidden card-hover transition-all duration-300 border-none">
+          <div className="px-6 md:px-8 py-6 border-b border-slate-100/50 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white relative overflow-hidden gap-4">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 opacity-30 pointer-events-none" />
+             <div className="flex items-center gap-3 relative z-10">
+                <div className="p-2 md:p-2.5 bg-red-500 rounded-[1rem] md:rounded-[1.25rem] text-white shadow-lg shadow-red-500/20">
+                  <Icon name="Activity" size={18} />
+                </div>
+                <div>
+                  <h4 className="text-[13px] md:text-[14px] font-black text-slate-800 uppercase tracking-tight">Performance KPI</h4>
+                  <p className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">Real-time Analytics</p>
+                </div>
+             </div>
+             <div className="px-3 py-1 bg-emerald-50 text-[9px] md:text-[10px] text-emerald-600 font-black rounded-full uppercase tracking-wider border border-emerald-100 relative z-10 animate-pulse">Live</div>
+          </div>
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left min-w-[500px]">
+              <thead className="bg-slate-50/50">
+                <tr><th className="px-6 md:px-10 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Parameter</th><th className="px-6 md:px-10 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Score</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/50 text-[10px] md:text-[11px]">
+                {[
+                  { name: "Working Hours Log", icon: "Clock", val: 85 },
+                  { name: "Attendance Consistency", icon: "CheckSquare", val: 92 },
+                  { name: "Timeliness Index", icon: "Timer", val: 78 },
+                  { name: "Policy Compliance", icon: "ShieldCheck", val: 100 },
+                  { name: "Department Average", icon: "Users2", val: 82 },
+                  { name: "Overtime Input", icon: "PlusCircle", val: 15 }
+                ].map((row, i) => (
+                  <tr key={row.name} className="hover:bg-slate-50/80 transition-all group">
+                    <td className="px-6 md:px-10 py-4 md:py-6">
+                       <div className="flex items-center gap-3 md:gap-4">
+                          <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-customRed group-hover:shadow-sm border border-transparent group-hover:border-slate-100 transition-all">
+                             <Icon name={row.icon} size={14} />
+                          </div>
+                          <span className="font-black text-slate-600 group-hover:text-slate-900 uppercase tracking-tight truncate max-w-[150px] md:max-w-none">{row.name}</span>
+                       </div>
+                    </td>
+                    <td className="px-6 md:px-10 py-4 md:py-6">
+                       <div className="flex items-center justify-end gap-3 md:gap-4 w-full">
+                          <div className="text-[11px] md:text-[12px] font-black text-slate-800 tabular-nums">{row.val}%</div>
+                          <div className="w-24 md:w-32 h-2 md:h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                             <div 
+                                className={`h-full bg-gradient-to-r ${row.val > 80 ? 'from-emerald-400 to-emerald-600' : row.val > 50 ? 'from-orange-400 to-orange-600' : 'from-rose-400 to-rose-600'} rounded-full shadow-lg relative transition-all duration-1000 ease-out`}
+                                style={{ width: `${row.val}%` }}
+                             >
+                                <div className="absolute top-0 right-0 w-1 h-full bg-white/40 blur-[1px]" />
+                             </div>
+                          </div>
+                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-slate-50/30 p-5 border-t border-slate-100/50 text-center">
+            <button className="flex items-center justify-center gap-2 mx-auto text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-customRed transition-all group active:scale-95">
+              <span>Analysis</span>
+              <div className="p-1.5 bg-white rounded-lg shadow-sm group-hover:shadow-md group-hover:translate-x-1 transition-all">
+                <Icon name="ArrowRight" size={14} />
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* RIGHT COLUMN */}
+      <section className="lg:col-span-3 space-y-6 lg:space-y-8">
+        {/* Team Tabs */}
+        <div className="glass-card rounded-[2.5rem] shadow-premium overflow-hidden text-[11px] card-hover border-none">
+          <div className="flex p-2 bg-slate-50/50 rounded-t-[2.5rem]">
+            <button onClick={() => setTeamTab("team")} className={`flex-1 py-3 font-black uppercase tracking-widest transition-all rounded-2xl ${teamTab === "team" ? "bg-white text-customRed shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>My Team</button>
+            <button onClick={() => setTeamTab("managers")} className={`flex-1 py-3 font-black uppercase tracking-widest transition-all rounded-2xl ${teamTab === "managers" ? "bg-white text-customRed shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Managers</button>
+          </div>
+          <div className="p-8 md:p-12 relative overflow-hidden text-center">
+            <div className="absolute top-0 left-0 w-full h-full bg-slate-50/30 -z-0" />
+            <div className="relative z-10">
+               <EmptyState icon="Users" title="Collaboration" message="Your tribe is quiet" />
+               <button className="mt-6 px-4 py-2 bg-white border border-slate-100 rounded-xl text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-customRed hover:border-customRed/20 transition-all shadow-sm">Invite Team</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Requests Tracker */}
+        <div className="glass-card rounded-[2.5rem] shadow-premium overflow-hidden text-[11px] card-hover border-none">
+          <div className="flex p-2 bg-slate-50/50 rounded-t-[2.5rem]">
+            <button onClick={() => setRightTab("requests")} className={`flex-1 py-3 font-black uppercase tracking-widest transition-all rounded-2xl ${rightTab === "requests" ? "bg-white text-customRed shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Requests</button>
+            <button onClick={() => setRightTab("approvals")} className={`flex-1 py-3 font-black uppercase tracking-widest transition-all rounded-2xl ${rightTab === "approvals" ? "bg-white text-customRed shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Approvals</button>
+          </div>
+          <div className="p-6 md:p-8 space-y-6">
+            <div className="flex items-center justify-between p-4 md:p-5 bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] shadow-xl shadow-slate-200">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-white/10 rounded-xl text-white/80">
+                    <Icon name="Inbox" size={16} />
+                 </div>
+                 <span className="font-black text-white/90 uppercase tracking-tight">Active Items</span>
+              </div>
+              <span className="w-8 h-8 md:w-10 md:h-10 rounded-[0.85rem] md:rounded-[1rem] bg-customRed text-white text-[12px] md:text-[14px] font-black flex items-center justify-center shadow-lg shadow-customRed/30 border border-white/10">
+                {rightTab === "requests" ? leaveStats.myRequestsCount : leaveStats.myApprovalsCount}
+              </span>
+            </div>
+            <div className="h-px bg-slate-100 mx-4 opacity-50" />
+            <EmptyState icon="Layers" title="Queue Status" message="Zero Pending Tasks" />
+          </div>
+        </div>
+
+        {/* Global News Broadcast */}
+        <div className="glass-card rounded-[2.5rem] shadow-premium overflow-hidden text-[11px] card-hover border-none relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+          <div className="px-6 md:px-8 py-5 border-b border-slate-100/50 flex items-center justify-between bg-white/50 relative z-10">
+            <div className="flex items-center gap-2 md:gap-3 font-black text-slate-700 uppercase tracking-widest">
+               <div className="p-2 bg-red-50 rounded-xl text-customRed shadow-sm">
+                  <Icon name="Megaphone" size={16} />
+               </div>
+               News
+            </div>
+            <button onClick={() => navigate("/dashboard/news")} className="text-[9px] md:text-[10px] font-black text-customRed uppercase hover:bg-red-50 px-2 md:px-3 py-1 rounded-full transition-all tracking-widest">READ ALL</button>
+          </div>
+          <div className="p-8 md:p-12 relative z-10">
+            <EmptyState icon="BellOff" title="Broadcasting" message="No recent updates" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -13,6 +13,7 @@
   "author": "Basit",
   "license": "ISC",
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.0",
     "bcryptjs": "^3.0.2",
     "canvas": "^3.2.1",
     "compression": "^1.8.1",

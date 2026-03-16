@@ -374,56 +374,71 @@ const punch = async (req, res) => {
         fs.writeFileSync(fullPhotoPath, buffer);
 
         // --- AI FACE MATCHING & REGISTRATION ---
-        const [rows] = await conn.execute(
-          "SELECT profile_img, face_registration FROM employee_records WHERE id = ?",
-          [targetEmployeeId]
-        );
+        // ✅ NEW: Check if biometric was already verified in this session (WebAuthn flow)
+        const isBiometricVerified = req.session.biometricVerified &&
+          req.session.biometricVerified.employeeId === targetEmployeeId &&
+          (Date.now() - req.session.biometricVerified.timestamp) < 5 * 60000; // 5 min expiry
 
-        if (rows.length > 0) {
-          const { profile_img, face_registration } = rows[0];
-          const referenceImg = face_registration || profile_img;
-          const isNewRegistration = !face_registration;
+        if (isBiometricVerified) {
+          console.log(`[Attendance] Biometric verified from session for emp: ${targetEmployeeId}`);
+          // Clear the flag so it's only used once
+          delete req.session.biometricVerified;
 
-          if (referenceImg) {
-            const storedImgPath = path.join(__dirname, "..", "..", referenceImg);
+          // Since it's biometric, we don't need FaceID matching
+          // We still keep the photo if provided (for audit/backup), but we don't fail if matching fails
+        } else {
+          // Regular Face Recognition Flow
+          const [rows] = await conn.execute(
+            "SELECT profile_img, face_registration FROM employee_records WHERE id = ?",
+            [targetEmployeeId]
+          );
 
-            if (fs.existsSync(storedImgPath)) {
-              console.log(`[FaceID] Matching started for emp: ${targetEmployeeId} using ${isNewRegistration ? 'profile_img' : 'face_registration'}`);
-              try {
-                const distance = await FaceService.compareFaces(fullPhotoPath, storedImgPath);
-                console.log(`[FaceID] Match distance: ${distance}`);
+          if (rows.length > 0) {
+            const { profile_img, face_registration } = rows[0];
+            const referenceImg = face_registration || profile_img;
+            const isNewRegistration = !face_registration;
 
-                const THRESHOLD = 0.55;
-                if (distance > THRESHOLD) {
-                  if (fs.existsSync(fullPhotoPath)) fs.unlinkSync(fullPhotoPath);
-                  return res.status(403).json({ message: "Face verification failed. Captured image does not match the reference photo." });
-                }
+            if (referenceImg) {
+              const storedImgPath = path.join(__dirname, "..", "..", referenceImg);
 
-                // SUCCESS: Handle Registration vs Matching
-                if (isNewRegistration) {
-                  console.log(`[FaceID] REGISTERING: Success against profile_img. Saving to face_registration.`);
-                  await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
-                } else {
-                  // Already registered, destroy the live captured photo as requested
-                  if (fs.existsSync(fullPhotoPath)) {
-                    fs.unlinkSync(fullPhotoPath);
-                    photoPath = null;
+              if (fs.existsSync(storedImgPath)) {
+                console.log(`[FaceID] Matching started for emp: ${targetEmployeeId} using ${isNewRegistration ? 'profile_img' : 'face_registration'}`);
+                try {
+                  const distance = await FaceService.compareFaces(fullPhotoPath, storedImgPath);
+                  console.log(`[FaceID] Match distance: ${distance}`);
+
+                  const THRESHOLD = 0.55;
+                  if (distance > THRESHOLD) {
+                    if (fs.existsSync(fullPhotoPath)) fs.unlinkSync(fullPhotoPath);
+                    return res.status(403).json({ message: "Face verification failed. Captured image does not match the reference photo." });
                   }
+
+                  // SUCCESS: Handle Registration vs Matching
+                  if (isNewRegistration) {
+                    console.log(`[FaceID] REGISTERING: Success against profile_img. Saving to face_registration.`);
+                    await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+                  } else {
+                    // Already registered, destroy the live captured photo as requested
+                    if (fs.existsSync(fullPhotoPath)) {
+                      fs.unlinkSync(fullPhotoPath);
+                      photoPath = null;
+                    }
+                  }
+                } catch (faceErr) {
+                  console.error("[FaceID] Comparison Error:", faceErr.message);
+                  if (fs.existsSync(fullPhotoPath)) fs.unlinkSync(fullPhotoPath);
+                  return res.status(403).json({ message: faceErr.message || "Face detection failed. Please ensure your face is visible." });
                 }
-              } catch (faceErr) {
-                console.error("[FaceID] Comparison Error:", faceErr.message);
-                if (fs.existsSync(fullPhotoPath)) fs.unlinkSync(fullPhotoPath);
-                return res.status(403).json({ message: faceErr.message || "Face detection failed. Please ensure your face is visible." });
+              } else {
+                // Reference exists in DB but file missing on disk -> Register current as new reference
+                console.warn(`[FaceID] Reference photo missing on disk (${storedImgPath}). Registering current capture.`);
+                await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
               }
             } else {
-              // Reference exists in DB but file missing on disk -> Register current as new reference
-              console.warn(`[FaceID] Reference photo missing on disk (${storedImgPath}). Registering current capture.`);
+              // First time registration (no photos at all)
+              console.log(`[FaceID] INITIAL REGISTRATION for emp: ${targetEmployeeId}`);
               await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
             }
-          } else {
-            // First time registration (no photos at all)
-            console.log(`[FaceID] INITIAL REGISTRATION for emp: ${targetEmployeeId}`);
-            await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
           }
         }
       } catch (err) {
