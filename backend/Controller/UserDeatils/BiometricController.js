@@ -7,8 +7,17 @@ const {
 
 // Polyfill for Web Crypto API (required by simplewebauthn on Node < 19)
 if (typeof globalThis.crypto === 'undefined') {
-    const { crypto } = require('node:crypto');
-    globalThis.crypto = crypto;
+    try {
+        const crypto = require('node:crypto');
+        if (crypto.webcrypto) {
+            globalThis.crypto = crypto.webcrypto;
+            console.log('[Biometric] Applied Web Crypto polyfill using node:crypto.webcrypto');
+        } else {
+            console.error('[Biometric] Web Crypto API not found in node:crypto. Please upgrade Node.js to v16.15.0+');
+        }
+    } catch (e) {
+        console.error('[Biometric] Failed to load node:crypto for polyfill:', e.message);
+    }
 }
 
 const { pool } = require('../../Utils/db');
