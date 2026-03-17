@@ -25,9 +25,18 @@ const { isoUint8Array } = require('@simplewebauthn/server/helpers');
 
 // RP ID (Relaying Party ID) - must match the domain in the browser address bar
 const getRpId = (req) => {
-    const host = req.get('host');
-    if (!host) return 'propeople.cloud';
-    return host.split(':')[0]; // Return the domain/IP exactly as it appears (no port)
+    // Rely on the Origin header which comes directly from the browser's address bar
+    const origin = req.get('origin') || req.get('referer');
+    if (origin) {
+        try {
+            const url = new URL(origin);
+            return url.hostname;
+        } catch (e) {
+            console.error('Failed to parse origin in getRpId:', origin);
+        }
+    }
+    // Fallback exactly to what we expect in production if headers are missing
+    return 'propeople.cloud';
 };
 
 const rpName = 'HRM ProPeople';
