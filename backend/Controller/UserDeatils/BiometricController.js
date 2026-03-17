@@ -239,9 +239,9 @@ async function verifyAuthentication(req, res) {
             expectedChallenge,
             expectedOrigin: origin,
             expectedRPID: rpID,
-            authenticator: {
-                credentialID: Buffer.from(dbCred.credential_id, 'base64'),
-                credentialPublicKey: Buffer.from(dbCred.public_key, 'base64'),
+            credential: {
+                id: Buffer.from(dbCred.credential_id, 'base64'),
+                publicKey: Buffer.from(dbCred.public_key, 'base64'),
                 counter: dbCred.counter,
             },
         });
