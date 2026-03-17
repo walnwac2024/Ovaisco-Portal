@@ -242,10 +242,13 @@ async function verifyAuthentication(req, res) {
         });
 
         if (verification.verified) {
+            const { authenticationInfo } = verification;
+            const newCounter = authenticationInfo.newCounter ?? dbCred.counter;
+
             // Update counter in DB
             await pool.execute(
                 'UPDATE employee_biometrics SET counter = ? WHERE id = ?',
-                [verification.authenticationInfo.newCounter, dbCred.id]
+                [newCounter, dbCred.id]
             );
 
             delete req.session.currentAuthenticationChallenge;
