@@ -118,16 +118,31 @@ async function verifyRegistration(req, res) {
         });
 
         if (verification.verified && verification.registrationInfo) {
-            const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+            const { registrationInfo } = verification;
+            
+            // simplewebauthn v10+ puts these inside a `credential` object.
+            // We handle both v9 (direct properties) and v10+ (inside `credential`) to be safe.
+            const credentialID = registrationInfo.credentialID || registrationInfo.credential?.id;
+            const credentialPublicKey = registrationInfo.credentialPublicKey || registrationInfo.credential?.publicKey;
+            const counter = registrationInfo.counter ?? registrationInfo.credential?.counter ?? 0;
+
+            if (!credentialID || !credentialPublicKey) {
+                console.error('[Biometric] Failed to extract credential details:', registrationInfo);
+                return res.status(400).json({ message: 'Could not extract credential details from registration' });
+            }
+
+            // Convert credentialID to base64. In newer versions it might be a base64url string already.
+            const credIdStr = typeof credentialID === 'string' 
+                ? Buffer.from(credentialID, 'base64url').toString('base64')
+                : Buffer.from(credentialID).toString('base64');
 
             // Save to DB
-            // simplewebauthn returns Uint8Array, we convert to base64 for DB storage
             await pool.execute(
                 `INSERT INTO employee_biometrics (employee_id, credential_id, public_key, counter, device_name) 
                  VALUES (?, ?, ?, ?, ?)`,
                 [
                     user.id,
-                    Buffer.from(credentialID).toString('base64'),
+                    credIdStr,
                     Buffer.from(credentialPublicKey).toString('base64'),
                     counter,
                     req.body.deviceName || 'Mobile Device'
