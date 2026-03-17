@@ -220,9 +220,13 @@ async function verifyAuthentication(req, res) {
         }
 
         // Get the credential from DB
+        // body.id is Base64URL from simplewebauthn/browser. 
+        // We must convert it to standard Base64 to match our DB storage format.
+        const credIdBase64 = Buffer.from(body.id, 'base64url').toString('base64');
+
         const [credentials] = await pool.execute(
             'SELECT * FROM employee_biometrics WHERE employee_id = ? AND credential_id = ?',
-            [user.id, body.id]
+            [user.id, credIdBase64]
         );
 
         const dbCred = credentials[0];
