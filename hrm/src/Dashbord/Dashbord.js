@@ -679,12 +679,86 @@ function DashboardHome() {
             <button onClick={() => setTeamTab("team")} className={`flex-1 py-3 font-black uppercase tracking-widest transition-all rounded-2xl ${teamTab === "team" ? "bg-white text-customRed shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>My Team</button>
             <button onClick={() => setTeamTab("managers")} className={`flex-1 py-3 font-black uppercase tracking-widest transition-all rounded-2xl ${teamTab === "managers" ? "bg-white text-customRed shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Managers</button>
           </div>
-          <div className="p-8 md:p-12 relative overflow-hidden text-center">
-            <div className="absolute top-0 left-0 w-full h-full bg-slate-50/30 -z-0" />
-            <div className="relative z-10">
-               <EmptyState icon="Users" title="Collaboration" message="Your tribe is quiet" />
-               <button className="mt-6 px-4 py-2 bg-white border border-slate-100 rounded-xl text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-customRed hover:border-customRed/20 transition-all shadow-sm">Invite Team</button>
+          <div className="p-4 md:p-6 relative overflow-hidden h-[360px] md:h-[400px] flex flex-col">
+            <div className="absolute top-0 left-0 w-full h-full bg-slate-50/10 -z-0" />
+            
+            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar pr-1">
+              {(() => {
+                const list = teamTab === "team" 
+                  ? (dashboardData?.widgets?.teamRecent || dashboardData?.widgets?.team || [])
+                  : (dashboardData?.widgets?.managers || []);
+
+                if (!list || list.length === 0) {
+                  return (
+                    <div className="h-full flex flex-col items-center justify-center py-8">
+                      <EmptyState 
+                        icon="Users" 
+                        title={teamTab === "team" ? "Your Team" : "Managers"} 
+                        message={teamTab === "team" ? "No team members found" : "No managers found"} 
+                      />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {list.map((member) => (
+                      <div key={member.id} className="group flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-slate-100 hover:bg-white hover:shadow-sm transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <div className="relative shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-slate-50 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center">
+                              {member.profile_img ? (
+                                <img 
+                                  src={getAvatarUrl(member.profile_img)} 
+                                  alt={member.name} 
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="text-slate-300"><Icon name="User" size={20} /></div>
+                              )}
+                            </div>
+                            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${
+                              member.attendance_status === 'PRESENT' ? 'bg-emerald-500' :
+                              member.attendance_status === 'LATE' ? 'bg-orange-400' :
+                              'bg-slate-300'
+                            }`} />
+                          </div>
+                          <div className="min-w-0 text-left">
+                            <div className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate group-hover:text-customRed transition-colors">
+                              {member.name}
+                            </div>
+                            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider truncate">
+                              {member.designation || member.Department || "Team Member"}
+                            </div>
+                          </div>
+                        </div>
+                        {member.is_birthday_today && (
+                          <div className="w-6 h-6 bg-pink-50 text-pink-500 rounded-lg flex items-center justify-center shadow-sm animate-bounce" title="Birthday Today!">
+                            <Icon name="Cake" size={12} />
+                          </div>
+                        )}
+                        {!member.is_birthday_today && (
+                          <button className="p-2 text-slate-300 hover:text-customRed hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                            <Icon name="ChevronRight" size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
+
+            {teamTab === "team" && (
+              <div className="relative z-10 pt-4 mt-auto">
+                <button 
+                  onClick={() => navigate("/dashboard/organization")}
+                  className="w-full py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-customRed hover:border-customRed/20 hover:shadow-sm transition-all active:scale-95"
+                >
+                  View Full Tribe
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

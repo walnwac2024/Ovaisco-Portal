@@ -135,6 +135,22 @@ async function getDashboard(req, res) {
     const isMyBirthday = isBirthdayToday(myProfile?.Date_of_Birth);
     const colleaguesBirthdays = await getCompanyBirthdays();
 
+    // Utility: get specific managers (those who are reporting managers)
+    const getManagersList = async () => {
+      const [mgrRows] = await pool.query(
+        `SELECT DISTINCT ${BASE_EMP_FIELDS}
+         FROM employee_records e
+         JOIN users_types ut ON ut.type IN ('manager', 'zone_manager', 'director', 'admin', 'super_admin')
+         JOIN employee_user_types eut ON eut.employee_id = e.id AND eut.user_type_id = ut.id
+         WHERE e.is_active = 1 AND e.id != ?
+         LIMIT 10`,
+        [userId]
+      );
+      return mgrRows;
+    };
+
+    const managers = await getManagersList();
+
     // Specific Widget Logic per Role
     if (['super_admin', 'admin', 'developer', 'hr'].includes(role)) {
       const [[{ totalEmployees }]] = await pool.query(
@@ -184,6 +200,8 @@ async function getDashboard(req, res) {
           onLeave,
           recentEmployees: enrichTeamWithBirthdays(team),
           teamRecent: enrichTeamWithBirthdays(team),
+          team: enrichTeamWithBirthdays(team), // Consistent naming
+          managers: enrichTeamWithBirthdays(managers),
           birthdayToday: isMyBirthday,
           colleaguesBirthdays,
           news
@@ -220,6 +238,8 @@ async function getDashboard(req, res) {
         widgets: {
           totalEmployees,
           teamRecent: enrichTeamWithBirthdays(team),
+          team: enrichTeamWithBirthdays(team), // Consistent naming
+          managers: enrichTeamWithBirthdays(managers),
           birthdayToday: isMyBirthday,
           colleaguesBirthdays
         }
@@ -255,7 +275,8 @@ async function getDashboard(req, res) {
         tips: ['Complete your profile', 'Change your password regularly'],
         birthdayToday: isMyBirthday,
         colleaguesBirthdays,
-        team: enrichTeamWithBirthdays(team)
+        team: enrichTeamWithBirthdays(team),
+        managers: enrichTeamWithBirthdays(managers)
       }
     });
   } catch (err) {
