@@ -258,9 +258,40 @@ const { pool } = require('./Utils/db');
       await pool.execute("ALTER TABLE payroll_base_settings ADD COLUMN health_deduction DECIMAL(10,2) DEFAULT 0");
       console.log("✅ Added health_deduction to payroll_base_settings");
     }
-    console.log("✅ Payroll schema verification done.");
+
+    // Auto-migrate: Add missing permissions
+    const permissions = [
+      { module: 'News', action: 'View News', code: 'news_view' },
+      { module: 'News', action: 'Manage News', code: 'news_manage' },
+      { module: 'News', action: 'Post Reactions', code: 'news_react' },
+      { module: 'News', action: 'Post Comments', code: 'news_comment' },
+      { module: 'News', action: 'Manage Comments', code: 'news_manage_comments' },
+      { module: 'Timeline', action: 'View Timeline', code: 'timeline_view' },
+      { module: 'Timeline', action: 'Manage Events', code: 'timeline_manage' },
+      { module: 'Branding', action: 'View Branding', code: 'branding_view' },
+      { module: 'Branding', action: 'Manage Branding', code: 'branding_manage' },
+      { module: 'Attendance', action: 'View All Attendance', code: 'attendance_view_all' },
+      { module: 'Attendance', action: 'Manage Settings', code: 'attendance_manage_settings' },
+      { module: 'Attendance', action: 'Attendance Audit', code: 'attendance_audit' },
+      { module: 'Audit', action: 'View Logs', code: 'audit_view' },
+      { module: 'WhatsApp', action: 'Manage Integration', code: 'whatsapp_manage' },
+      { module: 'Permissions', action: 'Manage Roles', code: 'permissions_edit' }
+    ];
+
+    for (const p of permissions) {
+      const [existing] = await pool.execute("SELECT id FROM permissions WHERE code = ?", [p.code]);
+      if (existing.length === 0) {
+        await pool.execute(
+          "INSERT INTO permissions (module, action, code) VALUES (?, ?, ?)",
+          [p.module, p.action, p.code]
+        );
+        console.log(`✅ Auto-inserted missing permission: ${p.code}`);
+      }
+    }
+
+    console.log("✅ Payroll and Permissions schema verification done.");
   } catch (e) {
-    console.warn("⚠️ Payroll migration error or table missing:", e.message);
+    console.warn("⚠️ Migration error:", e.message);
   }
 })();
 
