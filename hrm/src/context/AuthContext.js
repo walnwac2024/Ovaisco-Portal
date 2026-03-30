@@ -23,6 +23,7 @@ function normalizeUser(raw) {
     roles: Array.isArray(raw.roles) ? raw.roles.map(r => String(r).toLowerCase()) : [],
     features: Array.isArray(raw.features) ? raw.features.map(f => String(f).toLowerCase()) : [],
     profile_img: raw.profile_img || raw.profile_picture || raw.profileImage || null,
+    department: raw.Department || raw.department || null,
   };
 }
 

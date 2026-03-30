@@ -29,7 +29,7 @@ const Timeline = require("../Controller/Employees/TimelineController");
 const Settings = require("../Controller/Settings/SettingsController");
 const SystemSettings = require("../Controller/Settings/SystemSettingsController");
 const Gamification = require("../Controller/Gamification/GamificationController");
-// const Office = require("../Controller/Office/OfficeController");
+const Office = require("../Controller/Office/OfficeController");
 const Biometrics = require("../Controller/UserDeatils/BiometricController");
 
 
@@ -273,11 +273,59 @@ router.get("/payroll/admin/list", isAuthenticated, requireRole("super_admin", "a
 router.get("/payroll/admin/salary-overview", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.listAllSalaryDetails);
 router.get("/payroll/admin/export-salaries", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), Payroll.exportSalaryReport);
 
-// // Office Management Requisition routes
-// router.post("/office/requisitions", isAuthenticated, requireFeatures("office_req_apply"), Office.createRequisition);
-// router.get("/office/requisitions", isAuthenticated, Office.listRequisitions);
-// router.get("/office/requisitions/:id", isAuthenticated, Office.getRequisitionById);
-// router.patch("/office/requisitions/:id/approve-hr", isAuthenticated, requireFeatures("office_req_approve_hr"), Office.approveHR);
-// router.patch("/office/requisitions/:id/approve-accounts", isAuthenticated, requireFeatures("office_req_approve_accounts"), Office.approveAccounts);
+// Special middleware for Office Requisition Apply
+const canApplyOffice = (req, res, next) => {
+    const user = req.session?.user;
+    if (!user) return res.status(401).json({ message: "Unauthenticated" });
+    
+    const role = String(user.role || '').toLowerCase();
+    // HR and Accounts roles are generally not allowed to apply (as per request)
+    if (['hr', 'accounts'].includes(role)) {
+        return res.status(403).json({ message: "Forbidden: HR and Accounts should not apply here." });
+    }
+
+    const feats = new Set(user.features || []);
+    const dept = user.department || user.Department;
+    
+    // Allow if they have the feature OR if they are in the allowed departments
+    const canApply = (feats.has('office_req_apply') || ['FNSD', 'Administration-HOE'].includes(dept));
+    if (canApply) {
+        return next();
+    }
+
+    return res.status(403).json({ message: "Forbidden: Missing apply permission." });
+};
+
+const canApproveHR = (req, res, next) => {
+    const user = req.session?.user;
+    if (!user) return res.status(401).json({ message: "Unauthenticated" });
+    const feats = new Set(user.features || []);
+    // HR department check (matching DashboardTabsLayout)
+    const isHR = (user.department || user.Department) === 'Human Resource-HOE (P&C)';
+    if (feats.has('office_req_approve_hr') || isHR) return next();
+    return res.status(403).json({ message: "Forbidden: Missing HR approval permission." });
+};
+
+const canApproveAccounts = (req, res, next) => {
+    const user = req.session?.user;
+    if (!user) return res.status(401).json({ message: "Unauthenticated" });
+    const feats = new Set(user.features || []);
+    const dept = user.department || user.Department;
+    const role = String(user.role || '').toLowerCase();
+    const isSeniorOrManager = (user.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
+    const isAccounts = ['Finance and Accounts Department -HOE', 'Accounts & Finance', 'Accounts', 'Finance'].includes(dept);
+
+    if (feats.has('office_req_approve_accounts') || (isAccounts && isSeniorOrManager)) {
+        return next();
+    }
+    return res.status(403).json({ message: "Forbidden: Missing accounts approval permission." });
+};
+
+// Office Management Requisition routes
+router.post("/office/requisitions", isAuthenticated, canApplyOffice, Office.createRequisition);
+router.get("/office/requisitions", isAuthenticated, Office.listRequisitions);
+router.get("/office/requisitions/:id", isAuthenticated, Office.getRequisitionById);
+router.patch("/office/requisitions/:id/approve-hr", isAuthenticated, canApproveHR, Office.approveHR);
+router.patch("/office/requisitions/:id/approve-accounts", isAuthenticated, canApproveAccounts, Office.approveAccounts);
 
 module.exports = router;

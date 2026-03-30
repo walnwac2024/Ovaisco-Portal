@@ -15,11 +15,31 @@ export default function DashboardTabsLayout() {
     { label: "Logs", to: "/dashboard/logs", adminOnly: true },
     { label: "Branding", to: "/dashboard/branding", adminOnly: true },
     { label: "Leaderboard", to: "/dashboard/leaderboard" },
-    // {
-    //   label: "Office Management",
-    //   to: "/dashboard/office",
-    //   show: feats.has('office_req_apply') || feats.has('office_req_approve_hr') || feats.has('office_req_approve_accounts') || feats.has('office_req_view_all')
-    // },
+    {
+      label: "Office Management",
+      to: "/dashboard/office",
+      show: (() => {
+        const dept = user?.department || user?.Department;
+        const role = String(user?.role || '').toLowerCase();
+        const isAdminOrManager = (user?.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
+
+        // Accounts needs seniority check
+        if (['Finance and Accounts Department -HOE', 'Accounts & Finance', 'Accounts', 'Finance'].includes(dept)) {
+          return isAdminOrManager || feats.has('office_req_view_all') || feats.has('office_req_approve_accounts');
+        }
+
+        // Other allowed departments
+        if (['FNSD', 'Administration-HOE', 'Human Resource-HOE (P&C)'].includes(dept)) {
+          return true;
+        }
+
+        // Feature-based check for others
+        return feats.has('office_req_view_all') ||
+          feats.has('office_req_apply') ||
+          feats.has('office_req_approve_hr') ||
+          feats.has('office_req_approve_accounts');
+      })()
+    },
   ];
 
   // Filter tabs: Show if Admin OR has the specific feature code OR explicitly shown
