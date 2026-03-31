@@ -57,6 +57,10 @@ export default function RequisitionPrint() {
                         <span className="font-black text-slate-900 uppercase truncate">{req.office_location}</span>
                     </div>
                     <div className="flex items-end gap-3 border-b border-slate-400 pb-1">
+                        <span className="font-bold text-slate-600 uppercase whitespace-nowrap">Assigned To (Accounts):</span>
+                        <span className="font-black text-emerald-700 uppercase truncate">{req.assigned_accounts_name || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-end gap-3 border-b border-slate-400 pb-1">
                         <span className="font-bold text-slate-600 uppercase whitespace-nowrap">Name (Line Manager) <span className="text-[8px] italic font-normal">if applicable</span>:</span>
                         <span className="font-black text-slate-900 uppercase truncate">{req.line_manager_name || 'N/A'}</span>
                     </div>
@@ -72,6 +76,8 @@ export default function RequisitionPrint() {
                                 <th className="border border-slate-900 px-4 py-2 text-[10px] font-black uppercase text-left">Type of Particular *</th>
                                 <th className="border border-slate-900 px-4 py-2 text-[10px] font-black uppercase text-left">Description</th>
                                 <th className="border border-slate-900 px-2 py-2 text-[10px] font-black uppercase text-center w-16">Qty **</th>
+                                <th className="border border-slate-900 px-2 py-2 text-[10px] font-black uppercase text-center w-24">Price</th>
+                                <th className="border border-slate-900 px-2 py-2 text-[10px] font-black uppercase text-right w-28">Total</th>
                                 <th className="border border-slate-900 px-2 py-2 text-[10px] font-black uppercase text-center w-20">Qty Issued</th>
                             </tr>
                         </thead>
@@ -84,10 +90,19 @@ export default function RequisitionPrint() {
                                         <td className="border border-slate-900 px-4 text-xs font-black uppercase text-slate-900">{item?.type_of_particular || ''}</td>
                                         <td className="border border-slate-900 px-4 text-xs font-medium text-slate-700">{item?.description || ''}</td>
                                         <td className="border border-slate-900 text-center font-black text-slate-900 text-xs">{item?.qty || ''}</td>
+                                        <td className="border border-slate-900 text-center font-black text-slate-900 text-xs">{item ? `Rs. ${Number(item.unit_price || 0).toLocaleString()}` : ''}</td>
+                                        <td className="border border-slate-900 text-right px-2 font-black text-emerald-700 text-xs">{item ? `Rs. ${(item.qty * (item.unit_price || 0)).toLocaleString()}` : ''}</td>
                                         <td className="border border-slate-900 text-center font-black text-emerald-600 text-xs">{item?.qty_issued || ''}</td>
                                     </tr>
                                 )
                             })}
+                            <tr className="h-10 bg-slate-50">
+                                <td colSpan="5" className="border border-slate-900 text-right px-4 text-[10px] font-black uppercase">Grand Total</td>
+                                <td className="border border-slate-900 text-right px-2 font-black text-emerald-800 text-sm">
+                                    Rs. {req.items.reduce((sum, it) => sum + (it.qty * (it.unit_price || 0)), 0).toLocaleString()}
+                                </td>
+                                <td className="border border-slate-900"></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>

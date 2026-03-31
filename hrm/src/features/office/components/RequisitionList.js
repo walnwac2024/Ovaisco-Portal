@@ -57,11 +57,11 @@ export default function RequisitionList() {
                 <table className="w-full text-left">
                     <thead className="bg-slate-50 dark:bg-slate-800/50">
                         <tr>
-                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Requester</th>
-                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Location</th>
-                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                            <th className="px-4 sm:px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
+                            <th className="px-4 sm:px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Requester</th>
+                            <th className="hidden sm:table-cell px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Location</th>
+                            <th className="px-4 sm:px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</th>
+                            <th className="px-4 sm:px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -77,7 +77,7 @@ export default function RequisitionList() {
                         ) : (
                             requisitions.map((req) => (
                                 <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 sm:px-6 py-4">
                                         <div className="text-sm font-bold text-slate-700 dark:text-slate-200">
                                             {new Date(req.created_at).toLocaleDateString()}
                                         </div>
@@ -85,40 +85,40 @@ export default function RequisitionList() {
                                             {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">
+                                    <td className="px-4 sm:px-6 py-4 border-r border-slate-50 dark:border-slate-800 sm:border-none">
+                                        <div className="text-[11px] sm:text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight leading-tight">
                                             {req.requester_name}
                                         </div>
-                                        <div className="text-[10px] text-slate-400 font-medium">
-                                            {req.designation} | {req.department}
+                                        <div className="text-[9px] sm:text-[10px] text-slate-400 font-bold truncate max-w-[100px] sm:max-w-none">
+                                            {req.designation}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="hidden sm:table-cell px-6 py-4">
                                         <div className="text-sm font-bold text-slate-600 dark:text-slate-400">
                                             {req.office_location}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusStyle(req.status)}`}>
+                                    <td className="px-4 sm:px-6 py-4 text-center">
+                                        <span className={`px-2 sm:px-4 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest border ${getStatusStyle(req.status)}`}>
                                             {getStatusLabel(req.status)}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2 transition-opacity">
+                                    <td className="px-4 sm:px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-1 sm:gap-2 transition-opacity">
                                             <button
                                                 onClick={() => navigate(`/dashboard/office/details/${req.id}`)}
-                                                className="p-2 text-slate-400 hover:text-customRed hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
+                                                className="p-1.5 sm:p-2 text-slate-400 hover:text-customRed hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg sm:rounded-xl transition-all"
                                                 title="View Details"
                                             >
-                                                <FaEye size={16} />
+                                                <FaEye size={14} className="sm:w-4 sm:h-4" />
                                             </button>
                                             {req.status === 'approved' && (
                                                 <button
                                                     onClick={() => navigate(`/dashboard/office/print/${req.id}`)}
-                                                    className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-xl transition-all"
+                                                    className="p-1.5 sm:p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-lg sm:rounded-xl transition-all"
                                                     title="Print"
                                                 >
-                                                    <FaPrint size={16} />
+                                                    <FaPrint size={14} className="sm:w-4 sm:h-4" />
                                                 </button>
                                             )}
                                         </div>

@@ -284,11 +284,10 @@ const canApplyOffice = (req, res, next) => {
         return res.status(403).json({ message: "Forbidden: HR and Accounts should not apply here." });
     }
 
-    const feats = new Set(user.features || []);
-    const dept = user.department || user.Department;
+    const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
     
     // Allow if they have the feature OR if they are in the allowed departments
-    const canApply = (feats.has('office_req_apply') || ['FNSD', 'Administration-HOE'].includes(dept));
+    const canApply = (feats.has('office_req_apply') || ['fnsd', 'administration-hoe'].includes(dept));
     if (canApply) {
         return next();
     }
@@ -301,7 +300,8 @@ const canApproveHR = (req, res, next) => {
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
     const feats = new Set(user.features || []);
     // HR department check (matching DashboardTabsLayout)
-    const isHR = (user.department || user.Department) === 'Human Resource-HOE (P&C)';
+    const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
+    const isHR = dept.includes('human resource');
     if (feats.has('office_req_approve_hr') || isHR) return next();
     return res.status(403).json({ message: "Forbidden: Missing HR approval permission." });
 };
@@ -310,18 +310,28 @@ const canApproveAccounts = (req, res, next) => {
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
     const feats = new Set(user.features || []);
-    const dept = user.department || user.Department;
+    const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
     const role = String(user.role || '').toLowerCase();
     const isSeniorOrManager = (user.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
-    const isAccounts = ['Finance and Accounts Department -HOE', 'Accounts & Finance', 'Accounts', 'Finance'].includes(dept);
+    
+    const accountsDepts = [
+        'finance and accounts department -hoe',
+        'accounts & finance',
+        'accounts',
+        'finance'
+    ];
+    const isAccounts = dept ? accountsDepts.includes(dept) : false;
 
-    if (feats.has('office_req_approve_accounts') || (isAccounts && isSeniorOrManager)) {
+    // Allow if they have the custom feature OR if they are in the Accounts department
+    // The Controller will do the final check to see if they are specifically assigned if it's an assigned request.
+    if (feats.has('office_req_approve_accounts') || isAccounts) {
         return next();
     }
     return res.status(403).json({ message: "Forbidden: Missing accounts approval permission." });
 };
 
 // Office Management Requisition routes
+router.get("/office/accounts-employees", isAuthenticated, Office.listAccountsEmployees);
 router.post("/office/requisitions", isAuthenticated, canApplyOffice, Office.createRequisition);
 router.get("/office/requisitions", isAuthenticated, Office.listRequisitions);
 router.get("/office/requisitions/:id", isAuthenticated, Office.getRequisitionById);

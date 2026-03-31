@@ -19,22 +19,27 @@ export default function DashboardTabsLayout() {
       label: "Office Management",
       to: "/dashboard/office",
       show: (() => {
-        const dept = user?.department || user?.Department;
+        const dept = (user?.department || user?.Department || '').toString().toLowerCase().trim();
         const role = String(user?.role || '').toLowerCase();
         const isAdminOrManager = (user?.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
+        
+        const accountsDepts = [
+            'finance and accounts department -hoe',
+            'accounts & finance',
+            'accounts',
+            'finance'
+        ];
+        const isAccounts = dept ? accountsDepts.includes(dept) : false;
 
-        // Accounts needs seniority check
-        if (['Finance and Accounts Department -HOE', 'Accounts & Finance', 'Accounts', 'Finance'].includes(dept)) {
-          return isAdminOrManager || feats.has('office_req_view_all') || feats.has('office_req_approve_accounts');
-        }
+        // If from accounts, always allow seeing the tab
+        if (isAccounts) return true;
 
-        // Other allowed departments
-        if (['FNSD', 'Administration-HOE', 'Human Resource-HOE (P&C)'].includes(dept)) {
-          return true;
-        }
+        // HR/Admin/FNSD also always see it
+        if (['human resource-hoe (p&c)', 'administration-hoe', 'fnsd'].includes(dept)) return true;
 
-        // Feature-based check for others
-        return feats.has('office_req_view_all') ||
+        // Permission based or level based visibility
+        return isAdminOrManager || 
+          feats.has('office_req_view_all') ||
           feats.has('office_req_apply') ||
           feats.has('office_req_approve_hr') ||
           feats.has('office_req_approve_accounts');

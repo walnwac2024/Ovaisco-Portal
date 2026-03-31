@@ -16,14 +16,24 @@ export default function RequisitionDetails() {
     const [issuedQtys, setIssuedQtys] = useState({});
 
     const features = new Set(user?.features || []);
-    const dept = user?.department || user?.Department;
+    const dept = (user?.department || user?.Department || '').toString().toLowerCase().trim();
     const role = String(user?.role || '').toLowerCase();
     const isSeniorOrManager = (user?.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
-    const isAccounts = ['Finance and Accounts Department -HOE', 'Accounts & Finance', 'Accounts', 'Finance'].includes(dept);
-    const isHR = (dept === 'Human Resource-HOE (P&C)');
+    
+    const accountsDepts = [
+        'finance and accounts department -hoe',
+        'accounts & finance',
+        'accounts',
+        'finance'
+    ];
+    const isAccounts = dept ? accountsDepts.includes(dept) : false;
+    const isHR = dept === 'human resource-hoe (p&c)';
 
-    const canApproveHR = features.has('office_req_approve_hr') || isHR;
-    const canApproveAccounts = features.has('office_req_approve_accounts') || (isAccounts && isSeniorOrManager);
+    const canApproveHR = (features.has('office_req_approve_hr') || isHR);
+    const canApproveAccounts = req && user && (
+        (features.has('office_req_approve_accounts') || (isAccounts && isSeniorOrManager)) || 
+        (req.assigned_accounts_id === user.id)
+    );
 
     const fetchDetails = async () => {
         try {
@@ -104,33 +114,44 @@ export default function RequisitionDetails() {
                         </div>
                         <div className="flex items-start gap-4">
                             <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 shrink-0">
-                                <FaMapMarkerAlt />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Location</label>
-                                <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{req.office_location}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-4">
-                            <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 shrink-0">
-                                <FaFileAlt />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Request Date</label>
-                                <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{new Date(req.created_at).toLocaleDateString()}</p>
-                                <p className="text-[11px] text-slate-500 font-bold">{new Date(req.created_at).toLocaleTimeString()}</p>
-                            </div>
-                        </div>
+                                 <FaMapMarkerAlt />
+                             </div>
+                             <div>
+                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Location</label>
+                                 <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{req.office_location}</p>
+                             </div>
+                         </div>
+                         <div className="flex items-start gap-4">
+                             <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl flex items-center justify-center text-emerald-500 shrink-0">
+                                 <FaUser />
+                             </div>
+                             <div>
+                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600/70">Assigned To (Accounts)</label>
+                                 <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 uppercase">{req.assigned_accounts_name || 'Not assigned'}</p>
+                             </div>
+                         </div>
+                         <div className="flex items-start gap-4">
+                             <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 shrink-0">
+                                 <FaFileAlt />
+                             </div>
+                             <div>
+                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Request Date</label>
+                                 <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{new Date(req.created_at).toLocaleDateString()}</p>
+                                 <p className="text-[11px] text-slate-500 font-bold">{new Date(req.created_at).toLocaleTimeString()}</p>
+                             </div>
+                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-                        <table className="w-full text-left">
+                    <div className="overflow-x-auto no-scrollbar rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <table className="w-full text-left min-w-[600px] lg:min-w-0">
                             <thead className="bg-slate-100 dark:bg-slate-800">
                                 <tr>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Sr.</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Particular</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Description</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 text-center">Qty</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 text-center">Price</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 text-right">Total</th>
                                     <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 text-center">Qty Issued</th>
                                 </tr>
                             </thead>
@@ -141,13 +162,15 @@ export default function RequisitionDetails() {
                                         <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.type_of_particular}</td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-600 dark:text-slate-400">{item.description}</td>
                                         <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white text-center">{item.qty}</td>
+                                        <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white text-center">Rs. {Number(item.unit_price || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-sm font-black text-emerald-600 dark:text-emerald-400 text-right">Rs. {(item.qty * (item.unit_price || 0)).toLocaleString()}</td>
                                         <td className="px-6 py-4 text-center">
                                             {req.status === 'pending_accounts' && canApproveAccounts ? (
                                                 <input
                                                     type="number"
                                                     value={issuedQtys[item.id] || 0}
                                                     onChange={e => setIssuedQtys({ ...issuedQtys, [item.id]: parseInt(e.target.value) })}
-                                                    className="w-20 bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center focus:ring-2 focus:ring-customRed focus:border-transparent outline-none"
+                                                    className="w-16 sm:w-20 bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white text-center focus:ring-2 focus:ring-customRed focus:border-transparent outline-none"
                                                     min="0"
                                                     max={item.qty}
                                                 />
@@ -160,6 +183,15 @@ export default function RequisitionDetails() {
                                     </tr>
                                 ))}
                             </tbody>
+                            <tfoot className="bg-slate-50 dark:bg-slate-900/50">
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Grand Total</td>
+                                    <td className="px-6 py-5 text-lg font-black text-slate-900 dark:text-white text-right border-l border-slate-200 dark:border-slate-800">
+                                        Rs. {req.items.reduce((sum, it) => sum + (it.qty * (it.unit_price || 0)), 0).toLocaleString()}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -250,53 +282,53 @@ export default function RequisitionDetails() {
 
                     {/* Signature and Official Use Section (Matching Paper Form) */}
                     <div className="mt-12 pt-8 border-t-2 border-dashed border-slate-300 dark:border-slate-700">
-                        <div className="flex justify-between mb-16">
-                            <div className="text-center w-48">
+                        <div className="flex flex-col sm:flex-row justify-between gap-12 sm:gap-0 mb-16 px-4">
+                            <div className="text-center sm:w-48">
                                 <div className="h-12 border-b border-slate-400 dark:border-slate-500 mb-2 flex items-end justify-center text-[10px] font-bold text-slate-600 italic">
                                     {req.line_manager_name || 'Line Manager Signature'}
                                 </div>
-                                <div className="text-[9px] font-black uppercase text-slate-600 dark:text-slate-300">Line Manager Signature</div>
+                                <div className="text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-widest">Line Manager Signature</div>
                             </div>
-                            <div className="text-center w-48">
+                            <div className="text-center sm:w-48">
                                 <div className="h-12 border-b border-slate-400 dark:border-slate-500 mb-2 flex items-end justify-center text-[10px] font-bold text-slate-900 dark:text-white uppercase">
                                     {req.requester_name}
                                 </div>
-                                <div className="text-[9px] font-black uppercase text-slate-600 dark:text-slate-300">Requestor Signature</div>
+                                <div className="text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-widest">Requestor Signature</div>
                             </div>
                         </div>
 
-                        <div className="p-8 border-2 border-slate-300 dark:border-slate-700 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900/30 relative">
-                            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-6 py-1 border border-slate-300 dark:border-slate-600 rounded-full text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-200">
+                        <div className="p-6 sm:p-8 border-2 border-slate-300 dark:border-slate-700 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900/30 relative">
+                            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-6 py-1 border border-slate-300 dark:border-slate-600 rounded-full text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                                 (For Official Use Only)
                             </div>
 
-                            <div className="grid grid-cols-2 gap-12 mt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 sm:gap-12 mt-4">
                                 <div>
                                     <div className="mb-8">
-                                        <div className="text-[8px] font-black uppercase text-slate-600 dark:text-slate-400 mb-2">Remarks (Admin)</div>
+                                        <div className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-widest">Remarks (Admin)</div>
                                         <div className="min-h-[40px] border-b border-slate-300 dark:border-slate-600 text-[11px] font-bold text-slate-800 dark:text-slate-200 italic">
                                             {req.hr_remarks || 'Pending...'}
                                         </div>
                                     </div>
                                     <div className="text-center pt-4">
-                                        <div className="h-10 border-b border-slate-300 dark:border-slate-600 mb-1 flex items-end justify-center text-[10px] font-black text-slate-900 dark:text-white uppercase">
+                                        <div className="h-10 border-b border-slate-300 dark:border-slate-600 mb-1 flex items-end justify-center text-[10px] font-black text-slate-900 dark:text-white uppercase truncate">
                                             {req.hr_approver_name || 'Signature'}
                                         </div>
-                                        <div className="text-[8px] font-black uppercase text-slate-600 dark:text-slate-400">Authorized Signatory (HR/Admin)</div>
+                                        <div className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">Authorized Signatory (HR/Admin)</div>
                                     </div>
                                 </div>
                                 <div>
                                     <div className="mb-8">
-                                        <div className="text-[8px] font-black uppercase text-slate-600 dark:text-slate-400 mb-2">Remarks (Accounts)</div>
+                                        <div className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 mb-2 tracking-widest">Remarks (Accounts)</div>
                                         <div className="min-h-[40px] border-b border-slate-300 dark:border-slate-600 text-[11px] font-bold text-slate-800 dark:text-slate-200 italic">
                                             {req.accounts_remarks || 'Pending...'}
                                         </div>
                                     </div>
                                     <div className="text-center pt-4">
-                                        <div className="h-10 border-b border-slate-300 dark:border-slate-600 mb-1 flex items-end justify-center text-[10px] font-black text-slate-900 dark:text-white uppercase">
+                                        <div className="h-10 border-b border-slate-300 dark:border-slate-600 mb-1 flex items-end justify-center text-[10px] font-black text-slate-900 dark:text-white uppercase truncate">
                                             {req.accounts_approver_name || 'Signature'}
                                         </div>
-                                        <div className="text-[8px] font-black uppercase text-slate-600 dark:text-slate-400">Authorized Signatory (Accounts Approval)</div>
+                                        <div className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">Authorized Signatory (Accounts Approval)</div>
                                     </div>
                                 </div>
                             </div>

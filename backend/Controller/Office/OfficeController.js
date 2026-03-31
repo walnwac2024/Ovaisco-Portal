@@ -16,6 +16,7 @@ async function createRequisition(req, res) {
             department,
             office_location,
             line_manager_name,
+            assigned_accounts_id,
             items
         } = req.body;
 
@@ -27,18 +28,18 @@ async function createRequisition(req, res) {
 
         const [reqResult] = await conn.execute(
             `INSERT INTO office_requisitions 
-            (employee_id, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_hr')`,
-            [user.id, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name]
+            (employee_id, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_hr')`,
+            [user.id, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id || null]
         );
 
         const requisitionId = reqResult.insertId;
 
         for (const item of items) {
             await conn.execute(
-                `INSERT INTO office_requisition_items (requisition_id, sr_no, type_of_particular, description, qty) 
-                VALUES (?, ?, ?, ?, ?)`,
-                [requisitionId, item.sr_no, item.type_of_particular, item.description, item.qty]
+                `INSERT INTO office_requisition_items (requisition_id, sr_no, type_of_particular, description, qty, unit_price) 
+                VALUES (?, ?, ?, ?, ?, ?)`,
+                [requisitionId, item.sr_no, item.type_of_particular, item.description, item.qty, item.unit_price || 0.00]
             );
         }
 
@@ -80,24 +81,45 @@ async function listRequisitions(req, res) {
 
         // Visibility Logic
         const role = String(user.role || '').toLowerCase();
-        const dept = user.Department || user.department;
+        const dept = (user.Department || user.department || '').trim();
         const isSeniorOrManager = (user.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
-        const isAccounts = ['Finance and Accounts Department -HOE', 'Accounts & Finance', 'Accounts', 'Finance'].includes(dept);
+        
+        const accountsDepts = [
+            'finance and accounts department -hoe',
+            'accounts & finance',
+            'accounts',
+            'finance'
+        ];
+        const isAccounts = accountsDepts.includes(dept.toLowerCase());
+        const isHR = dept.toLowerCase().includes('human resource');
 
         if (features.has('office_req_view_all')) {
             // Admin can see all
-        } else if (features.has('office_req_approve_hr')) {
-            // HR sees pending_hr or their approved ones
-            conditions.push("(r.status = 'pending_hr' OR r.hr_approved_by = ?)");
-            params.push(user.id);
-        } else if (features.has('office_req_approve_accounts') || (isAccounts && isSeniorOrManager)) {
-            // Accounts sees pending_accounts or their approved ones
-            conditions.push("(r.status = 'pending_accounts' OR r.accounts_approved_by = ?)");
-            params.push(user.id);
         } else {
-            // Regular user sees only their own
-            conditions.push("r.employee_id = ?");
+            // 1. Requisitions I created myself
+            let visibility = ["r.employee_id = ?"];
             params.push(user.id);
+
+            // 2. Requisitions assigned to me (Always visible to the assigned person)
+            visibility.push("r.assigned_accounts_id = ?");
+            params.push(user.id);
+
+            // 3. HR Approval visibility
+            if (features.has('office_req_approve_hr') || isHR) {
+                visibility.push("r.status = 'pending_hr'", "r.hr_approved_by = ?");
+                params.push(user.id);
+            } 
+            
+            // 4. Accounts Approval visibility (STRICT)
+            if (features.has('office_req_approve_accounts') || (isAccounts && isSeniorOrManager)) {
+                // If I have accounts clearance, show me:
+                // - General pending accounts (where nobody is assigned)
+                // - OR Requisitions I already approved
+                visibility.push("(r.status = 'pending_accounts' AND r.assigned_accounts_id IS NULL)", "r.accounts_approved_by = ?");
+                params.push(user.id);
+            }
+
+            conditions.push("(" + visibility.join(" OR ") + ")");
         }
 
         if (status) {
@@ -128,11 +150,13 @@ async function getRequisitionById(req, res) {
         const [reqRows] = await pool.execute(
             `SELECT r.*, e.Employee_Name as requester_name, e.Employee_ID as requester_code,
                     hr.Employee_Name as hr_approver_name,
-                    acc.Employee_Name as accounts_approver_name
+                    acc.Employee_Name as accounts_approver_name,
+                    assigned.Employee_Name as assigned_accounts_name
              FROM office_requisitions r
              JOIN employee_records e ON r.employee_id = e.id
              LEFT JOIN employee_records hr ON r.hr_approved_by = hr.id
              LEFT JOIN employee_records acc ON r.accounts_approved_by = acc.id
+             LEFT JOIN employee_records assigned ON r.assigned_accounts_id = assigned.id
              WHERE r.id = ?`,
             [id]
         );
@@ -207,8 +231,9 @@ async function approveAccounts(req, res) {
             await conn.execute(
                 `UPDATE office_requisitions 
                  SET status = ?, accounts_remarks = ?, accounts_approved_by = ?, accounts_approved_at = CURRENT_TIMESTAMP 
-                 WHERE id = ? AND status = 'pending_accounts'`,
-                [status, remarks, user.id, id]
+                 WHERE id = ? AND status = 'pending_accounts' 
+                 AND (assigned_accounts_id IS NULL OR assigned_accounts_id = ?)`,
+                [status, remarks, user.id, id, user.id]
             );
 
             if (status === 'approved' && items && Array.isArray(items)) {
@@ -241,10 +266,33 @@ async function approveAccounts(req, res) {
     }
 }
 
+/**
+ * GET /api/v1/office/accounts-employees
+ * List all employees from Accounts/Finance for assignment dropdown
+ */
+async function listAccountsEmployees(req, res) {
+    try {
+        const [rows] = await pool.execute(
+            `SELECT id, Employee_Name, Employee_ID 
+             FROM employee_records 
+             WHERE is_active = 1 
+               AND (LOWER(Department) LIKE '%accounts%' 
+                 OR LOWER(Department) LIKE '%finance%'
+                 OR LOWER(Department) LIKE '%finance and accounts department -hoe%')
+             ORDER BY Employee_Name ASC`
+        );
+        res.json(rows);
+    } catch (err) {
+        console.error("listAccountsEmployees error:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+}
+
 module.exports = {
     createRequisition,
     listRequisitions,
     getRequisitionById,
+    listAccountsEmployees,
     approveHR,
     approveAccounts
 };
