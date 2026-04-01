@@ -1,4 +1,44 @@
 const { pool } = require("../../Utils/db");
+
+/**
+ * Internal helper to send notifications
+ */
+async function sendNotification(userIds, title, message, type = 'office', referenceId = null) {
+    if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) return;
+    
+    // Ensure userIds is an array
+    const ids = Array.isArray(userIds) ? [...new Set(userIds)] : [userIds];
+    
+    try {
+        const values = ids.map(uid => [uid, title, message, type, referenceId]);
+        await pool.query(
+            "INSERT INTO notifications (user_id, title, message, type, reference_id) VALUES ?",
+            [values]
+        );
+    } catch (err) {
+        console.error("sendNotification error:", err);
+    }
+}
+
+/**
+ * Internal helper to find users by permission code
+ */
+async function findUsersByPermission(permissionCode) {
+    try {
+        const [rows] = await pool.execute(
+            `SELECT DISTINCT eut.employee_id 
+             FROM employee_user_types eut
+             JOIN user_type_permission utp ON utp.user_type_id = eut.user_type_id
+             JOIN permissions p ON p.id = utp.permission_id
+             WHERE p.code = ? AND eut.is_primary = 1`,
+            [permissionCode]
+        );
+        return rows.map(r => r.employee_id);
+    } catch (err) {
+        console.error("findUsersByPermission error:", err);
+        return [];
+    }
+}
 const { recordLog } = require("../../Utils/AuditUtils");
 
 /**
@@ -10,6 +50,7 @@ async function createRequisition(req, res) {
     try {
         const user = req.session.user;
         const {
+            title,
             employee_name_manual,
             employee_code_manual,
             designation,
@@ -28,9 +69,9 @@ async function createRequisition(req, res) {
 
         const [reqResult] = await conn.execute(
             `INSERT INTO office_requisitions 
-            (employee_id, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_hr')`,
-            [user.id, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id || null]
+            (employee_id, title, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_hr')`,
+            [user.id, title || null, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id || null]
         );
 
         const requisitionId = reqResult.insertId;
@@ -50,6 +91,17 @@ async function createRequisition(req, res) {
             category: "Office Requisition",
             status: "Success"
         });
+
+        // Trigger Notification for HR
+        const hrUsers = await findUsersByPermission('office_req_approve_hr');
+        const requesterName = user.name || "An employee";
+        await sendNotification(
+            hrUsers, 
+            "New Office Requisition", 
+            `${requesterName} has submitted a new requisition: "${title}"`, 
+            'office', 
+            requisitionId
+        );
 
         res.status(201).json({ message: "Requisition submitted successfully", id: requisitionId });
     } catch (err) {
@@ -80,6 +132,8 @@ async function listRequisitions(req, res) {
         let conditions = [];
 
         // Visibility Logic
+        if (!user) return res.status(401).json({ message: "Unauthorized" });
+
         const role = String(user.role || '').toLowerCase();
         const dept = (user.Department || user.department || '').trim();
         const isSeniorOrManager = (user.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
@@ -91,7 +145,7 @@ async function listRequisitions(req, res) {
             'finance'
         ];
         const isAccounts = accountsDepts.includes(dept.toLowerCase());
-        const isHR = dept.toLowerCase().includes('human resource');
+        const isHR = dept.toLowerCase().includes('human resource') || features.has('office_req_approve_hr');
 
         if (features.has('office_req_view_all')) {
             // Admin can see all
@@ -204,6 +258,39 @@ async function approveHR(req, res) {
             status: "Success"
         });
 
+        // Trigger Notifications
+        if (status === 'pending_accounts') {
+            const [reqRows] = await pool.execute("SELECT assigned_accounts_id FROM office_requisitions WHERE id = ?", [id]);
+            const assignedId = reqRows[0]?.assigned_accounts_id;
+            
+            const targetUsers = [];
+            if (assignedId) {
+                targetUsers.push(assignedId);
+            } else {
+                const accountsSeniors = await findUsersByPermission('office_req_approve_accounts');
+                targetUsers.push(...accountsSeniors);
+            }
+            
+            await sendNotification(
+                targetUsers,
+                "Requisition Pending Accounts",
+                `Office Requisition #${id} is pending your approval.`,
+                'office',
+                id
+            );
+        } else if (status === 'rejected') {
+            const [reqRows] = await pool.execute("SELECT employee_id, title FROM office_requisitions WHERE id = ?", [id]);
+            if (reqRows.length > 0) {
+                await sendNotification(
+                    reqRows[0].employee_id,
+                    "Requisition Rejected by HR",
+                    `Your requisition "${reqRows[0].title}" was rejected by HR. Remarks: ${remarks}`,
+                    'office',
+                    id
+                );
+            }
+        }
+
         res.json({ message: `Requisition ${status === 'rejected' ? 'rejected' : 'approved'} by HR` });
     } catch (err) {
         console.error("approveHR error:", err);
@@ -252,6 +339,19 @@ async function approveAccounts(req, res) {
                 category: "Office Requisition",
                 status: "Success"
             });
+
+            // Notify the Requester
+            const [reqRows] = await conn.execute("SELECT employee_id, title FROM office_requisitions WHERE id = ?", [id]);
+            if (reqRows.length > 0) {
+                const title_prefix = status === 'approved' ? 'Approved' : 'Rejected';
+                await sendNotification(
+                    reqRows[0].employee_id,
+                    `Requisition ${title_prefix} by Accounts`,
+                    `Your requisition "${reqRows[0].title}" has been ${status} by Accounts. Remarks: ${remarks}`,
+                    'office',
+                    id
+                );
+            }
 
             res.json({ message: `Requisition ${status === 'rejected' ? 'rejected' : 'approved'} by Accounts` });
         } catch (innerErr) {

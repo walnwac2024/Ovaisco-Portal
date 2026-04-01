@@ -162,8 +162,8 @@ export default function RequisitionDetails() {
                                         <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.type_of_particular}</td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-600 dark:text-slate-400">{item.description}</td>
                                         <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white text-center">{item.qty}</td>
-                                        <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white text-center">Rs. {Number(item.unit_price || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-sm font-black text-emerald-600 dark:text-emerald-400 text-right">Rs. {(item.qty * (item.unit_price || 0)).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white text-center">Rs. {Number(item.unit_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td className="px-6 py-4 text-sm font-black text-emerald-600 dark:text-emerald-400 text-right">Rs. {(item.qty * (item.unit_price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         <td className="px-6 py-4 text-center">
                                             {req.status === 'pending_accounts' && canApproveAccounts ? (
                                                 <input
@@ -187,7 +187,7 @@ export default function RequisitionDetails() {
                                 <tr>
                                     <td colSpan="5" className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Grand Total</td>
                                     <td className="px-6 py-5 text-lg font-black text-slate-900 dark:text-white text-right border-l border-slate-200 dark:border-slate-800">
-                                        Rs. {req.items.reduce((sum, it) => sum + (it.qty * (it.unit_price || 0)), 0).toLocaleString()}
+                                        Rs. {req.items.reduce((sum, it) => sum + (it.qty * (it.unit_price || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                     <td></td>
                                 </tr>

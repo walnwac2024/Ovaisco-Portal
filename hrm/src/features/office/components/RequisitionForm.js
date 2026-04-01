@@ -19,6 +19,7 @@ export default function RequisitionForm() {
         office_location: '',
         line_manager_name: '',
         assigned_accounts_id: '',
+        title: '',
         items: [
             { sr_no: 1, type_of_particular: '', description: '', qty: 1, unit_price: 0 }
         ]
@@ -54,12 +55,17 @@ export default function RequisitionForm() {
 
     const handleItemChange = (index, field, value) => {
         const newItems = [...formData.items];
-        newItems[index][field] = field === 'qty' || field === 'unit_price' ? parseFloat(value) || 0 : value;
+        if (field === 'qty' || field === 'unit_price') {
+            // Keep the raw value for the input, but parse for calculations
+            newItems[index][field] = value;
+        } else {
+            newItems[index][field] = value;
+        }
         setFormData(prev => ({ ...prev, items: newItems }));
     };
 
     const calculateGrandTotal = () => {
-        return formData.items.reduce((sum, item) => sum + (item.qty * item.unit_price), 0);
+        return formData.items.reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0)), 0);
     };
 
     const handleSubmit = async (e) => {
@@ -157,6 +163,20 @@ export default function RequisitionForm() {
                     </div>
                 </div>
 
+                <div className="mb-10 p-6 rounded-[2rem] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-customRed ml-1">Nature of Requisition / Subject *</label>
+                        <input
+                            type="text"
+                            value={formData.title}
+                            onChange={e => setFormData({ ...formData, title: e.target.value })}
+                            placeholder="e.g. Monthly Stationary Supply or Purchase of Office Equipment"
+                            className="w-full bg-white dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm font-bold shadow-sm focus:ring-2 focus:ring-customRed/20 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
+                            required
+                        />
+                    </div>
+                </div>
+
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-slate-800 dark:text-gray-200 flex items-center gap-2">
@@ -238,7 +258,7 @@ export default function RequisitionForm() {
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Item Total</label>
                                         <div className="w-full h-[41px] bg-emerald-50 dark:bg-emerald-900/10 rounded-xl flex items-center px-4 text-sm text-emerald-600 font-black border border-emerald-100 dark:border-emerald-800/30">
-                                            Rs. {(item.qty * item.unit_price).toLocaleString()}
+                                            Rs. {((parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </div>
                                     </div>
                                 </div>
@@ -307,7 +327,7 @@ export default function RequisitionForm() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                                                Rs. {(item.qty * item.unit_price).toLocaleString()}
+                                                Rs. {((parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -337,7 +357,7 @@ export default function RequisitionForm() {
                             </div>
                             <div className="text-2xl font-black text-slate-900 dark:text-white">
                                 <span className="text-xs mr-2 text-slate-400">Rs.</span>
-                                {calculateGrandTotal().toLocaleString()}
+                                {calculateGrandTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                         </div>
                     </div>

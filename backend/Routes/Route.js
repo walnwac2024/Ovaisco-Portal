@@ -285,6 +285,7 @@ const canApplyOffice = (req, res, next) => {
     }
 
     const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
+    const feats = new Set(Array.isArray(user.features) ? user.features : []);
     
     // Allow if they have the feature OR if they are in the allowed departments
     const canApply = (feats.has('office_req_apply') || ['fnsd', 'administration-hoe'].includes(dept));
@@ -298,7 +299,7 @@ const canApplyOffice = (req, res, next) => {
 const canApproveHR = (req, res, next) => {
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
-    const feats = new Set(user.features || []);
+    const feats = new Set(Array.isArray(user.features) ? user.features : []);
     // HR department check (matching DashboardTabsLayout)
     const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
     const isHR = dept.includes('human resource');
@@ -309,10 +310,9 @@ const canApproveHR = (req, res, next) => {
 const canApproveAccounts = (req, res, next) => {
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
-    const feats = new Set(user.features || []);
+    const feats = new Set(Array.isArray(user.features) ? user.features : []);
     const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
     const role = String(user.role || '').toLowerCase();
-    const isSeniorOrManager = (user.flags?.level >= 6) || ['manager', 'admin', 'super_admin', 'developer'].includes(role);
     
     const accountsDepts = [
         'finance and accounts department -hoe',
@@ -323,7 +323,6 @@ const canApproveAccounts = (req, res, next) => {
     const isAccounts = dept ? accountsDepts.includes(dept) : false;
 
     // Allow if they have the custom feature OR if they are in the Accounts department
-    // The Controller will do the final check to see if they are specifically assigned if it's an assigned request.
     if (feats.has('office_req_approve_accounts') || isAccounts) {
         return next();
     }
