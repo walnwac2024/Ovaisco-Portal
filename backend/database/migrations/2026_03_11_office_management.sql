@@ -3,12 +3,14 @@
 CREATE TABLE IF NOT EXISTS office_requisitions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
+    title VARCHAR(255),
     employee_name_manual VARCHAR(255),
     employee_code_manual VARCHAR(255),
     designation VARCHAR(255),
     department VARCHAR(255),
     office_location VARCHAR(255),
     line_manager_name VARCHAR(255),
+    assigned_accounts_id INT NULL,
     status ENUM('pending_hr', 'pending_accounts', 'approved', 'rejected') DEFAULT 'pending_hr',
     hr_remarks TEXT,
     accounts_remarks TEXT,
@@ -16,7 +18,8 @@ CREATE TABLE IF NOT EXISTS office_requisitions (
     accounts_approved_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (employee_id) REFERENCES employee_records(id) ON DELETE CASCADE
+    FOREIGN KEY (employee_id) REFERENCES employee_records(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_accounts_id) REFERENCES employee_records(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS office_requisition_items (
