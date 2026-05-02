@@ -68,7 +68,7 @@ export default function SharedSidebar({
                                         }`}
                                 >
                                     {isActive && <span className="hidden lg:block absolute left-0 top-3 h-5 w-[4px] rounded-r-full bg-customRed shadow-[2px_0_8px_rgba(239,68,68,0.4)]" />}
-                                    {isActive && <span className="lg:hidden absolute bottom-1 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-t-full bg-customRed shadow-[0_-2px_6px_rgba(239,68,68,0.4)]" />}
+                                    {isActive && <span className="lg:hidden absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[4px] rounded-t-lg bg-customRed shadow-[0_-2px_10px_rgba(239,68,68,0.5)]" />}
 
                                     {item.icon && (
                                         <span className="shrink-0">
