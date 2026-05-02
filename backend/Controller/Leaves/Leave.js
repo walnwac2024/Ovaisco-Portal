@@ -7,7 +7,7 @@ const { recordLog } = require("../../Utils/AuditUtils");
  */
 const getLeaveTypes = async (req, res) => {
     try {
-        const [rows] = await pool.execute("SELECT * FROM leave_types WHERE is_active = 1");
+        const [rows] = await pool.execute("SELECT * FROM leave_types WHERE is_active = 1 AND company_id = ?", [req.company_id || 1]);
         return res.json({ types: rows });
     } catch (e) {
         console.error("getLeaveTypes error:", e);
@@ -37,8 +37,8 @@ const applyLeave = async (req, res) => {
 
         // ✅ Check Leave Balance
         const [balanceRows] = await conn.execute(
-            "SELECT balance FROM leave_balances WHERE employee_id = ? AND leave_type_id = ? AND year = ?",
-            [user.id, leave_type_id, new Date().getFullYear()]
+            "SELECT balance FROM leave_balances WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?",
+            [user.id, leave_type_id, new Date().getFullYear(), req.company_id || 1]
         );
 
         if (balanceRows.length === 0) {
@@ -56,17 +56,17 @@ const applyLeave = async (req, res) => {
         const status = isAutoApproved ? 'approved' : 'pending';
 
         const [result] = await conn.execute(
-            `INSERT INTO leave_applications (employee_id, leave_type_id, start_date, end_date, total_days, reason, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [user.id, leave_type_id, start_date, end_date, total_days, reason, status]
+            `INSERT INTO leave_applications (employee_id, leave_type_id, start_date, end_date, total_days, reason, status, company_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [user.id, leave_type_id, start_date, end_date, total_days, reason, status, req.company_id || 1]
         );
 
         const applicationId = result.insertId;
 
         // 2. Routing: Find Department Manager
-        const [empRows] = await conn.execute("SELECT Department, Reporting FROM employee_records WHERE id = ?", [user.id]);
+        const [empRows] = await conn.execute("SELECT Department, Reporting FROM employee_records WHERE id = ? AND company_id = ?", [user.id, req.company_id || 1]);
         const dept = empRows[0]?.Department;
-        const [dmRows] = await conn.execute("SELECT manager_id FROM department_managers WHERE department_name = ?", [dept]);
+        const [dmRows] = await conn.execute("SELECT manager_id FROM department_managers WHERE department_name = ? AND company_id = ?", [dept, req.company_id || 1]);
 
         let approverId = dmRows[0]?.manager_id || null;
 
@@ -78,17 +78,17 @@ const applyLeave = async (req, res) => {
                 `SELECT eut.employee_id 
                  FROM employee_user_types eut
                  JOIN users_types ut ON eut.user_type_id = ut.id
-                 WHERE ut.permission_level >= 10 AND eut.employee_id != ?
-                 LIMIT 1`, [user.id]
+                 WHERE ut.permission_level >= 10 AND eut.employee_id != ? AND eut.company_id = ?
+                 LIMIT 1`, [user.id, req.company_id || 1]
             );
             approverId = adminRows[0]?.employee_id || null;
         }
 
         // 3. Approval Record
         await conn.execute(
-            `INSERT INTO approvals (approvable_type, approvable_id, requested_by, approver_id, status)
-             VALUES ('Leave', ?, ?, ?, ?)`,
-            [applicationId, user.id, approverId, status]
+            `INSERT INTO approvals (approvable_type, approvable_id, requested_by, approver_id, status, company_id)
+             VALUES ('Leave', ?, ?, ?, ?, ?)`,
+            [applicationId, user.id, approverId, status, req.company_id || 1]
         );
 
         // 4. If auto-approved, deduct balance immediately
@@ -96,8 +96,8 @@ const applyLeave = async (req, res) => {
             await conn.execute(
                 `UPDATE leave_balances 
                  SET used = used + ?, balance = balance - ?, updated_at = CURRENT_TIMESTAMP 
-                 WHERE employee_id = ? AND leave_type_id = ? AND year = ?`,
-                [total_days, total_days, user.id, leave_type_id, new Date().getFullYear()]
+                 WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?`,
+                [total_days, total_days, user.id, leave_type_id, new Date().getFullYear(), req.company_id || 1]
             );
         }
 
@@ -110,13 +110,14 @@ const applyLeave = async (req, res) => {
             // Notify Manager (Approver)
             if (approverId && approverId !== user.id) {
                 await pool.execute(
-                    `INSERT INTO notifications (user_id, title, message, type, reference_id, created_at)
-                     VALUES (?, ?, ?, 'Leave', ?, NOW())`,
+                    `INSERT INTO notifications (user_id, title, message, type, reference_id, company_id, created_at)
+                     VALUES (?, ?, ?, 'Leave', ?, ?, NOW())`,
                     [
                         approverId,
                         "New Leave Request",
                         `${user.name} has requested leave for ${total_days} days.`,
-                        applicationId
+                        applicationId,
+                        req.company_id || 1
                     ]
                 );
 
@@ -133,8 +134,8 @@ const applyLeave = async (req, res) => {
                 SELECT DISTINCT eut.employee_id 
                 FROM employee_user_types eut
                 JOIN users_types ut ON eut.user_type_id = ut.id
-                WHERE ut.permission_level >= 10 AND eut.employee_id != ? AND eut.employee_id != ?
-            `, [user.id, approverId || 0]);
+                WHERE ut.permission_level >= 10 AND eut.employee_id != ? AND eut.employee_id != ? AND eut.company_id = ?
+            `, [user.id, approverId || 0, req.company_id || 1]);
 
             const adminValues = admins.map(a => [
                 a.employee_id,
@@ -142,14 +143,15 @@ const applyLeave = async (req, res) => {
                 `${user.name} has requested leave for ${total_days} days.`,
                 "Leave",
                 applicationId,
+                req.company_id || 1,
                 new Date()
             ]);
 
             if (adminValues.length > 0) {
-                const query = "INSERT INTO notifications (user_id, title, message, type, reference_id, created_at) VALUES ?";
+                const query = "INSERT INTO notifications (user_id, title, message, type, reference_id, company_id, created_at) VALUES ?";
                 for (const row of adminValues) {
                     await pool.execute(
-                        `INSERT INTO notifications (user_id, title, message, type, reference_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+                        `INSERT INTO notifications (user_id, title, message, type, reference_id, company_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                         row
                     );
 
@@ -206,9 +208,9 @@ const getMyLeaves = async (req, res) => {
              JOIN leave_types lt ON la.leave_type_id = lt.id
              LEFT JOIN approvals app ON app.approvable_type = 'Leave' AND app.approvable_id = la.id
              LEFT JOIN employee_records er ON app.approver_id = er.id
-             WHERE la.employee_id = ?
+             WHERE la.employee_id = ? AND la.company_id = ?
              ORDER BY la.created_at DESC`,
-            [user.id]
+            [user.id, req.company_id || 1]
         );
 
         return res.json({ leaves: rows });
@@ -224,8 +226,7 @@ const getMyLeaves = async (req, res) => {
 const getAllLeaves = async (req, res) => {
     try {
         const user = req.session?.user;
-        const r = String(user?.role || "").toLowerCase();
-        const isAdmin = ["super_admin", "admin", "hr", "developer"].includes(r);
+        const company_id = req.company_id;
 
         let query = `
             SELECT la.*, lt.name as leave_type_name, 
@@ -238,24 +239,22 @@ const getAllLeaves = async (req, res) => {
             JOIN employee_records er ON la.employee_id = er.id
             LEFT JOIN approvals app ON app.approvable_type = 'Leave' AND app.approvable_id = la.id
             LEFT JOIN employee_records app_er ON app.approver_id = app_er.id
+            WHERE la.company_id = ?
         `;
 
-        let params = [];
+        let params = [company_id];
+
         if (!hasFullAccess(user)) {
-            // ✅ Check if this user is a department manager
-            const [myDepts] = await pool.execute("SELECT department_name FROM department_managers WHERE manager_id = ?", [user.id]);
+            // Check if this user is a department manager
+            const [myDepts] = await pool.execute("SELECT department_name FROM department_managers WHERE manager_id = ? AND company_id = ?", [user.id, company_id]);
             const deptNames = myDepts.map(d => d.department_name);
 
             if (deptNames.length > 0) {
-                console.log(`[getAllLeaves] Manager "${user.name}" (ID: ${user.id}) found departments:`, deptNames);
                 const placeholders = deptNames.map(() => "er.Department LIKE ?").join(" OR ");
-
-                // Also check by name, employee code, and ID just in case
-                query += ` WHERE (${placeholders} OR er.Reporting = ? OR er.Reporting LIKE ? OR er.Reporting = ?) `;
-                params = [...deptNames.map(d => `%${d}%`), user.name, `%${user.name}%`, user.employeeCode];
+                query += ` AND (${placeholders} OR er.Reporting = ? OR er.Reporting LIKE ? OR er.Reporting = ?) `;
+                params = [company_id, ...deptNames.map(d => `%${d}%`), user.name, `%${user.name}%`, user.employeeCode];
             } else {
-                console.warn(`[getAllLeaves] User "${user.name}" (ID: ${user.id}) has no manager mappings. Falling back to Reporting check.`);
-                query += ` WHERE (er.Reporting = ? OR er.Reporting LIKE ? OR er.Reporting = ?) `;
+                query += ` AND (er.Reporting = ? OR er.Reporting LIKE ? OR er.Reporting = ?) `;
                 params.push(user.name, `%${user.name}%`, user.employeeCode);
             }
         }
@@ -288,7 +287,7 @@ const approveLeave = async (req, res) => {
 
         await conn.beginTransaction();
 
-        const [[la]] = await conn.execute("SELECT employee_id, leave_type_id, start_date, end_date, total_days, status as current_status FROM leave_applications WHERE id = ?", [id]);
+        const [[la]] = await conn.execute("SELECT employee_id, leave_type_id, start_date, end_date, total_days, status as current_status FROM leave_applications WHERE id = ? AND company_id = ?", [id, req.company_id || 1]);
 
         if (!la) {
             return res.status(404).json({ message: "Leave application not found" });
@@ -308,13 +307,13 @@ const approveLeave = async (req, res) => {
         }
 
         await conn.execute(
-            "UPDATE leave_applications SET status = ? WHERE id = ?",
-            [status, id]
+            "UPDATE leave_applications SET status = ? WHERE id = ? AND company_id = ?",
+            [status, id, req.company_id || 1]
         );
 
         await conn.execute(
-            "UPDATE approvals SET status = ?, comment = ?, approver_id = ?, updated_at = CURRENT_TIMESTAMP WHERE approvable_type = 'Leave' AND approvable_id = ?",
-            [status, comment, user.id, id]
+            "UPDATE approvals SET status = ?, comment = ?, approver_id = ?, updated_at = CURRENT_TIMESTAMP WHERE approvable_type = 'Leave' AND approvable_id = ? AND company_id = ?",
+            [status, comment, user.id, id, req.company_id || 1]
         );
 
         // ✅ Deduct Balance on Approval
@@ -324,8 +323,8 @@ const approveLeave = async (req, res) => {
             await conn.execute(
                 `UPDATE leave_balances 
                  SET used = used + ?, balance = balance - ?, updated_at = CURRENT_TIMESTAMP 
-                 WHERE employee_id = ? AND leave_type_id = ? AND year = ?`,
-                [la.total_days, la.total_days, la.employee_id, la.leave_type_id, currentYear]
+                 WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?`,
+                [la.total_days, la.total_days, la.employee_id, la.leave_type_id, currentYear, req.company_id || 1]
             );
         }
 
@@ -335,12 +334,31 @@ const approveLeave = async (req, res) => {
             await conn.execute(
                 `UPDATE leave_balances 
                  SET used = used - ?, balance = balance + ?, updated_at = CURRENT_TIMESTAMP 
-                 WHERE employee_id = ? AND leave_type_id = ? AND year = ?`,
-                [la.total_days, la.total_days, la.employee_id, la.leave_type_id, currentYear]
+                 WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?`,
+                [la.total_days, la.total_days, la.employee_id, la.leave_type_id, currentYear, req.company_id || 1]
             );
         }
 
         await conn.commit();
+
+        // ✅ Add Notification for the employee
+        try {
+            const statusMsg = status === 'approved' ? 'approved' : 'rejected';
+            await pool.execute(
+                `INSERT INTO notifications (user_id, title, message, type, reference_id, company_id) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [
+                    la.employee_id,
+                    `Leave ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+                    `Your leave application from ${new Date(la.start_date).toLocaleDateString()} to ${new Date(la.end_date).toLocaleDateString()} has been ${statusMsg}.`,
+                    'Leave',
+                    id,
+                    req.company_id || 1
+                ]
+            );
+        } catch (notifyErr) {
+            console.error("Failed to create notification:", notifyErr);
+        }
 
         // Audit Log for Approving/Rejecting Leave
         await recordLog({
@@ -373,8 +391,8 @@ const createLeaveType = async (req, res) => {
         }
 
         await pool.execute(
-            "INSERT INTO leave_types (name, entitlement_days, is_active) VALUES (?, ?, 1)",
-            [name, entitlement_days]
+            "INSERT INTO leave_types (name, entitlement_days, is_active, company_id) VALUES (?, ?, 1, ?)",
+            [name, entitlement_days, req.company_id || 1]
         );
 
         // Audit Log for Creating Leave Type
@@ -409,8 +427,8 @@ const updateLeaveType = async (req, res) => {
 
         // Get old entitlement to calculate difference
         const [[oldType]] = await conn.execute(
-            "SELECT entitlement_days FROM leave_types WHERE id = ?",
-            [id]
+            "SELECT entitlement_days FROM leave_types WHERE id = ? AND company_id = ?",
+            [id, req.company_id || 1]
         );
 
         if (!oldType) {
@@ -425,8 +443,8 @@ const updateLeaveType = async (req, res) => {
 
         // Update leave_types table
         await conn.execute(
-            "UPDATE leave_types SET name = ?, entitlement_days = ?, is_active = ? WHERE id = ?",
-            [name, entitlement_days, is_active ?? 1, id]
+            "UPDATE leave_types SET name = ?, entitlement_days = ?, is_active = ? WHERE id = ? AND company_id = ?",
+            [name, entitlement_days, is_active ?? 1, id, req.company_id || 1]
         );
 
         // Sync all employee balances for current year if entitlement changed
@@ -440,8 +458,8 @@ const updateLeaveType = async (req, res) => {
                  SET entitlement = ?, 
                      balance = ? - used,
                      updated_at = CURRENT_TIMESTAMP
-                 WHERE leave_type_id = ? AND year = ?`,
-                [newEntitlement, newEntitlement, id, currentYear]
+                 WHERE leave_type_id = ? AND year = ? AND company_id = ?`,
+                [newEntitlement, newEntitlement, id, currentYear, req.company_id || 1]
             );
 
             console.log(`[updateLeaveType] Synced balances for leave_type_id ${id}: ${oldEntitlement} → ${newEntitlement} days`);
@@ -475,7 +493,7 @@ const updateLeaveType = async (req, res) => {
 const deleteLeaveType = async (req, res) => {
     try {
         const { id } = req.params;
-        await pool.execute("UPDATE leave_types SET is_active = 0 WHERE id = ?", [id]);
+        await pool.execute("UPDATE leave_types SET is_active = 0 WHERE id = ? AND company_id = ?", [id, req.company_id || 1]);
         return res.json({ message: "Leave type deactivated successfully" });
     } catch (e) {
         console.error("deleteLeaveType error:", e);
@@ -495,8 +513,8 @@ const getLeaveBalances = async (req, res) => {
             `SELECT lb.*, lt.name as leave_type_name
              FROM leave_balances lb
              JOIN leave_types lt ON lb.leave_type_id = lt.id
-             WHERE lb.employee_id = ? AND lb.year = ?`,
-            [user.id, new Date().getFullYear()]
+             WHERE lb.employee_id = ? AND lb.year = ? AND lb.company_id = ?`,
+            [user.id, new Date().getFullYear(), req.company_id || 1]
         );
 
         return res.json({ balances: rows });
@@ -514,21 +532,33 @@ const getLeaveDashboardStats = async (req, res) => {
         const user = req.session?.user;
         if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
 
-        // 1. My Requests (Pending count)
-        const [myRequests] = await pool.execute(
-            "SELECT COUNT(*) as count FROM leave_applications WHERE employee_id = ? AND status = 'pending'",
-            [user.id]
+        // 1. My Requests (Recent 5)
+        const [myRequestsList] = await pool.execute(
+            `SELECT la.id, la.start_date, la.end_date, la.status, lt.name as leave_type
+             FROM leave_applications la
+             JOIN leave_types lt ON la.leave_type_id = lt.id
+             WHERE la.employee_id = ? AND la.company_id = ?
+             ORDER BY la.id DESC LIMIT 5`,
+            [user.id, req.company_id || 1]
         );
 
-        // 2. My Approvals (Pending count for me to approve)
-        const [myApprovals] = await pool.execute(
-            "SELECT COUNT(*) as count FROM approvals WHERE approver_id = ? AND status = 'pending' AND approvable_type = 'Leave'",
-            [user.id]
+        // 2. My Approvals (Pending for me)
+        const [myApprovalsList] = await pool.execute(
+            `SELECT a.id, la.start_date, la.end_date, lt.name as leave_type, e.Employee_Name as applicant_name
+             FROM approvals a
+             JOIN leave_applications la ON a.approvable_id = la.id AND a.approvable_type = 'Leave'
+             JOIN leave_types lt ON la.leave_type_id = lt.id
+             JOIN employee_records e ON la.employee_id = e.id
+             WHERE a.approver_id = ? AND a.status = 'pending' AND a.company_id = ?
+             ORDER BY a.id DESC LIMIT 5`,
+            [user.id, req.company_id || 1]
         );
 
         return res.json({
-            myRequestsCount: myRequests[0].count,
-            myApprovalsCount: myApprovals[0].count
+            myRequestsCount: myRequestsList.filter(r => r.status === 'pending').length,
+            myApprovalsCount: myApprovalsList.length,
+            myRequests: myRequestsList,
+            myApprovals: myApprovalsList
         });
     } catch (e) {
         console.error("getLeaveDashboardStats error:", e);
@@ -551,8 +581,8 @@ const deleteLeaveApplication = async (req, res) => {
 
         // 1. Check existence and status
         const [[la]] = await conn.execute(
-            "SELECT employee_id, status FROM leave_applications WHERE id = ?",
-            [id]
+            "SELECT employee_id, status FROM leave_applications WHERE id = ? AND company_id = ?",
+            [id, req.company_id || 1]
         );
 
         if (!la) {
@@ -572,20 +602,20 @@ const deleteLeaveApplication = async (req, res) => {
 
         // 4. Delete associated records
         await conn.execute(
-            "DELETE FROM approvals WHERE approvable_type = 'Leave' AND approvable_id = ?",
-            [id]
+            "DELETE FROM approvals WHERE approvable_type = 'Leave' AND approvable_id = ? AND company_id = ?",
+            [id, req.company_id || 1]
         );
 
         // Cleanup notifications
         await conn.execute(
-            "DELETE FROM notifications WHERE type = 'Leave' AND reference_id = ?",
-            [id]
+            "DELETE FROM notifications WHERE type = 'Leave' AND reference_id = ? AND company_id = ?",
+            [id, req.company_id || 1]
         );
 
         // 5. Delete application
         await conn.execute(
-            "DELETE FROM leave_applications WHERE id = ?",
-            [id]
+            "DELETE FROM leave_applications WHERE id = ? AND company_id = ?",
+            [id, req.company_id || 1]
         );
 
         await conn.commit();

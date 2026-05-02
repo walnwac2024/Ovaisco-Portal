@@ -778,7 +778,48 @@ function DashboardHome() {
               </span>
             </div>
             <div className="h-px bg-slate-100 mx-4 opacity-50" />
-            <EmptyState icon="Layers" title="Queue Status" message="Zero Pending Tasks" />
+            <div className="space-y-3">
+              {(() => {
+                const list = rightTab === "requests" ? leaveStats.myRequests : leaveStats.myApprovals;
+                if (!list || list.length === 0) {
+                  return <EmptyState icon="Layers" title="Queue Status" message="Zero Pending Tasks" />;
+                }
+
+                return list.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 border border-slate-100/50 group hover:bg-white hover:shadow-sm transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-xl ${rightTab === "requests" ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-500'}`}>
+                        <Icon name={rightTab === "requests" ? "FileText" : "UserCheck"} size={14} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[10px] font-black text-slate-800 uppercase tracking-tight truncate">
+                          {rightTab === "requests" ? item.leave_type : item.applicant_name}
+                        </div>
+                        <div className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                          {new Date(item.start_date).toLocaleDateString()} - {new Date(item.end_date).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    {rightTab === "requests" ? (
+                      <span className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${
+                        item.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
+                        item.status === 'rejected' ? 'bg-rose-50 text-rose-600' :
+                        'bg-amber-50 text-amber-600'
+                      }`}>
+                        {item.status}
+                      </span>
+                    ) : (
+                      <button 
+                        onClick={() => navigate("/dashboard/leave")}
+                        className="p-1.5 text-slate-300 hover:text-customRed transition-colors"
+                      >
+                        <Icon name="ChevronRight" size={14} />
+                      </button>
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         </div>
 
