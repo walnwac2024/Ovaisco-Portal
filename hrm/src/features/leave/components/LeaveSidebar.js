@@ -44,6 +44,7 @@ export default function LeaveSidebar({ activeKey, onNavigate, user }) {
             activeKey={activeKey}
             onNavigate={onNavigate}
             userPermissions={user?.features || []}
+            userRole={user?.role || ""}
         />
     );
 }

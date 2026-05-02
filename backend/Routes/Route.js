@@ -31,6 +31,7 @@ const SystemSettings = require("../Controller/Settings/SystemSettingsController"
 const Gamification = require("../Controller/Gamification/GamificationController");
 const Office = require("../Controller/Office/OfficeController");
 const Biometrics = require("../Controller/UserDeatils/BiometricController");
+const SaaS = require("../Controller/SaaS/SaaSController");
 
 
 
@@ -278,6 +279,12 @@ const canApplyOffice = (req, res, next) => {
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
     
+    // Admin/Super Admin/Developer bypass all restrictions
+    const userRoles = (Array.isArray(user.roles) ? user.roles : []).map(r => String(r).toLowerCase());
+    if (userRoles.includes('admin') || userRoles.includes('super_admin') || userRoles.includes('developer')) {
+        return next();
+    }
+
     const role = String(user.role || '').toLowerCase();
     // HR and Accounts roles are generally not allowed to apply (as per request)
     if (['hr', 'accounts'].includes(role)) {
@@ -299,6 +306,13 @@ const canApplyOffice = (req, res, next) => {
 const canApproveHR = (req, res, next) => {
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
+
+    // Admin/Super Admin/Developer bypass all restrictions
+    const userRoles = (Array.isArray(user.roles) ? user.roles : []).map(r => String(r).toLowerCase());
+    if (userRoles.includes('admin') || userRoles.includes('super_admin') || userRoles.includes('developer')) {
+        return next();
+    }
+
     const feats = new Set(Array.isArray(user.features) ? user.features : []);
     // HR department check (matching DashboardTabsLayout)
     const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
@@ -310,6 +324,13 @@ const canApproveHR = (req, res, next) => {
 const canApproveAccounts = (req, res, next) => {
     const user = req.session?.user;
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
+
+    // Admin/Super Admin/Developer bypass all restrictions
+    const userRoles = (Array.isArray(user.roles) ? user.roles : []).map(r => String(r).toLowerCase());
+    if (userRoles.includes('admin') || userRoles.includes('super_admin') || userRoles.includes('developer')) {
+        return next();
+    }
+
     const feats = new Set(Array.isArray(user.features) ? user.features : []);
     const dept = (user.department || user.Department || '').toString().toLowerCase().trim();
     const role = String(user.role || '').toLowerCase();
@@ -336,5 +357,11 @@ router.get("/office/requisitions", isAuthenticated, Office.listRequisitions);
 router.get("/office/requisitions/:id", isAuthenticated, Office.getRequisitionById);
 router.patch("/office/requisitions/:id/approve-hr", isAuthenticated, canApproveHR, Office.approveHR);
 router.patch("/office/requisitions/:id/approve-accounts", isAuthenticated, canApproveAccounts, Office.approveAccounts);
+
+// SaaS / Developer Routes
+router.get("/saas/stats", isAuthenticated, requireRole("developer"), SaaS.getPlatformStats);
+router.get("/saas/companies", isAuthenticated, requireRole("developer"), SaaS.listCompanies);
+router.patch("/saas/companies/:id/status", isAuthenticated, requireRole("developer"), SaaS.updateCompanyStatus);
+router.post("/saas/companies", isAuthenticated, requireRole("developer"), SaaS.provisionCompany);
 
 module.exports = router;

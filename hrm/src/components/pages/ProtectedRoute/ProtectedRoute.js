@@ -41,13 +41,17 @@ export default function ProtectedRoute({
     );
   }
 
-  // Optional: role-based guard
-  if (requireRoles?.length && !requireRoles.includes(user?.role)) {
+  // Admin/Super Admin/Developer bypass all route guards
+  const fullAccessRoles = ['admin', 'super_admin', 'developer'];
+  const hasFullAccess = fullAccessRoles.includes(String(user?.role || '').toLowerCase());
+
+  // Optional: role-based guard (bypassed for full access roles)
+  if (!hasFullAccess && requireRoles?.length && !requireRoles.includes(user?.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Optional: feature-based guard
-  if (requireFeatures?.length) {
+  // Optional: feature-based guard (bypassed for full access roles)
+  if (!hasFullAccess && requireFeatures?.length) {
     const userFeats = (user?.features || []).map(f => f.toLowerCase());
     const hasRequired = requireFeatures.some(f => userFeats.includes(f.toLowerCase()));
     if (!hasRequired) {

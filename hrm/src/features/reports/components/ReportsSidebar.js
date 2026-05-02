@@ -40,6 +40,7 @@ export default function ReportsSidebar({ items = [], onNavigate, title = "REPORT
             activeKey={activeKey}
             onNavigate={onNavigate}
             userPermissions={user?.features || []}
+            userRole={user?.role || ""}
         />
     );
 }

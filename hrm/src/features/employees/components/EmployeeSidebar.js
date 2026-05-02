@@ -85,6 +85,7 @@ export default function EmployeeSidebar({ activeKey, onNavigate }) {
       activeKey={activeKey}
       onNavigate={onNavigate}
       userPermissions={user?.features || []}
+      userRole={user?.role || ""}
     />
   );
 }

@@ -54,6 +54,7 @@ const PayrollSidebar = ({ activeKey, onNavigate, isAdmin, userPermissions = [], 
             onNavigate={onNavigate}
             userPermissions={userPermissions}
             isAdminUser={isAdmin}
+            userRole={user?.role || ""}
         />
     );
 };

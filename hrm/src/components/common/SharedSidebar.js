@@ -15,6 +15,7 @@ export default function SharedSidebar({
     onNavigate,
     isAdminUser = false,
     userPermissions = [],
+    userRole = "",
 }) {
     const badgeSuffix = (
         <span className="ml-auto px-2 py-0.5 rounded bg-slate-100 text-[8px] text-slate-500 font-black uppercase tracking-widest border border-slate-200 shrink-0">
@@ -22,14 +23,20 @@ export default function SharedSidebar({
         </span>
     );
 
+    // Admin/Super Admin/Developer get full access to all sidebar items
+    const fullAccessRoles = ['admin', 'super_admin', 'developer'];
+    const hasFullAccess = isAdminUser || fullAccessRoles.includes(String(userRole).toLowerCase());
+
     const filteredItems = items.filter((it) => {
+        // Full access roles bypass all permission checks
+        if (hasFullAccess) return true;
         // 1. If item has a specific permission code, check it
         if (it.permission) {
-            return userPermissions.includes(it.permission) || isAdminUser;
+            return userPermissions.includes(it.permission);
         }
         // 2. Fallback to isAdmin check for backward compatibility
         if (it.isAdmin) {
-            return isAdminUser;
+            return false;
         }
         // 3. Public item
         return true;

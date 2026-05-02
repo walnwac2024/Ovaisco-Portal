@@ -36,7 +36,8 @@ const login = async (req, res) => {
           e.can_login,
           e.is_active,
           e.profile_img,
-          e.Department
+          e.Department,
+          e.company_id
        FROM employee_records e
        WHERE e.can_login = 1
          AND e.Official_Email = ?
@@ -147,8 +148,10 @@ const login = async (req, res) => {
 
     let features = permRows.map((r) => r.code);
 
-    // ✅ Fallback: Level 10+ (Super Admin/HR Manager) gets all permissions
-    if (level >= 10) {
+    // ✅ Admin/Super Admin/Developer get ALL permissions (full HRM access)
+    const fullAccessRoles = ['admin', 'super_admin', 'developer'];
+    const hasFullAccessRole = roles.some(r => fullAccessRoles.includes(String(r).toLowerCase()));
+    if (level >= 8 || hasFullAccessRole) {
       const [allPerms] = await pool.execute("SELECT code FROM permissions");
       features = [...new Set([...features, ...allPerms.map(p => p.code)])];
     }
@@ -157,6 +160,7 @@ const login = async (req, res) => {
 
     const payload = {
       id: emp.id,
+      company_id: emp.company_id,
       employeeCode: emp.Employee_ID,
       name: emp.Employee_Name,
       email: emp.Official_Email,
@@ -191,6 +195,7 @@ const login = async (req, res) => {
       const token = jwt.sign(
         {
           sub: emp.id,
+          company_id: emp.company_id,
           roles,
           features,
           flags: payload.flags,
@@ -289,7 +294,10 @@ const me = async (req, res) => {
 
     let features = permRows.map((r) => r.code);
 
-    if (level >= 10) {
+    // ✅ Admin/Super Admin/Developer get ALL permissions (full HRM access)
+    const fullAccessRoles = ['admin', 'super_admin', 'developer'];
+    const hasFullAccessRole = roles.some(r => fullAccessRoles.includes(String(r).toLowerCase()));
+    if (level >= 8 || hasFullAccessRole) {
       const [allPerms] = await pool.execute("SELECT code FROM permissions");
       features = [...new Set([...features, ...allPerms.map(p => p.code)])];
     }

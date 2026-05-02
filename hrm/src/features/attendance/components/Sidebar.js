@@ -135,6 +135,7 @@ export default function AttendanceSidebar({ items = [], onNavigate, title = "ATT
       activeKey={activeKey}
       onNavigate={onNavigate}
       userPermissions={user?.features || []}
+      userRole={user?.role || ""}
     />
   );
 }

@@ -10,11 +10,17 @@ function isAuthenticated(req, res, next) {
   if (!user) {
     return res.status(401).json({ message: "Unauthenticated" });
   }
+
+  // Inject company_id for Multi-Tenant architecture
+  req.company_id = user.company_id || 1; 
+
   next();
 }
 
 function hasFullAccess(user) {
-  return false;
+  if (!user) return false;
+  const userRoles = (Array.isArray(user.roles) ? user.roles : []).map(r => String(r).toLowerCase());
+  return userRoles.includes("developer") || userRoles.includes("super_admin") || userRoles.includes("admin");
 }
 
 function requireRole(...allowedRoles) {
