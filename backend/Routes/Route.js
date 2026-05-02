@@ -31,7 +31,7 @@ const SystemSettings = require("../Controller/Settings/SystemSettingsController"
 const Gamification = require("../Controller/Gamification/GamificationController");
 const Office = require("../Controller/Office/OfficeController");
 const Biometrics = require("../Controller/UserDeatils/BiometricController");
-const SaaS = require("../Controller/SaaS/SaaSController");
+// const SaaS = require("../Controller/SaaS/SaaSController");
 
 
 
@@ -359,9 +359,9 @@ router.patch("/office/requisitions/:id/approve-hr", isAuthenticated, canApproveH
 router.patch("/office/requisitions/:id/approve-accounts", isAuthenticated, canApproveAccounts, Office.approveAccounts);
 
 // SaaS / Developer Routes
-router.get("/saas/stats", isAuthenticated, requireRole("developer"), SaaS.getPlatformStats);
-router.get("/saas/companies", isAuthenticated, requireRole("developer"), SaaS.listCompanies);
-router.patch("/saas/companies/:id/status", isAuthenticated, requireRole("developer"), SaaS.updateCompanyStatus);
-router.post("/saas/companies", isAuthenticated, requireRole("developer"), SaaS.provisionCompany);
+// router.get("/saas/stats", isAuthenticated, requireRole("developer"), SaaS.getPlatformStats);
+// router.get("/saas/companies", isAuthenticated, requireRole("developer"), SaaS.listCompanies);
+// router.patch("/saas/companies/:id/status", isAuthenticated, requireRole("developer"), SaaS.updateCompanyStatus);
+// router.post("/saas/companies", isAuthenticated, requireRole("developer"), SaaS.provisionCompany);
 
 module.exports = router;
