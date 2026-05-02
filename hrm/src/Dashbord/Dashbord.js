@@ -464,18 +464,29 @@ function DashboardHome() {
                 <div className="flex items-center justify-end gap-1.5 text-slate-400 text-[10px] font-black uppercase tracking-wider opacity-60">
                    <Icon name="Timer" size={12} /> Timing
                 </div>
-                <div className="text-slate-800 font-black text-[12px] md:text-[13px] tracking-tight">10:30 - 16:00</div>
+                <div className="text-slate-800 font-black text-[12px] md:text-[13px] tracking-tight">
+                  {shift ? `${shift.start_time?.slice(0, 5)} - ${shift.end_time?.slice(0, 5)}` : "10:30 - 19:00"}
+                </div>
               </div>
             </div>
 
-            <div className={`rounded-2xl p-4 border transition-all duration-500 ${!attendance ? 'bg-rose-50 border-rose-100/50 shadow-sm shadow-rose-100/20' : 'bg-emerald-50 border-emerald-100/50 shadow-sm shadow-emerald-100/20'}`}>
-              <div className={`flex items-start gap-3 text-[11px] font-bold uppercase leading-tight tracking-tight ${!attendance ? 'text-rose-600' : 'text-emerald-600'}`}>
-                <div className={`p-1.5 rounded-lg ${!attendance ? 'bg-white/60' : 'bg-white/60'}`}>
-                  <Icon name={!attendance ? "AlertCircle" : "CheckCircle2"} size={14} className="shrink-0" />
+            {(() => {
+              const isLate = attendance?.status === "LATE";
+              const isAbsent = attendance?.status === "ABSENT";
+              const hasNoAttendance = !attendance;
+              const useRed = hasNoAttendance || isLate || isAbsent;
+
+              return (
+                <div className={`rounded-2xl p-4 border transition-all duration-500 ${useRed ? 'bg-rose-50 border-rose-100/50 shadow-sm shadow-rose-100/20' : 'bg-emerald-50 border-emerald-100/50 shadow-sm shadow-emerald-100/20'}`}>
+                  <div className={`flex items-start gap-3 text-[11px] font-bold uppercase leading-tight tracking-tight ${useRed ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <div className="p-1.5 bg-white/60 rounded-lg">
+                      <Icon name={useRed ? "AlertCircle" : "CheckCircle2"} size={14} className="shrink-0" />
+                    </div>
+                    <p className="mt-1">{statusText}</p>
+                  </div>
                 </div>
-                <p className="mt-1">{statusText}</p>
-              </div>
-            </div>
+              );
+            })()}
 
             <div className="space-y-4 pt-2">
               <div className="relative group">
