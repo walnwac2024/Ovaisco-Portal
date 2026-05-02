@@ -322,7 +322,6 @@ function DashboardHome() {
                 </div>
                 <div className="text-left">
                   <div className="text-[14px] font-black text-slate-800 uppercase tracking-tight">Verify & Punch</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Touch ID / Face ID Required</div>
                 </div>
               </button>
             </div>
