@@ -35,6 +35,7 @@ export default function ReportsPage() {
     React.useEffect(() => {
         setNav(safeNav);
     }, [safeNav]);
+    console.log("safeNav is here", safeNav)
     const activeId = nav.find(n => n.active)?.id || (nav[0]?.id || '');
 
     const handleNavigate = (id) => {

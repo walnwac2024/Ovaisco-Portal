@@ -1,6 +1,7 @@
 // src/components/pages/ProtectedRoute/ProtectedRoute.js
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
+import MainLoader from "../../common/MainLoader";
 
 /**
  * ProtectedRoute
@@ -28,7 +29,7 @@ export default function ProtectedRoute({
   const location = useLocation();
 
   // Don’t render protected UI until we know the session state
-  if (loading) return null; // or your spinner component
+  if (loading) return <MainLoader />;
 
   // Bounce unauthenticated users
   if (!isAuthenticated) {

@@ -11,7 +11,7 @@ import './PayrollPage.css';
 
 const PayrollPage = () => {
     const { user } = useAuth();
-    console.log("the user that present in the auth:", user)
+
     const [activeKey, setActiveKey] = useState('my-salary');
 
     const isAdmin = useMemo(() => {
