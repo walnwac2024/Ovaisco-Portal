@@ -42,12 +42,13 @@ async function getNetworkTime() {
  * Shift resolver: RAMADAN > SUMMER > WINTER (by date range)
  * Uses attendance_shifts table.
  */
-async function resolveShiftForDate(dateStr) {
+async function resolveShiftForDate(dateStr, companyId = 1) {
   const [rows] = await pool.execute(
     `
     SELECT id, name, start_time, end_time
     FROM attendance_shifts
     WHERE is_active = 1
+      AND company_id = ?
       AND ? BETWEEN effective_from AND effective_to
     ORDER BY
       CASE name
@@ -58,17 +59,17 @@ async function resolveShiftForDate(dateStr) {
       END
     LIMIT 1
     `,
-    [dateStr]
+    [companyId, dateStr]
   );
 
   if (rows.length) return rows[0];
 
   // fallback: pick any active (prefer WINTER)
-  const [fallback] = await pool.execute(
+  const [fallbackRows] = await pool.execute(
     `
     SELECT id, name, start_time, end_time
     FROM attendance_shifts
-    WHERE is_active = 1
+    WHERE is_active = 1 AND company_id = ?
     ORDER BY
       CASE name
         WHEN 'WINTER' THEN 1
@@ -77,20 +78,22 @@ async function resolveShiftForDate(dateStr) {
         ELSE 99
       END
     LIMIT 1
-    `
+    `,
+    [companyId]
   );
 
-  return fallback[0] || null;
+  return fallbackRows[0] || null;
 }
 
-async function getActiveRule() {
+async function getActiveRule(companyId = 1) {
   try {
     const [rows] = await pool.execute(
       `SELECT id, grace_minutes, notify_employee, notify_hr_admin, block_vpn
        FROM attendance_rules
-       WHERE is_active = 1
+       WHERE is_active = 1 AND company_id = ?
        ORDER BY id DESC
-       LIMIT 1`
+       LIMIT 1`,
+       [companyId]
     );
     return rows[0] || { grace_minutes: 15, notify_employee: 1, notify_hr_admin: 1, block_vpn: 0 };
   } catch (err) {
@@ -99,9 +102,10 @@ async function getActiveRule() {
       const [rows] = await pool.execute(
         `SELECT id, grace_minutes, notify_employee, notify_hr_admin
           FROM attendance_rules
-          WHERE is_active = 1
+          WHERE is_active = 1 AND company_id = ?
           ORDER BY id DESC
-          LIMIT 1`
+          LIMIT 1`,
+       [companyId]
       );
       const rule = rows[0] || { grace_minutes: 15, notify_employee: 1, notify_hr_admin: 1 };
       rule.block_vpn = 0; // default value
@@ -200,8 +204,9 @@ const listOffices = async (req, res) => {
     const [rows] = await pool.execute(
       `SELECT id, name, code, latitude, longitude, allowed_radius_meters
        FROM offices
-       WHERE is_active = 1
-       ORDER BY id ASC`
+       WHERE is_active = 1 AND company_id = ?
+    ORDER BY id ASC`,
+    [req.company_id || 1]
     );
     return res.json({ offices: rows });
   } catch (e) {
@@ -220,17 +225,17 @@ const getToday = async (req, res) => {
     if (!employeeId) return res.status(401).json({ message: "Unauthenticated" });
 
     const today = toYMD(new Date());
-    const shift = await resolveShiftForDate(today);
-    const rule = await getActiveRule();
+    const shift = await resolveShiftForDate(today, req.company_id || 1);
+    const rule = await getActiveRule(req.company_id || 1);
 
     const [dailyRows] = await pool.execute(
       `
       SELECT *
       FROM attendance_daily
-      WHERE employee_id = ? AND attendance_date = ?
+      WHERE employee_id = ? AND attendance_date = ? AND company_id = ?
       LIMIT 1
       `,
-      [employeeId, today]
+      [employeeId, today, req.company_id || 1]
     );
 
     return res.json({
@@ -298,9 +303,9 @@ const punch = async (req, res) => {
         try {
           await conn.execute(
             `INSERT INTO attendance_security_violations 
-              (employee_id, server_time, client_time, drift_minutes, punch_type)
-             VALUES (?, ?, ?, ?, ?)`,
-            [targetEmployeeId, now, cTime, Math.round(diffMin), punch_type]
+              (employee_id, server_time, client_time, drift_minutes, punch_type, company_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [targetEmployeeId, now, cTime, Math.round(diffMin), punch_type, req.company_id || 1]
           );
         } catch (logErr) {
           console.error("Failed to log security violation:", logErr);
@@ -328,7 +333,7 @@ const punch = async (req, res) => {
     }
 
     // --- SECURITY CHECK 3: VPN / PROXY DETECTION ---
-    const rule = await getActiveRule();
+    const rule = await getActiveRule(req.company_id || 1);
     if (rule.block_vpn && !isAdminLike(sessionUser)) {
       const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
       const isVpnDetected = await checkVPN(clientIp, req.headers);
@@ -338,9 +343,9 @@ const punch = async (req, res) => {
         try {
           await conn.execute(
             `INSERT INTO attendance_security_violations 
-              (employee_id, server_time, client_time, drift_minutes, punch_type, note)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [targetEmployeeId, now, now, 0, punch_type, `VPN/Proxy Detected: ${clientIp}`]
+              (employee_id, server_time, client_time, drift_minutes, punch_type, note, company_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [targetEmployeeId, now, now, 0, punch_type, `VPN/Proxy Detected: ${clientIp}`, req.company_id || 1]
           );
         } catch (logErr) {
           console.error("Failed to log VPN security violation:", logErr);
@@ -389,8 +394,8 @@ const punch = async (req, res) => {
         } else {
           // Regular Face Recognition Flow
           const [rows] = await conn.execute(
-            "SELECT profile_img, face_registration FROM employee_records WHERE id = ?",
-            [targetEmployeeId]
+            "SELECT profile_img, face_registration FROM employee_records WHERE id = ? AND company_id = ?",
+            [targetEmployeeId, req.company_id || 1]
           );
 
           if (rows.length > 0) {
@@ -416,7 +421,7 @@ const punch = async (req, res) => {
                   // SUCCESS: Handle Registration vs Matching
                   if (isNewRegistration) {
                     console.log(`[FaceID] REGISTERING: Success against profile_img. Saving to face_registration.`);
-                    await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+                    await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ? AND company_id = ?", [photoPath, targetEmployeeId, req.company_id || 1]);
                   } else {
                     // Already registered, destroy the live captured photo as requested
                     if (fs.existsSync(fullPhotoPath)) {
@@ -431,13 +436,12 @@ const punch = async (req, res) => {
                 }
               } else {
                 // Reference exists in DB but file missing on disk -> Register current as new reference
-                console.warn(`[FaceID] Reference photo missing on disk (${storedImgPath}). Registering current capture.`);
-                await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+                await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ? AND company_id = ?", [photoPath, targetEmployeeId, req.company_id || 1]);
               }
             } else {
               // First time registration (no photos at all)
               console.log(`[FaceID] INITIAL REGISTRATION for emp: ${targetEmployeeId}`);
-              await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ?", [photoPath, targetEmployeeId]);
+              await conn.execute("UPDATE employee_records SET face_registration = ? WHERE id = ? AND company_id = ?", [photoPath, targetEmployeeId, req.company_id || 1]);
             }
           }
         }
@@ -448,7 +452,8 @@ const punch = async (req, res) => {
 
     // --- GPS VALIDATION ---
     const [allOffices] = await conn.execute(
-      "SELECT id, name, latitude, longitude, allowed_radius_meters FROM offices WHERE is_active = 1"
+      "SELECT id, name, latitude, longitude, allowed_radius_meters FROM offices WHERE is_active = 1 AND company_id = ?",
+      [req.company_id || 1]
     );
 
     const targetOffice = allOffices.find(o => o.id === Number(office_id));
@@ -476,13 +481,14 @@ const punch = async (req, res) => {
       // Log rejection
       try {
         await conn.execute(
-          `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason)
-           VALUES (?, ?, ?, ?)`,
+          `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason, company_id)
+           VALUES (?, ?, ?, ?, ?)`,
           [
             targetEmployeeId,
             latitude || null,
             longitude || null,
-            latitude ? `Outside radius for ${targetOffice.name}` : "Missing GPS coordinates"
+            latitude ? `Outside radius for ${targetOffice.name}` : "Missing GPS coordinates",
+            req.company_id || 1
           ]
         );
       } catch (logErr) {
@@ -501,7 +507,7 @@ const punch = async (req, res) => {
 
     // ------------------------------------------
     const today = toYMD(now);
-    const shift = await resolveShiftForDate(today);
+    const shift = await resolveShiftForDate(today, req.company_id || 1);
     if (!shift) return res.status(400).json({ message: "No active shift configured" });
 
     // rule is already fetched above for VPN check
@@ -513,9 +519,9 @@ const punch = async (req, res) => {
     await conn.execute(
       `
       INSERT INTO attendance_punches
-        (employee_id, office_id, punch_type, punched_at, source, marked_by_employee_id, note, latitude, longitude, distance_from_office, matched_office_id, punch_photo)
+        (employee_id, office_id, punch_type, punched_at, source, marked_by_employee_id, note, latitude, longitude, distance_from_office, matched_office_id, punch_photo, company_id)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         targetEmployeeId,
@@ -529,29 +535,29 @@ const punch = async (req, res) => {
         longitude || null,
         isInside ? distToTarget : null,
         isInside ? targetOffice.id : null,
-        photoPath
+        photoPath,
+        req.company_id || 1
       ]
     );
 
-    // 2) Ensure daily row exists
     const [dailyRows] = await conn.execute(
       `
       SELECT *
       FROM attendance_daily
-      WHERE employee_id = ? AND attendance_date = ?
+      WHERE employee_id = ? AND attendance_date = ? AND company_id = ?
       LIMIT 1
       FOR UPDATE
       `,
-      [targetEmployeeId, today]
+      [targetEmployeeId, today, req.company_id || 1]
     );
 
     if (!dailyRows.length) {
       await conn.execute(
         `
-        INSERT INTO attendance_daily (employee_id, attendance_date, shift_id, status)
-        VALUES (?, ?, ?, 'NOT_MARKED')
+        INSERT INTO attendance_daily (employee_id, attendance_date, shift_id, status, company_id)
+        VALUES (?, ?, ?, 'NOT_MARKED', ?)
         `,
-        [targetEmployeeId, today, shift.id]
+        [targetEmployeeId, today, shift.id, req.company_id || 1]
       );
     }
 
@@ -560,11 +566,11 @@ const punch = async (req, res) => {
       `
       SELECT *
       FROM attendance_daily
-      WHERE employee_id = ? AND attendance_date = ?
+      WHERE employee_id = ? AND attendance_date = ? AND company_id = ?
       LIMIT 1
       FOR UPDATE
       `,
-      [targetEmployeeId, today]
+      [targetEmployeeId, today, req.company_id || 1]
     );
 
     const daily = daily2[0];
@@ -592,9 +598,9 @@ const punch = async (req, res) => {
             late_minutes = ?,
             status = ?,
             source_in = ?
-        WHERE id = ?
+        WHERE id = ? AND company_id = ?
         `,
-        [now, Number(office_id), photoPath, lateMinutes, status, isAdmin ? "ADMIN" : "WEB", daily.id]
+        [now, Number(office_id), photoPath, lateMinutes, status, isAdmin ? "ADMIN" : "WEB", daily.id, req.company_id || 1]
       );
     } else {
       if (!daily.first_in) {
@@ -620,9 +626,9 @@ const punch = async (req, res) => {
             worked_minutes = ?,
             status = ?,
             source_out = ?
-        WHERE id = ?
+        WHERE id = ? AND company_id = ?
         `,
-        [now, Number(office_id), photoPath, workedMinutes, finalStatus, isAdmin ? "ADMIN" : "WEB", daily.id]
+        [now, Number(office_id), photoPath, workedMinutes, finalStatus, isAdmin ? "ADMIN" : "WEB", daily.id, req.company_id || 1]
       );
     }
 
@@ -641,10 +647,10 @@ const punch = async (req, res) => {
       `
       SELECT *
       FROM attendance_daily
-      WHERE employee_id = ? AND attendance_date = ?
+      WHERE employee_id = ? AND attendance_date = ? AND company_id = ?
       LIMIT 1
       `,
-      [targetEmployeeId, today]
+      [targetEmployeeId, today, req.company_id || 1]
     );
 
     // Emit real-time event
@@ -704,7 +710,7 @@ const adminMissing = async (req, res) => {
       FROM employee_records e
       LEFT JOIN attendance_daily d
         ON d.employee_id = e.id AND d.attendance_date = ?
-      WHERE e.is_active = 1
+      WHERE e.is_active = 1 AND e.company_id = ?
         AND (
           d.id IS NULL
           OR d.first_in IS NULL
@@ -712,7 +718,7 @@ const adminMissing = async (req, res) => {
         )
       ORDER BY e.Employee_Name ASC
       `,
-      [date]
+      [date, req.company_id || 1]
     );
 
     return res.json({ date, rows });
@@ -743,9 +749,10 @@ const getPersonalSummary = async (req, res) => {
       WHERE employee_id = ? 
         AND YEAR(attendance_date) = ? 
         AND MONTH(attendance_date) = ?
+        AND company_id = ?
       GROUP BY status
       `,
-      [user.id, year, month]
+      [user.id, year, month, req.company_id || 1]
     );
 
     // 2. Get Missing/Incomplete Attendance
@@ -759,9 +766,10 @@ const getPersonalSummary = async (req, res) => {
         AND MONTH(attendance_date) = ?
         AND attendance_date <= CURRENT_DATE
         AND (first_in IS NULL OR last_out IS NULL)
+        AND company_id = ?
       ORDER BY attendance_date DESC
       `,
-      [user.id, year, month]
+      [user.id, year, month, req.company_id || 1]
     );
 
     return res.json({
@@ -816,20 +824,21 @@ const getMonthlyReport = async (req, res) => {
       WHERE d.employee_id = ? 
         AND YEAR(d.attendance_date) = ? 
         AND MONTH(d.attendance_date) = ?
+        AND d.company_id = ?
       ORDER BY d.attendance_date ASC
       `,
-      [targetId, y, m]
+      [targetId, y, m, req.company_id || 1]
     );
 
     // 2. Get Approved Leaves for this month
     const [leaves] = await pool.execute(
       `SELECT start_date, end_date, leave_type_id FROM leave_applications 
-         WHERE employee_id = ? AND status = 'approved' 
+         WHERE employee_id = ? AND status = 'approved' AND company_id = ?
          AND (
             (YEAR(start_date) = ? AND MONTH(start_date) = ?) OR 
             (YEAR(end_date) = ? AND MONTH(end_date) = ?)
          )`,
-      [targetId, y, m, y, m]
+      [targetId, req.company_id || 1, y, m, y, m]
     );
 
     // Helper to check if a date is on leave
@@ -950,7 +959,8 @@ const getMonthlyReportAll = async (req, res) => {
 
     // 1. Fetch All Active Employees
     const [employees] = await pool.execute(
-      `SELECT id, Employee_ID, Employee_Name, Department FROM employee_records WHERE is_active = 1 ORDER BY Employee_ID`
+      `SELECT id, Employee_ID, Employee_Name, Department FROM employee_records WHERE is_active = 1 AND company_id = ? ORDER BY Employee_ID`,
+      [req.company_id || 1]
     );
 
     // 2. Fetch All Attendance for the Month (Optimized)
@@ -959,17 +969,17 @@ const getMonthlyReportAll = async (req, res) => {
         SELECT d.*, s.name as shift_name
         FROM attendance_daily d
         LEFT JOIN attendance_shifts s ON d.shift_id = s.id
-        WHERE d.attendance_date BETWEEN ? AND ?
+        WHERE d.attendance_date BETWEEN ? AND ? AND d.company_id = ?
         `,
-      [startDate, endDate]
+      [startDate, endDate, req.company_id || 1]
     );
 
     // 3. Fetch All Approved Leaves (Optimized overlaps)
     const [leaveRows] = await pool.execute(
       `SELECT employee_id, start_date, end_date, leave_type_id FROM leave_applications 
-         WHERE status = 'approved' 
+         WHERE status = 'approved' AND company_id = ?
          AND (start_date <= ? AND end_date >= ?)`,
-      [endDate, startDate]
+      [req.company_id || 1, endDate, startDate]
     );
 
     // Index Data for fast lookup
@@ -1114,7 +1124,7 @@ const getAttendanceLogs = async (req, res) => {
       LEFT JOIN attendance_shifts s ON d.shift_id = s.id
       LEFT JOIN offices o_in ON d.office_id_first_in = o_in.id
       LEFT JOIN offices o_out ON d.office_id_last_out = o_out.id
-      WHERE e.is_active = 1
+      WHERE e.is_active = 1 AND e.company_id = ?
       ORDER BY 
         CASE 
           WHEN d.first_in IS NOT NULL THEN 0
@@ -1123,7 +1133,7 @@ const getAttendanceLogs = async (req, res) => {
         d.first_in DESC,
         e.Employee_Name ASC
       `,
-      [date]
+      [date, req.company_id || 1]
     );
 
     // Process rows to add computed fields
@@ -1208,9 +1218,10 @@ const listLocationAudit = async (req, res) => {
       FROM attendance_punches ap
       JOIN employee_records e ON ap.employee_id = e.id
       JOIN offices o ON ap.office_id = o.id
+      WHERE e.company_id = ?
       ORDER BY ap.punched_at DESC
       LIMIT 100
-    `);
+    `, [req.company_id || 1]);
 
     return res.json(rows);
   } catch (e) {
@@ -1245,7 +1256,7 @@ const syncAmtAttendance = async (req, res) => {
 
     try {
       // 1. Fetch all employees to map BiometricID (biometric_id OR Employee_ID) to internal ID
-      const [empRows] = await conn.execute("SELECT id, Employee_ID, biometric_id FROM employee_records WHERE is_active = 1");
+      const [empRows] = await conn.execute("SELECT id, Employee_ID, biometric_id FROM employee_records WHERE is_active = 1 AND company_id = ?", [req.company_id || 1]);
       const empMap = new Map();
       const biometricMap = new Map(); // Dedicated column match
       const numericMap = new Map();   // Fallback for machine IDs like '6', '00000008'
@@ -1271,10 +1282,10 @@ const syncAmtAttendance = async (req, res) => {
 
       // We'll get default rule and offices, but biometric might not strict to an office.
       // We will map it to the first active office or null.
-      const [officeRows] = await conn.execute("SELECT id FROM offices WHERE is_active = 1 LIMIT 1");
+      const [officeRows] = await conn.execute("SELECT id FROM offices WHERE is_active = 1 AND company_id = ? LIMIT 1", [req.company_id || 1]);
       const defaultOfficeId = officeRows[0]?.id || null;
 
-      const rule = await getActiveRule();
+      const rule = await getActiveRule(req.company_id || 1);
       const grace = Number(rule.grace_minutes || 0);
 
       await conn.beginTransaction();
@@ -1317,26 +1328,26 @@ const syncAmtAttendance = async (req, res) => {
         }
 
         const todayDateStr = toYMD(punchDateObj);
-        const shift = await resolveShiftForDate(todayDateStr);
+        const shift = await resolveShiftForDate(todayDateStr, req.company_id || 1);
         let shiftId = shift ? shift.id : null;
         let shiftStart = shift ? new Date(`${todayDateStr}T${shift.start_time}`) : null;
 
         // Ensure daily row exists
         const [dailyRows] = await conn.execute(
-          `SELECT * FROM attendance_daily WHERE employee_id = ? AND attendance_date = ? LIMIT 1 FOR UPDATE`,
-          [employeeId, todayDateStr]
+          `SELECT * FROM attendance_daily WHERE employee_id = ? AND attendance_date = ? AND company_id = ? LIMIT 1 FOR UPDATE`,
+          [employeeId, todayDateStr, req.company_id || 1]
         );
 
         let dailyRecord;
         if (!dailyRows.length) {
           const [insertRes] = await conn.execute(
-            `INSERT INTO attendance_daily (employee_id, attendance_date, shift_id, status) VALUES (?, ?, ?, 'PRESENT')`,
-            [employeeId, todayDateStr, shiftId]
+            `INSERT INTO attendance_daily (employee_id, attendance_date, shift_id, status, company_id) VALUES (?, ?, ?, 'PRESENT', ?)`,
+            [employeeId, todayDateStr, shiftId, req.company_id || 1]
           );
 
           const [newDaily] = await conn.execute(
-            `SELECT * FROM attendance_daily WHERE id = ? FOR UPDATE`,
-            [insertRes.insertId]
+            `SELECT * FROM attendance_daily WHERE id = ? AND company_id = ? FOR UPDATE`,
+            [insertRes.insertId, req.company_id || 1]
           );
           dailyRecord = newDaily[0];
         } else {
@@ -1345,8 +1356,8 @@ const syncAmtAttendance = async (req, res) => {
 
         // Check if this specific punch is already recorded (prevent duplicates)
         const [existingPunches] = await conn.execute(
-          `SELECT id FROM attendance_punches WHERE employee_id = ? AND punched_at = ? AND source = 'BIOMETRIC'`,
-          [employeeId, punchDateObj]
+          `SELECT id FROM attendance_punches WHERE employee_id = ? AND punched_at = ? AND source = 'BIOMETRIC' AND company_id = ?`,
+          [employeeId, punchDateObj, req.company_id || 1]
         );
 
         if (existingPunches.length > 0) {
@@ -1364,15 +1375,16 @@ const syncAmtAttendance = async (req, res) => {
         // Insert into punches
         await conn.execute(
           `INSERT INTO attendance_punches
-           (employee_id, office_id, punch_type, punched_at, source, note)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+           (employee_id, office_id, punch_type, punched_at, source, note, company_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             employeeId,
             defaultOfficeId,
             punchType,
             punchDateObj,
             "BIOMETRIC",
-            `Device: ${log.DeviceName || log.DeviceSrno || 'Unknown'}`
+            `Device: ${log.DeviceName || log.DeviceSrno || 'Unknown'}`,
+            req.company_id || 1
           ]
         );
 
@@ -1409,9 +1421,10 @@ const syncAmtAttendance = async (req, res) => {
           }
 
           updateParams.push(dailyRecord.id);
+          updateParams.push(req.company_id || 1);
 
           await conn.execute(
-            `UPDATE attendance_daily SET ${updateCols.join(", ")} WHERE id = ?`,
+            `UPDATE attendance_daily SET ${updateCols.join(", ")} WHERE id = ? AND company_id = ?`,
             updateParams
           );
         } else if (!dailyRecord.last_out || punchDateObj > new Date(dailyRecord.last_out)) {
@@ -1425,8 +1438,8 @@ const syncAmtAttendance = async (req, res) => {
           await conn.execute(
             `UPDATE attendance_daily 
               SET last_out = ?, office_id_last_out = ?, worked_minutes = ?, status = ?, source_out = ?
-              WHERE id = ?`,
-            [punchDateObj, defaultOfficeId, workedMinutes, finalStatus, "BIOMETRIC", dailyRecord.id]
+              WHERE id = ? AND company_id = ?`,
+            [punchDateObj, defaultOfficeId, workedMinutes, finalStatus, "BIOMETRIC", dailyRecord.id, req.company_id || 1]
           );
         }
 
@@ -1455,6 +1468,84 @@ const syncAmtAttendance = async (req, res) => {
   }
 };
 
+/**
+ * GET /attendance/admin/daily-summary
+ * Provides a daily summary for admins: total, present, absent, late, with lists.
+ */
+const getDailyAdminSummary = async (req, res) => {
+  try {
+    const companyId = req.company_id || 1;
+    
+    // Get date parameter (default to today)
+    let dateStr = req.query.date;
+    if (!dateStr) {
+      dateStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    }
+
+    // Get active employees
+    const [empRows] = await pool.execute(
+      "SELECT id, Employee_Name as name, Employee_ID as empCode, Department as department, Designations as designation, profile_img as avatar, Office_Location as station FROM employee_records WHERE is_active = 1 AND company_id = ?",
+      [companyId]
+    );
+
+    // Get attendance for the date
+    const [attRows] = await pool.execute(
+      "SELECT employee_id, first_in, last_out, late_minutes, status, source_in FROM attendance_daily WHERE attendance_date = ? AND company_id = ?",
+      [dateStr, companyId]
+    );
+
+    const attendanceMap = new Map();
+    attRows.forEach(a => attendanceMap.set(a.employee_id, a));
+
+    let present = [];
+    let absent = [];
+    let late = [];
+    let gpsPunches = 0;
+
+    empRows.forEach(emp => {
+      const att = attendanceMap.get(emp.id);
+      const record = { ...emp, attendance: att || null };
+      
+      if (!att || String(att.status).toLowerCase() === 'absent') {
+        absent.push(record);
+      } else {
+        // Present
+        present.push(record);
+        
+        // Late
+        if (att.late_minutes > 0 || String(att.status).toLowerCase() === 'late') {
+          late.push(record);
+        }
+        
+        // GPS
+        if (att.source_in === 'GPS') {
+          gpsPunches++;
+        }
+      }
+    });
+
+    return res.json({
+      summary: {
+        totalEmployees: empRows.length,
+        totalPresent: present.length,
+        totalAbsent: absent.length,
+        totalLate: late.length,
+        totalGpsPunches: gpsPunches
+      },
+      lists: {
+        all: empRows,
+        present,
+        absent,
+        late
+      }
+    });
+
+  } catch (err) {
+    console.error("getDailyAdminSummary error:", err);
+    return res.status(500).json({ status: "error", message: "Failed to fetch daily summary" });
+  }
+};
+
 module.exports = {
   listOffices,
   getToday,
@@ -1466,4 +1557,5 @@ module.exports = {
   getAttendanceLogs,
   listLocationAudit,
   syncAmtAttendance,
+  getDailyAdminSummary,
 };

@@ -45,6 +45,14 @@ export default function DashboardTabsLayout() {
           feats.has('office_req_approve_accounts');
       })()
     },
+    { 
+      label: "Attendance Daily Report", 
+      to: "/dashboard/daily-report",
+      show: (() => {
+        const roles = user?.roles || [user?.role];
+        return roles.some(r => ['admin', 'super_admin', 'developer', 'hr'].includes(String(r).toLowerCase()));
+      })()
+    },
   ];
 
   // Filter tabs: Show if Admin OR has the specific feature code OR explicitly shown

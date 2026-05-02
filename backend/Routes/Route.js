@@ -192,6 +192,7 @@ router.get("/attendance/offices", isAuthenticated, Attendance.listOffices);
 router.get("/attendance/today", isAuthenticated, Attendance.getToday);
 router.post("/attendance/punch", isAuthenticated, Attendance.punch);
 router.get("/attendance/admin/missing", isAuthenticated, Attendance.adminMissing);
+router.get("/attendance/admin/daily-summary", isAuthenticated, Attendance.getDailyAdminSummary);
 router.get("/attendance/summary/personal", isAuthenticated, Attendance.getPersonalSummary);
 router.get("/attendance/report/monthly/all", isAuthenticated, Attendance.getMonthlyReportAll); // ✅ BULK EXPORT
 router.get("/attendance/report/monthly", isAuthenticated, Attendance.getMonthlyReport);
