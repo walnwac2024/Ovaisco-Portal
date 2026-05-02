@@ -283,7 +283,7 @@ function DashboardHome() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-3 md:p-6 transition-all duration-300">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
       <FaceRecognitionModal
         isOpen={showFaceModal}
         onClose={() => setShowFaceModal(false)}
@@ -386,7 +386,7 @@ function DashboardHome() {
       {/* LEFT COLUMN */}
       <section className="lg:col-span-3 space-y-6 lg:space-y-8">
         {/* Profile Card */}
-        <div className="glass-card rounded-[2rem] shadow-premium overflow-hidden group card-hover relative transition-all duration-500">
+        <div className="glass-card rounded-2xl lg:rounded-[2.5rem] shadow-premium p-5 lg:p-8 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-red-500/10 transition-colors" />
           <div className="p-6 md:p-8 flex flex-col items-center text-center relative z-10">
             <div className="relative mb-5">
@@ -542,7 +542,7 @@ function DashboardHome() {
       <section className="lg:col-span-6 space-y-6 lg:space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Missing Attendance */}
-          <div className="glass-card rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
+          <div className="glass-card rounded-2xl lg:rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
             <div className="px-6 md:px-8 py-5 bg-slate-50/30 border-b border-slate-100/50 flex items-center gap-3">
               <div className="p-2 bg-red-50 rounded-xl text-customRed shadow-sm">
                 <Icon name="CalendarX" size={16} />
@@ -565,7 +565,7 @@ function DashboardHome() {
             </div>
           </div>
           {/* Attendance Summary */}
-          <div className="glass-card rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
+          <div className="glass-card rounded-2xl lg:rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
             <div className="px-6 md:px-8 py-5 bg-slate-50/30 border-b border-slate-100/50 flex items-center gap-3">
               <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 shadow-sm">
                 <Icon name="BarChart3" size={16} />
@@ -820,7 +820,7 @@ function DashboardHome() {
         </div>
 
         {/* Global News Broadcast */}
-        <div className="glass-card rounded-[2.5rem] shadow-premium overflow-hidden text-[11px] card-hover border-none relative">
+        <div className="glass-card rounded-2xl lg:rounded-[2.5rem] shadow-premium overflow-hidden text-[11px] card-hover border-none relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16 blur-2xl" />
           <div className="px-6 md:px-8 py-5 border-b border-slate-100/50 flex items-center justify-between bg-white/50 relative z-10">
             <div className="flex items-center gap-2 md:gap-3 font-black text-slate-700 uppercase tracking-widest">

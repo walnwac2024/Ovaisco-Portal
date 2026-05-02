@@ -20,15 +20,13 @@
   }
 
   .card {
-    /* radius 12 is rounded-xl? rounded-2xl is 16px usually. rounded-xl is 12px. User said radius 12. */
-    @apply rounded-xl shadow-sm overflow-hidden;
+    @apply rounded-2xl lg:rounded-[2rem] shadow-sm overflow-hidden transition-all duration-300;
     background-color: var(--bg-card);
     border: 1px solid var(--border-base);
   }
 
   .card-header {
-    /* padding 16-20. px-5 is 20px. py-4 is 16px. */
-    @apply px-5 py-4;
+    @apply px-4 py-3 lg:px-6 lg:py-4;
     border-bottom: 1px solid var(--border-base);
   }
 
@@ -38,8 +36,7 @@
   }
 
   .card-body {
-    /* padding 16-20. p-5 = 20px. */
-    @apply p-5;
+    @apply p-4 lg:p-6;
   }
 
   /* -------- Typography mappings -------- */

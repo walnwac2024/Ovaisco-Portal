@@ -19,6 +19,7 @@ const DashboardTabsLayout = lazy(() => import("./components/pages/DashboardTabsL
 const EmployeesPage = lazy(() => import("./features/employees/EmployeesPage"));
 const EmployeeViewPage = lazy(() => import("./features/employees/components/EmployeeViewPage"));
 const AttendancePage = lazy(() => import("./features/attendance").then(m => ({ default: m.AttendancePage })));
+const AdminDailyReport = lazy(() => import("./features/attendance/AdminDailyReport"));
 const AttendanceSettings = lazy(() => import("./features/attendance/components/AttendanceSettings"));
 const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
 const LeavePage = lazy(() => import("./features/leave/LeavePage"));
@@ -37,6 +38,7 @@ const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
 const PayrollDetailsView = lazy(() => import("./features/payroll/components/PayrollDetailsView"));
 const SalarySettings = lazy(() => import("./features/payroll/components/SalarySettings"));
 const OfficePage = lazy(() => import("./features/office/OfficePage"));
+const SaaSPage = lazy(() => import("./features/saas/SaaSPage"));
 
 
 // Loading component
@@ -114,6 +116,7 @@ export default function App() {
                   <Route path="branding" element={<BrandingPage />} />
                   <Route path="leaderboard" element={<LeaderboardPage />} />
                   <Route path="office/*" element={<OfficePage />} />
+                  <Route path="daily-report" element={<AdminDailyReport />} />
                 </Route>
 
                 {/* Other top-level pages */}
@@ -146,12 +149,21 @@ export default function App() {
                 {/* 👇 NEW: profile route */}
                 <Route path="/profile" element={<ProfilePage />} />
 
-                {/* 👇 NEW: System Settings route - Restricted to higher authorities */}
                 <Route
                   path="/settings/system"
                   element={
                     <ProtectedRoute requireFeatures={['system_settings_view']}>
                       <SystemSettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* SaaS / Developer Control Plane */}
+                <Route
+                  path="/saas"
+                  element={
+                    <ProtectedRoute requireRole="developer">
+                      <SaaSPage />
                     </ProtectedRoute>
                   }
                 />

@@ -9,12 +9,20 @@ import ReportsList from './components/ReportsList';
 export default function ReportsPage() {
     const { user } = useAuth();
 
+    // Permissions
+    const isAdmin = useMemo(() => {
+        const roles = (user?.roles || []).map(r => String(r).toLowerCase());
+        return roles.includes('admin') || roles.includes('super_admin') || roles.includes('hr');
+    }, [user]);
+
     const safeNav = useMemo(() => {
         const base = Array.isArray(REPORTS_NAV) ? REPORTS_NAV : [];
         const features = user?.features || [];
 
         return base.filter(item => {
-            if (item.id === 'attendance-report') return features.includes('attendance_report');
+            if (item.id === 'attendance-report') {
+                return features.includes('reports_view') || features.includes('attendance_report') || isAdmin;
+            }
             return true;
         });
     }, [user]);
@@ -24,12 +32,6 @@ export default function ReportsPage() {
     // View state for Admin drill-down
     // mode: 'list' | 'detail'
     const [view, setView] = useState({ mode: 'list', employeeId: null, year: null, month: null });
-
-    // Permissions
-    const isAdmin = useMemo(() => {
-        const roles = (user?.roles || []).map(r => String(r).toLowerCase());
-        return roles.includes('admin') || roles.includes('super_admin') || roles.includes('hr');
-    }, [user]);
 
     // ✅ Sync nav when user/permissions load
     React.useEffect(() => {
@@ -53,7 +55,7 @@ export default function ReportsPage() {
     }
 
     return (
-        <main className="page grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
+        <main className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
             <ReportsSidebar items={nav} onNavigate={handleNavigate} />
 
             <section className="flex-1 min-w-0">
