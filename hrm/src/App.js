@@ -37,7 +37,7 @@ const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
 const PayrollDetailsView = lazy(() => import("./features/payroll/components/PayrollDetailsView"));
 const SalarySettings = lazy(() => import("./features/payroll/components/SalarySettings"));
 const OfficePage = lazy(() => import("./features/office/OfficePage"));
-const SaaSPage = lazy(() => import("./features/saas/SaaSPage"));
+// const SaaSPage = lazy(() => import("./features/saas/SaaSPage"));
 
 
 // Loading component
@@ -158,14 +158,14 @@ export default function App() {
                 />
 
                 {/* SaaS / Developer Control Plane */}
-                <Route
+                {/* <Route
                   path="/saas"
                   element={
                     <ProtectedRoute requireRole="developer">
                       <SaaSPage />
                     </ProtectedRoute>
                   }
-                />
+                /> */}
               </Route>
 
               {/* Unauthorized placeholder (used if you add role guards) */}
