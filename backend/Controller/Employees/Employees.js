@@ -174,7 +174,8 @@ async function createEmployee(req, res) {
       let finalEmployeeCode = (employeeCode || "").trim();
       if (!finalEmployeeCode) {
         const [rows] = await conn.query(
-          "SELECT MAX(id) AS maxId FROM employee_records"
+          "SELECT MAX(id) AS maxId FROM employee_records WHERE company_id = ?",
+          [req.company_id || 1]
         );
         const next = (rows[0]?.maxId || 0) + 1;
         finalEmployeeCode = `EM/${String(next).padStart(3, "0")}`;
@@ -223,13 +224,14 @@ async function createEmployee(req, res) {
           last_login_at,
           must_change_password,
           Offical_Contact,
-          profile_img
+          profile_img,
+          company_id
         ) VALUES (
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?
         )
       `;
 
@@ -268,6 +270,7 @@ async function createEmployee(req, res) {
         mustChangePassword,
         officialContact || "",
         profileImgPath, // profile_img
+        req.company_id || 1, // company_id
       ];
 
       const [insertResult] = await conn.execute(sql, params);
@@ -283,8 +286,8 @@ async function createEmployee(req, res) {
           if (types.length) {
             const userTypeId = types[0].id;
             await conn.execute(
-              "INSERT INTO employee_user_types (employee_id, user_type_id, is_primary) VALUES (?, ?, 1)",
-              [newEmployeeId, userTypeId]
+              "INSERT INTO employee_user_types (employee_id, user_type_id, is_primary, company_id) VALUES (?, ?, 1, ?)",
+              [newEmployeeId, userTypeId, req.company_id || 1]
             );
           }
         } catch (linkErr) {
@@ -296,8 +299,8 @@ async function createEmployee(req, res) {
       if (shiftId) {
         try {
           await conn.execute(
-            "INSERT INTO employee_shift_assignments (employee_id, shift_id, effective_from) VALUES (?, ?, ?)",
-            [newEmployeeId, shiftId, dateOfJoining || new Date().toISOString().slice(0, 10)]
+            "INSERT INTO employee_shift_assignments (employee_id, shift_id, effective_from, company_id) VALUES (?, ?, ?, ?)",
+            [newEmployeeId, shiftId, dateOfJoining || new Date().toISOString().slice(0, 10), req.company_id || 1]
           );
         } catch (shiftErr) {
           console.error("createEmployee: could not assign shift", shiftErr);
@@ -311,15 +314,16 @@ async function createEmployee(req, res) {
       // --- ✅ NEW: Auto-create Leave Balances for Current Year ---
       try {
         const [activeTypes] = await conn.execute(
-          "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1"
+          "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1 AND company_id = ?",
+          [req.company_id || 1]
         );
         const currentYear = new Date().getFullYear();
 
         for (const type of activeTypes) {
           await conn.execute(
-            `INSERT INTO leave_balances (employee_id, leave_type_id, year, entitlement, balance, used, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, 0, NOW(), NOW())`,
-            [newEmployeeId, type.id, currentYear, type.entitlement_days, type.entitlement_days]
+            `INSERT INTO leave_balances (employee_id, leave_type_id, year, entitlement, balance, used, company_id, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, 0, ?, NOW(), NOW())`,
+            [newEmployeeId, type.id, currentYear, type.entitlement_days, type.entitlement_days, req.company_id || 1]
           );
         }
 
@@ -423,6 +427,10 @@ async function listEmployees(req, res) {
       String(include_inactive || "").trim().toLowerCase() === "true";
 
     const allowSeeInactive = wantsInactive && hasFullAccess(sessionUser);
+
+    // ✅ Multi-Tenant Isolation
+    where.push("company_id = ?");
+    params.push(req.company_id || 1);
 
     if (!allowSeeInactive) {
       where.push("is_active = 1");
@@ -535,10 +543,10 @@ async function getEmployeeById(req, res) {
       FROM employee_records e
       LEFT JOIN employee_user_types eut ON eut.employee_id = e.id AND eut.is_primary = 1
       LEFT JOIN users_types ut ON ut.id = eut.user_type_id
-      WHERE e.id = ?
+      WHERE e.id = ? AND e.company_id = ?
       LIMIT 1
       `,
-      [requestedId]
+      [requestedId, req.company_id || 1]
     );
 
     if (!rows.length) {
@@ -600,7 +608,14 @@ async function updateEmployee(req, res) {
     const sessionUser = req.session?.user;
 
     // ✅ If NOT admin/hr/developer, restrict which fields can be updated
-    if (!hasFullAccess(sessionUser)) {
+    const isEditingSelf = Number(id) === Number(sessionUser.id);
+    const fullAccess = hasFullAccess(sessionUser);
+
+    if (!fullAccess && !isEditingSelf) {
+      return res.status(403).json({ message: "Forbidden: You can only edit your own profile." });
+    }
+
+    if (!fullAccess) {
       // These are strictly personal fields. All other fields from req.body will be ignored.
       const allowed = ["emailPersonal", "personalEmail", "contact", "emergencyContact", "address"];
       Object.keys(body).forEach(key => {
@@ -721,9 +736,9 @@ async function updateEmployee(req, res) {
     const sql = `
       UPDATE employee_records
       SET ${fields.join(", ")}
-      WHERE id = ?
+      WHERE id = ? AND company_id = ?
     `;
-    params.push(id);
+    params.push(id, req.company_id || 1);
 
     await pool.execute(sql, params);
 
@@ -779,9 +794,9 @@ async function updateEmployeeLogin(req, res) {
         const sql = `
           UPDATE employee_records
           SET ${fields.join(", ")}
-          WHERE id = ?
+          WHERE id = ? AND company_id = ?
         `;
-        params.push(id);
+        params.push(id, req.company_id || 1);
         await conn.execute(sql, params);
       }
 
@@ -796,16 +811,16 @@ async function updateEmployeeLogin(req, res) {
             const userTypeId = types[0].id;
 
             await conn.execute(
-              "DELETE FROM employee_user_types WHERE employee_id = ?",
-              [id]
+              "DELETE FROM employee_user_types WHERE employee_id = ? AND company_id = ?",
+              [id, req.company_id || 1]
             );
 
             await conn.execute(
               `
-              INSERT INTO employee_user_types (employee_id, user_type_id, is_primary)
-              VALUES (?, ?, 1)
+              INSERT INTO employee_user_types (employee_id, user_type_id, is_primary, company_id)
+              VALUES (?, ?, 1, ?)
               `,
-              [id, userTypeId]
+              [id, userTypeId, req.company_id || 1]
             );
           }
         } catch (linkErr) {
@@ -892,9 +907,9 @@ async function updateEmployeeStatus(req, res) {
     const sql = `
       UPDATE employee_records
       SET ${fields.join(", ")}
-      WHERE id = ?
+      WHERE id = ? AND company_id = ?
     `;
-    params.push(id);
+    params.push(id, req.company_id || 1);
 
     const [result] = await pool.execute(sql, params);
 
@@ -958,10 +973,10 @@ async function addEmployeeDocuments(req, res) {
         await conn.execute(
           `
           INSERT INTO employee_documents 
-            (employee_id, title, type, path, issued_at, expires_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+            (employee_id, title, type, path, issued_at, expires_at, company_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
           `,
-          [employeeId, title, type, relPath, issuedAt, expiresAt]
+          [employeeId, title, type, relPath, issuedAt, expiresAt, req.company_id || 1]
         );
       }
 
@@ -1015,10 +1030,10 @@ async function listEmployeeDocuments(req, res) {
         expires_at AS expiresAt,
         created_at AS createdAt
       FROM employee_documents
-      WHERE employee_id = ?
+      WHERE employee_id = ? AND company_id = ?
       ORDER BY id DESC
       `,
-      [employeeId]
+      [employeeId, req.company_id || 1]
     );
 
     const docs = rows.map((d) => ({
@@ -1086,9 +1101,9 @@ async function updateEmployeeDocument(req, res) {
       `
       UPDATE employee_documents
       SET ${fields.join(", ")}
-      WHERE id = ? AND employee_id = ?
+      WHERE id = ? AND employee_id = ? AND company_id = ?
       `,
-      [...params, docId, employeeId]
+      [...params, docId, employeeId, req.company_id || 1]
     );
 
     if (!result.affectedRows) {
@@ -1131,10 +1146,10 @@ async function deleteEmployeeDocument(req, res) {
       `
       SELECT id, employee_id, path
       FROM employee_documents
-      WHERE id = ? AND employee_id = ?
+      WHERE id = ? AND employee_id = ? AND company_id = ?
       LIMIT 1
       `,
-      [docId, employeeId]
+      [docId, employeeId, req.company_id || 1]
     );
 
     if (!rows.length) {
@@ -1145,8 +1160,8 @@ async function deleteEmployeeDocument(req, res) {
     const doc = rows[0];
 
     await conn.execute(
-      `DELETE FROM employee_documents WHERE id = ? AND employee_id = ?`,
-      [docId, employeeId]
+      `DELETE FROM employee_documents WHERE id = ? AND employee_id = ? AND company_id = ?`,
+      [docId, employeeId, req.company_id || 1]
     );
 
     await conn.commit();
@@ -1204,10 +1219,10 @@ async function replaceEmployeeDocumentFile(req, res) {
       `
       SELECT id, employee_id, path
       FROM employee_documents
-      WHERE id = ? AND employee_id = ?
+      WHERE id = ? AND employee_id = ? AND company_id = ?
       LIMIT 1
       `,
-      [docId, employeeId]
+      [docId, employeeId, req.company_id || 1]
     );
 
     if (!rows.length) {
@@ -1222,9 +1237,9 @@ async function replaceEmployeeDocumentFile(req, res) {
       `
       UPDATE employee_documents
       SET path = ?, updated_at = NOW()
-      WHERE id = ? AND employee_id = ?
+      WHERE id = ? AND employee_id = ? AND company_id = ?
       `,
-      [newRelPath, docId, employeeId]
+      [newRelPath, docId, employeeId, req.company_id || 1]
     );
 
     await conn.commit();
@@ -1276,10 +1291,10 @@ async function downloadEmployeeDocument(req, res) {
       `
       SELECT id, employee_id, title, type, path
       FROM employee_documents
-      WHERE id = ? AND employee_id = ?
+      WHERE id = ? AND employee_id = ? AND company_id = ?
       LIMIT 1
       `,
-      [docId, employeeId]
+      [docId, employeeId, req.company_id || 1]
     );
 
     if (!rows.length) {
@@ -1338,9 +1353,9 @@ async function lookupStations(req, res) {
     const [legacy] = await pool.execute(`
       SELECT DISTINCT TRIM(Office_Location) AS value
       FROM employee_records
-      WHERE Office_Location IS NOT NULL AND Office_Location <> ''
+      WHERE Office_Location IS NOT NULL AND Office_Location <> '' AND company_id = ?
       ORDER BY value
-    `);
+    `, [req.company_id || 1]);
     res.json(legacy.map((r) => r.value));
   } catch (err) {
     // If table doesn't exist, fallback to legacy
@@ -1476,8 +1491,8 @@ async function updateEmployeeAvatar(req, res) {
     const relPath = `/uploads/profile-img/${req.file.filename}`;
 
     await pool.execute(
-      "UPDATE employee_records SET profile_img = ? WHERE id = ? LIMIT 1",
-      [relPath, id]
+      "UPDATE employee_records SET profile_img = ? WHERE id = ? AND company_id = ? LIMIT 1",
+      [relPath, id, req.company_id || 1]
     );
 
     return res.json({ message: "Avatar updated", profile_img: relPath });
@@ -1533,7 +1548,8 @@ module.exports = {
 async function listBasicEmployees(req, res) {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, Employee_Name, Employee_ID FROM employee_records WHERE is_active = 1 ORDER BY Employee_Name ASC"
+      "SELECT id, Employee_Name, Employee_ID FROM employee_records WHERE is_active = 1 AND company_id = ? ORDER BY Employee_Name ASC",
+      [req.company_id || 1]
     );
     return res.json(rows);
   } catch (err) {
@@ -1560,8 +1576,8 @@ async function deleteEmployee(req, res) {
 
     // 1. Get employee info for file cleanup
     const [empRows] = await conn.execute(
-      "SELECT Employee_Name, Employee_ID, profile_img FROM employee_records WHERE id = ? LIMIT 1",
-      [empId]
+      "SELECT Employee_Name, Employee_ID, profile_img FROM employee_records WHERE id = ? AND company_id = ? LIMIT 1",
+      [empId, req.company_id || 1]
     );
 
     if (!empRows.length) {
@@ -1572,38 +1588,38 @@ async function deleteEmployee(req, res) {
 
     // 2. Get all document paths for cleanup
     const [docRows] = await conn.execute(
-      "SELECT path FROM employee_documents WHERE employee_id = ?",
-      [empId]
+      "SELECT path FROM employee_documents WHERE employee_id = ? AND company_id = ?",
+      [empId, req.company_id || 1]
     );
 
     await conn.beginTransaction();
 
     // 3. Delete from dependent tables
     // Attendance related
-    await conn.execute("DELETE FROM attendance_alert_logs WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM attendance_punches WHERE employee_id = ? OR marked_by_employee_id = ?", [empId, empId]);
-    await conn.execute("DELETE FROM attendance_daily WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM employee_shift_assignments WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM attendance_security_violations WHERE employee_id = ?", [empId]);
+    await conn.execute("DELETE FROM attendance_alert_logs WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM attendance_punches WHERE (employee_id = ? OR marked_by_employee_id = ?) AND company_id = ?", [empId, empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM attendance_daily WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM employee_shift_assignments WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM attendance_security_violations WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
 
     // Employee related
-    await conn.execute("DELETE FROM employee_user_types WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM employee_documents WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM employee_info_requests WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM employee_transfers WHERE employee_id = ?", [empId]);
+    await conn.execute("DELETE FROM employee_user_types WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM employee_documents WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM employee_info_requests WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM employee_transfers WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
 
     // Leaves
-    await conn.execute("DELETE FROM leave_balances WHERE employee_id = ?", [empId]);
-    await conn.execute("DELETE FROM leave_applications WHERE employee_id = ?", [empId]);
+    await conn.execute("DELETE FROM leave_balances WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM leave_applications WHERE employee_id = ? AND company_id = ?", [empId, req.company_id || 1]);
 
     // Other social/notif
-    await conn.execute("DELETE FROM news_reactions WHERE user_id = ?", [empId]);
-    await conn.execute("DELETE FROM notifications WHERE user_id = ?", [empId]);
-    await conn.execute("DELETE FROM chat_messages WHERE sender_id = ?", [empId]);
-    await conn.execute("DELETE FROM chat_read_receipts WHERE user_id = ?", [empId]);
+    await conn.execute("DELETE FROM news_reactions WHERE user_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM notifications WHERE user_id = ? AND company_id = ?", [empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM chat_messages WHERE (sender_id = ? OR receiver_id = ?) AND company_id = ?", [empId, empId, req.company_id || 1]);
+    await conn.execute("DELETE FROM chat_read_receipts WHERE user_id = ? AND company_id = ?", [empId, req.company_id || 1]);
 
     // 4. Delete the main record
-    await conn.execute("DELETE FROM employee_records WHERE id = ? LIMIT 1", [empId]);
+    await conn.execute("DELETE FROM employee_records WHERE id = ? AND company_id = ? LIMIT 1", [empId, req.company_id || 1]);
 
     await conn.commit();
 
@@ -1681,7 +1697,13 @@ async function exportEmployees(req, res) {
     if (!canSeeAll) {
       sql += " WHERE id = " + sessionUser.id;
     } else {
-      sql += " ORDER BY id DESC";
+    // Multi-tenant filter
+    if (sql.includes("WHERE")) {
+      sql += " AND company_id = " + (req.company_id || 1);
+    } else {
+      sql += " WHERE company_id = " + (req.company_id || 1);
+    }
+    sql += " ORDER BY id DESC";
     }
 
     const [rows] = await pool.execute(sql);
@@ -1845,17 +1867,17 @@ async function importEmployees(req, res) {
         let existingId = null;
 
         if (employeeCode) {
-          const [rows] = await conn.execute("SELECT id FROM employee_records WHERE Employee_ID = ? LIMIT 1", [employeeCode]);
+          const [rows] = await conn.execute("SELECT id FROM employee_records WHERE Employee_ID = ? AND company_id = ? LIMIT 1", [employeeCode, req.company_id || 1]);
           if (rows.length) existingId = rows[0].id;
         }
 
         if (!existingId && email) {
-          const [rows] = await conn.execute("SELECT id FROM employee_records WHERE Official_Email = ? OR Email = ? LIMIT 1", [email, email]);
+          const [rows] = await conn.execute("SELECT id FROM employee_records WHERE (Official_Email = ? OR Email = ?) AND company_id = ? LIMIT 1", [email, email, req.company_id || 1]);
           if (rows.length) existingId = rows[0].id;
         }
 
         if (!existingId && cnic) {
-          const [rows] = await conn.execute("SELECT id FROM employee_records WHERE CNIC = ? LIMIT 1", [cnic]);
+          const [rows] = await conn.execute("SELECT id FROM employee_records WHERE CNIC = ? AND company_id = ? LIMIT 1", [cnic, req.company_id || 1]);
           if (rows.length) existingId = rows[0].id;
         }
 
@@ -1900,9 +1922,9 @@ async function importEmployees(req, res) {
           if (Object.keys(fieldsToUpdate).length > 0) {
             const setClause = Object.keys(fieldsToUpdate).map(k => `${k} = ?`).join(", ");
             const params = Object.values(fieldsToUpdate);
-            params.push(existingId);
+            params.push(existingId, req.company_id || 1);
 
-            await conn.execute(`UPDATE employee_records SET ${setClause} WHERE id = ?`, params);
+            await conn.execute(`UPDATE employee_records SET ${setClause} WHERE id = ? AND company_id = ?`, params);
             updated++;
           }
 
@@ -1912,7 +1934,7 @@ async function importEmployees(req, res) {
           let finalCode = employeeCode;
           if (!finalCode) {
             // Auto-generate rudimentary ID if creating new
-            const [maxRows] = await conn.query("SELECT MAX(id) AS maxId FROM employee_records");
+            const [maxRows] = await conn.query("SELECT MAX(id) AS maxId FROM employee_records WHERE company_id = ?", [req.company_id || 1]);
             const next = (maxRows[0]?.maxId || 0) + 1000 + created + 1; // +created to look ahead in this batch
             finalCode = `EM/${String(next).padStart(3, "0")}`;
           }
@@ -1920,6 +1942,7 @@ async function importEmployees(req, res) {
           // Fill defaults
           fieldsToUpdate["Employee_ID"] = finalCode;
           fieldsToUpdate["is_active"] = 1;
+          fieldsToUpdate["company_id"] = req.company_id || 1;
 
           for (const [dbCol, excelKeys] of Object.entries(dbFields)) {
             const val = getVal(excelKeys);

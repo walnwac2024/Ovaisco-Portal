@@ -163,10 +163,13 @@ export default function ProfilePage() {
       setUser && setUser({ ...(user || {}), profile_img: newPath, profile_picture: newPath });
       setEmployee(prev => prev ? { ...prev, profile_img: newPath, profile_picture: newPath } : prev);
       setMsg("Profile picture updated.");
+      setMsgType("success");
     } catch (err) {
       setMsg(err?.response?.data?.message || "Upload failed.");
+      setMsgType("error");
     } finally { setUploading(false); }
   };
+  const [msgType, setMsgType] = useState("success"); // "success" or "error"
 
   const handleSave = async () => {
     if (!employee?.id) return;
@@ -177,7 +180,11 @@ export default function ProfilePage() {
       if (canEditAll) Object.assign(payload, { dateOfBirth: dob, gender, bloodGroup, cnic, designation, department, station, status: employmentStatus });
       await api.patch(`/employees/${employee.id}`, payload);
       setMsg("Profile updated successfully.");
-    } catch (err) { setMsg("Failed to save profile."); } finally { setSaving(false); }
+      setMsgType("success");
+    } catch (err) { 
+      setMsg(err?.response?.data?.message || "Failed to save profile."); 
+      setMsgType("error");
+    } finally { setSaving(false); }
   };
 
   const handlePasswordSave = async () => {
@@ -315,7 +322,11 @@ export default function ProfilePage() {
                     <button onClick={handleSave} disabled={saving} className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold rounded-2xl hover:bg-slate-800 transition-colors disabled:opacity-50">
                       {saving ? "Saving..." : "Save Contact Info"}
                     </button>
-                    {msg && <p className="text-emerald-600 text-[11px] font-medium text-center mt-2">{msg}</p>}
+                    {msg && (
+                      <p className={`text-[11px] font-medium text-center mt-2 ${msgType === "error" ? "text-rose-600" : "text-emerald-600"}`}>
+                        {msg}
+                      </p>
+                    )}
                   </div>
                 </section>
               </div>

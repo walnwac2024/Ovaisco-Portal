@@ -172,7 +172,7 @@ router.get("/employees/:id", isAuthenticated, getEmployeeById);
 
 // Existing routes...
 router.post("/employees", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.fields([{ name: "avatar", maxCount: 1 }, { name: "documents" }]), createEmployee);
-router.patch("/employees/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployee);
+router.patch("/employees/:id", isAuthenticated, updateEmployee);
 router.put("/employees/:id/login", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployeeLogin);
 router.patch("/employees/:id/status", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployeeStatus);
 router.delete("/employees/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), deleteEmployee);
@@ -235,7 +235,7 @@ router.get("/leaves/summary/stats", isAuthenticated, Leave.getLeaveDashboardStat
 router.delete("/leaves/:id", isAuthenticated, Leave.deleteLeaveApplication);
 
 // News routes
-router.get("/news", isAuthenticated, requireFeatures("news_view"), News.listNews);
+router.get("/news", isAuthenticated, News.listNews);
 router.get("/news/reactions", isAuthenticated, requireFeatures("news_view"), News.getNewsReactions);
 router.post("/news", isAuthenticated, requireFeatures("news_manage"), upload.single('image'), News.createNews);
 router.post("/news/:id/react", isAuthenticated, requireFeatures("news_react"), News.toggleReaction);
