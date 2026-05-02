@@ -312,30 +312,17 @@ function DashboardHome() {
               <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Check {pendingPunchType === 'IN' ? 'In' : 'Out'}</h3>
               <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Select Method</p>
             </div>
-            <div className="p-6 grid gap-4">
-              <button
-                onClick={() => { setShowPunchOptions(false); setShowFaceModal(true); }}
-                className="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 hover:border-customRed/20 hover:bg-red-50/30 transition-all group flex-1"
-              >
-                <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-customRed group-hover:scale-110 transition-transform">
-                  <Icon name="ScanFace" size={24} />
-                </div>
-                <div className="text-left">
-                  <div className="text-[13px] font-black text-slate-800 uppercase tracking-tight">By Image</div>
-                  <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Face Recognition</div>
-                </div>
-              </button>
-              
+            <div className="p-8 grid gap-4">
               <button
                 onClick={handleBiometricPunch}
-                className="flex items-center gap-4 p-5 rounded-3xl border border-slate-100 hover:border-emerald-200/50 hover:bg-emerald-50/50 transition-all group flex-1"
+                className="flex items-center gap-5 p-6 rounded-[2rem] border-2 border-emerald-50 bg-emerald-50/30 hover:border-emerald-200/50 hover:bg-emerald-50/60 transition-all group shadow-sm hover:shadow-md active:scale-[0.98]"
               >
-                <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-emerald-500 group-hover:scale-110 transition-transform">
-                  <Icon name="Fingerprint" size={24} />
+                <div className="p-4 bg-white rounded-2xl shadow-sm border border-emerald-100 text-emerald-500 group-hover:scale-110 transition-transform">
+                  <Icon name="Fingerprint" size={32} />
                 </div>
                 <div className="text-left">
-                  <div className="text-[13px] font-black text-slate-800 uppercase tracking-tight">By Biometric</div>
-                  <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Touch ID / Face ID</div>
+                  <div className="text-[14px] font-black text-slate-800 uppercase tracking-tight">By Biometric</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Touch ID / Face ID</div>
                 </div>
               </button>
             </div>
