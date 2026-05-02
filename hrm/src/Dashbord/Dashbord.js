@@ -309,8 +309,8 @@ function DashboardHome() {
               <div className={`w-16 h-16 ${pendingPunchType === 'IN' ? 'bg-red-50 text-customRed' : 'bg-slate-900 text-white'} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm`}>
                 <Icon name={pendingPunchType === 'IN' ? "LogIn" : "LogOut"} size={32} />
               </div>
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Check {pendingPunchType === 'IN' ? 'In' : 'Out'}</h3>
-              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Select Method</p>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Identity Verification</h3>
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Confirm {pendingPunchType === 'IN' ? 'Check In' : 'Check Out'}</p>
             </div>
             <div className="p-8 grid gap-4">
               <button
@@ -321,8 +321,8 @@ function DashboardHome() {
                   <Icon name="Fingerprint" size={32} />
                 </div>
                 <div className="text-left">
-                  <div className="text-[14px] font-black text-slate-800 uppercase tracking-tight">By Biometric</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Touch ID / Face ID</div>
+                  <div className="text-[14px] font-black text-slate-800 uppercase tracking-tight">Verify & Punch</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Touch ID / Face ID Required</div>
                 </div>
               </button>
             </div>
