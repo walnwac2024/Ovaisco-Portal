@@ -9,6 +9,7 @@ import ProtectedRoute from "./components/pages/ProtectedRoute/ProtectedRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { initCsrf } from "./utils/api";
+import MainLoader from "./components/common/MainLoader";
 
 // Lazy load all route components for code splitting
 const Login = lazy(() => import("./userdetails/Login"));
@@ -56,7 +57,7 @@ const LoadingFallback = () => (
  */
 function PublicOnly({ children }) {
   const { loading, isAuthenticated } = useAuth();
-  if (loading) return null; // wait for /me
+  if (loading) return <MainLoader />; // wait for /me
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return children;
 }

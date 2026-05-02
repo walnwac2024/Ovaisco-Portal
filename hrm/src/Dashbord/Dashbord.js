@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
 import TimeSyncModal from "../components/common/TimeSyncModal";
 import FaceRecognitionModal from "../features/attendance/components/FaceRecognitionModal";
+import MainLoader from "../components/common/MainLoader";
 
 const BACKEND_URL = BASE_URL;
 
@@ -278,12 +279,7 @@ function DashboardHome() {
   };
 
   if (loadingAttendance) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh]">
-        <div className="w-10 h-10 border-4 border-slate-100 border-t-customRed rounded-full animate-spin mb-4" />
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Loading Dashboard...</p>
-      </div>
-    );
+    return <MainLoader message="Syncing Dashboard..." />;
   }
 
   return (
