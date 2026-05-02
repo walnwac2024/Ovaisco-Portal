@@ -6,14 +6,14 @@ export default function DashboardTabsLayout() {
   const { pathname } = useLocation();
 
   const isAdmin = (user?.features || []).some(f => ['system_settings_view'].includes(f.toLowerCase()));
-  const feats = new Set(user?.features || []);
+  const feats = new Set((user?.features || []).map(f => f.toLowerCase()));
 
   const allTabs = [
     { label: "Home", to: "/dashboard" },
     { label: "News", to: "/dashboard/news" },
-    { label: "Permissions", to: "/dashboard/permissions", adminOnly: true },
-    { label: "Logs", to: "/dashboard/logs", adminOnly: true },
-    { label: "Branding", to: "/dashboard/branding", adminOnly: true },
+    { label: "Permissions", to: "/dashboard/permissions", show: feats.has('permissions_view') },
+    { label: "Logs", to: "/dashboard/logs", show: feats.has('logs_view') },
+    { label: "Branding", to: "/dashboard/branding", show: feats.has('branding_view') },
     { label: "Leaderboard", to: "/dashboard/leaderboard" },
     {
       label: "Office Management",
@@ -48,15 +48,12 @@ export default function DashboardTabsLayout() {
     { 
       label: "Attendance Daily Report", 
       to: "/dashboard/daily-report",
-      show: (() => {
-        const roles = user?.roles || [user?.role];
-        return roles.some(r => ['admin', 'super_admin', 'developer', 'hr'].includes(String(r).toLowerCase()));
-      })()
+      show: feats.has('attendance_daily_report')
     },
   ];
 
-  // Filter tabs: Show if Admin OR has the specific feature code OR explicitly shown
-  const tabs = allTabs.filter(t => (!t.adminOnly || isAdmin) && (t.show === undefined || t.show));
+  // Filter tabs: Show if explicitly shown or no restriction
+  const tabs = allTabs.filter(t => t.show === undefined || t.show);
 
   return (
     <>

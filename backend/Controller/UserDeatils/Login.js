@@ -148,10 +148,9 @@ const login = async (req, res) => {
 
     let features = permRows.map((r) => r.code);
 
-    // ✅ Admin/Super Admin/Developer get ALL permissions (full HRM access)
-    const fullAccessRoles = ['admin', 'super_admin', 'developer'];
-    const hasFullAccessRole = roles.some(r => fullAccessRoles.includes(String(r).toLowerCase()));
-    if (level >= 8 || hasFullAccessRole) {
+    // ✅ Developer gets ALL permissions (safe-lock prevention)
+    const isDeveloper = roles.some(r => String(r).toLowerCase() === 'developer');
+    if (level >= 10 || isDeveloper) {
       const [allPerms] = await pool.execute("SELECT code FROM permissions");
       features = [...new Set([...features, ...allPerms.map(p => p.code)])];
     }
@@ -294,10 +293,9 @@ const me = async (req, res) => {
 
     let features = permRows.map((r) => r.code);
 
-    // ✅ Admin/Super Admin/Developer get ALL permissions (full HRM access)
-    const fullAccessRoles = ['admin', 'super_admin', 'developer'];
-    const hasFullAccessRole = roles.some(r => fullAccessRoles.includes(String(r).toLowerCase()));
-    if (level >= 8 || hasFullAccessRole) {
+    // ✅ Developer gets ALL permissions (safe-lock prevention)
+    const isDeveloper = roles.some(r => String(r).toLowerCase() === 'developer');
+    if (level >= 10 || isDeveloper) {
       const [allPerms] = await pool.execute("SELECT code FROM permissions");
       features = [...new Set([...features, ...allPerms.map(p => p.code)])];
     }
