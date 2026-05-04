@@ -414,6 +414,11 @@ function DashboardHome() {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-[10px] text-customRed font-black rounded-full uppercase tracking-wider border border-red-100/50">
                   <Icon name="Briefcase" size={10} /> {dashboardData?.profile?.Department || user?.Department || "DEPT"}
                 </div>
+                {dashboardData?.profile?.biometric_id && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-[10px] text-indigo-600 font-black rounded-full uppercase tracking-wider border border-indigo-100/50 mt-1">
+                    <Lucide.Fingerprint size={10} /> AMT ID: {dashboardData?.profile?.biometric_id}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -436,7 +441,7 @@ function DashboardHome() {
             <div className="flex items-center gap-2">
               {(attendance?.source_in === 'BIOMETRIC' || attendance?.source_out === 'BIOMETRIC') && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[8px] font-black uppercase tracking-tighter border border-indigo-100 shadow-sm animate-pulse">
-                  <Lucide.Fingerprint size={10} /> Biometric
+                  <Lucide.Fingerprint size={10} /> Biometric {dashboardData?.profile?.biometric_id && `(${dashboardData?.profile?.biometric_id})`}
                 </span>
               )}
               {badge(attendance?.status || "NOT_MARKED")}

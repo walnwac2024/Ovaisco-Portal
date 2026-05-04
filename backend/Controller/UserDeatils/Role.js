@@ -11,7 +11,8 @@ const BASE_EMP_FIELDS = `
   e.Designations     AS designation,
   e.profile_img,
   e.last_login_at,
-  e.Date_of_Birth
+  e.Date_of_Birth,
+  e.biometric_id
 `;
 
 // Utility: build tabs from features (super_admin, admin, and hr see all)

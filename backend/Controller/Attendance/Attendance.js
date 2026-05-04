@@ -1487,7 +1487,7 @@ const getDailyAdminSummary = async (req, res) => {
     }
 
     // Get employees: If admin, get all. If not, only get self.
-    let empQuery = "SELECT id, Employee_Name as name, Employee_ID as empCode, Department as department, Designations as designation, profile_img as avatar, Office_Location as station FROM employee_records WHERE is_active = 1 AND company_id = ?";
+    let empQuery = "SELECT id, Employee_Name as name, Employee_ID as empCode, Department as department, Designations as designation, profile_img as avatar, Office_Location as station, biometric_id FROM employee_records WHERE is_active = 1 AND company_id = ?";
     let empParams = [companyId];
 
     if (!isAdmin) {

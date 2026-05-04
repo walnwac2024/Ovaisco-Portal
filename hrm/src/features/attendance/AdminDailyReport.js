@@ -411,7 +411,14 @@ export default function AdminDailyReport() {
                           </div>
                           <div>
                             <div className="font-black text-slate-800 tracking-tight leading-none group-hover:text-customRed transition-colors">{emp.name}</div>
-                            <div className="text-[10px] text-slate-400 font-black mt-1.5 uppercase tracking-widest">#{emp.empCode || emp.id}</div>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">#{emp.empCode || emp.id}</div>
+                              {emp.biometric_id && (
+                                <div className="text-[9px] bg-slate-50 text-slate-500 font-bold px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                                  <FaFingerprint size={8} /> {emp.biometric_id}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -439,7 +446,7 @@ export default function AdminDailyReport() {
                                 <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_in_time || att.first_in || '--:--'}</div>
                                 {att.source_in === 'BIOMETRIC' && (
                                   <span className="flex items-center gap-0.5 mt-1 text-[8px] font-black text-indigo-500 uppercase tracking-tighter">
-                                    <FaFingerprint size={8} /> Biometric
+                                    <FaFingerprint size={8} /> Biometric {emp.biometric_id && `(${emp.biometric_id})`}
                                   </span>
                                 )}
                               </div>
@@ -451,7 +458,7 @@ export default function AdminDailyReport() {
                                 <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_out_time || att.last_out || '--:--'}</div>
                                 {att.source_out === 'BIOMETRIC' && (
                                   <span className="flex items-center gap-0.5 mt-1 text-[8px] font-black text-indigo-500 uppercase tracking-tighter">
-                                    <FaFingerprint size={8} /> Biometric
+                                    <FaFingerprint size={8} /> Biometric {emp.biometric_id && `(${emp.biometric_id})`}
                                   </span>
                                 )}
                               </div>
