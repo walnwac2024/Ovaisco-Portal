@@ -222,7 +222,7 @@ async function getDashboard(req, res) {
       let teamParams = [userId, company_id];
 
       const [team] = await pool.query(
-        `SELECT ${BASE_EMP_FIELDS}, ad.status AS attendance_status, e.Date_of_Birth
+        `SELECT ${BASE_EMP_FIELDS}, ad.status AS attendance_status
          FROM employee_records e
          LEFT JOIN attendance_daily ad ON ad.employee_id = e.id AND ad.attendance_date = CURDATE()
          WHERE e.is_active = 1 AND e.id != ? AND e.company_id = ? ${myDept ? 'AND e.Department = ?' : ''}
