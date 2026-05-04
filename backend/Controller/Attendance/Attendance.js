@@ -245,7 +245,11 @@ const getToday = async (req, res) => {
         ? { id: shift.id, name: shift.name, start_time: shift.start_time, end_time: shift.end_time }
         : null,
       grace_minutes: Number(rule.grace_minutes || 0),
-      attendance: dailyRows[0] || null,
+      attendance: dailyRows[0] ? {
+        ...dailyRows[0],
+        check_in: dailyRows[0].first_in,
+        check_out: dailyRows[0].last_out
+      } : null,
     });
   } catch (e) {
     console.error("getToday error:", e);
@@ -528,7 +532,7 @@ const punch = async (req, res) => {
         Number(office_id),
         punch_type,
         now,
-        isAdmin ? "ADMIN" : "WEB",
+        "WEB",
         isAdmin ? sessionUser.id : null,
         note ? String(note).slice(0, 255) : null,
         latitude || null,
@@ -600,7 +604,7 @@ const punch = async (req, res) => {
             source_in = ?
         WHERE id = ? AND company_id = ?
         `,
-        [now, Number(office_id), photoPath, lateMinutes, status, isAdmin ? "ADMIN" : "WEB", daily.id, req.company_id || 1]
+        [now, Number(office_id), photoPath, lateMinutes, status, "WEB", daily.id, req.company_id || 1]
       );
     } else {
       if (!daily.first_in) {
@@ -628,7 +632,7 @@ const punch = async (req, res) => {
             source_out = ?
         WHERE id = ? AND company_id = ?
         `,
-        [now, Number(office_id), photoPath, workedMinutes, finalStatus, isAdmin ? "ADMIN" : "WEB", daily.id, req.company_id || 1]
+        [now, Number(office_id), photoPath, workedMinutes, finalStatus, "WEB", daily.id, req.company_id || 1]
       );
     }
 

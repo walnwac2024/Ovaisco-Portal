@@ -450,6 +450,11 @@ function DashboardHome() {
                   <Lucide.Fingerprint size={10} /> Biometric {dashboardData?.profile?.biometric_id && `(${dashboardData?.profile?.biometric_id})`}
                 </span>
               )}
+              {(attendance?.source_in === 'WEB' || attendance?.source_out === 'WEB') && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 text-[8px] font-black uppercase tracking-tighter border border-slate-200 shadow-sm">
+                  <Icon name="Globe" size={10} /> Web
+                </span>
+              )}
               {badge(attendance?.status || "NOT_MARKED")}
             </div>
           </div>
