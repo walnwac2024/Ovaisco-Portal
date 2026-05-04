@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { FaUsers, FaUserCheck, FaUserTimes, FaClock, FaFileExcel, FaSync, FaMapMarkerAlt, FaSearch, FaFilter, FaCircle } from "react-icons/fa";
+import { FaUsers, FaUserCheck, FaUserTimes, FaClock, FaFileExcel, FaSync, FaMapMarkerAlt, FaSearch, FaFilter, FaCircle, FaFingerprint } from "react-icons/fa";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
@@ -431,15 +431,31 @@ export default function AdminDailyReport() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="text-center">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In</div>
-                            <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_in_time || att.first_in || '--:--'}</div>
-                          </div>
-                          <div className="w-4 h-px bg-slate-200 mt-4"></div>
-                          <div className="text-center">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Out</div>
-                            <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_out_time || att.last_out || '--:--'}</div>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="text-center">
+                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In</div>
+                              <div className="flex flex-col items-center">
+                                <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_in_time || att.first_in || '--:--'}</div>
+                                {att.source_in === 'BIOMETRIC' && (
+                                  <span className="flex items-center gap-0.5 mt-1 text-[8px] font-black text-indigo-500 uppercase tracking-tighter">
+                                    <FaFingerprint size={8} /> Biometric
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="w-4 h-px bg-slate-200 mt-2"></div>
+                            <div className="text-center">
+                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Out</div>
+                              <div className="flex flex-col items-center">
+                                <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_out_time || att.last_out || '--:--'}</div>
+                                {att.source_out === 'BIOMETRIC' && (
+                                  <span className="flex items-center gap-0.5 mt-1 text-[8px] font-black text-indigo-500 uppercase tracking-tighter">
+                                    <FaFingerprint size={8} /> Biometric
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </td>

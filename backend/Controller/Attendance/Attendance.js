@@ -1498,7 +1498,7 @@ const getDailyAdminSummary = async (req, res) => {
     const [empRows] = await pool.execute(empQuery, empParams);
 
     // Get attendance for the date
-    let attQuery = "SELECT employee_id, first_in, last_out, late_minutes, status, source_in FROM attendance_daily WHERE attendance_date = ? AND company_id = ?";
+    let attQuery = "SELECT employee_id, first_in, last_out, late_minutes, status, source_in, source_out FROM attendance_daily WHERE attendance_date = ? AND company_id = ?";
     let attParams = [dateStr, companyId];
 
     if (!isAdmin) {

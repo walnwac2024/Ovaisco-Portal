@@ -120,10 +120,12 @@ function DashboardHome() {
 
   const statusText = useMemo(() => {
     if (!attendance) return "You have not marked your attendance today.";
+    
+    const source = attendance.source_in === 'BIOMETRIC' ? ' via Biometric' : '';
     if (attendance.status === "LATE") {
-      return `Late by ${formatLateMinutes(attendance.late_minutes)}.`;
+      return `Late by ${formatLateMinutes(attendance.late_minutes)}${source}.`;
     }
-    return attendance.status === "PRESENT" ? "You are marked Present." : `Status: ${attendance.status}`;
+    return attendance.status === "PRESENT" ? `You are marked Present${source}.` : `Status: ${attendance.status}${source}`;
   }, [attendance]);
 
   const loadAttendance = async (silent = false) => {
@@ -431,7 +433,14 @@ function DashboardHome() {
           
           <div className="flex items-center justify-between mb-8 relative z-10">
             <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-[0.15em]">Today's Shift</h3>
-            {badge(attendance?.status || "NOT_MARKED")}
+            <div className="flex items-center gap-2">
+              {(attendance?.source_in === 'BIOMETRIC' || attendance?.source_out === 'BIOMETRIC') && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[8px] font-black uppercase tracking-tighter border border-indigo-100 shadow-sm animate-pulse">
+                  <Lucide.Fingerprint size={10} /> Biometric
+                </span>
+              )}
+              {badge(attendance?.status || "NOT_MARKED")}
+            </div>
           </div>
 
           <div className="space-y-6 relative z-10">
@@ -495,14 +504,28 @@ function DashboardHome() {
                   disabled={!canCheckIn || punching}
                   className={`btn-primary h-12 md:h-14 rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${!canCheckIn || punching ? "opacity-50 grayscale" : ""}`}
                 >
-                  {punching && pendingPunchType === 'IN' ? <Icon name="Loader2" className="animate-spin" size={18} /> : 'In'}
+                  {punching && pendingPunchType === 'IN' ? (
+                    <Icon name="Loader2" className="animate-spin" size={18} />
+                  ) : !canCheckIn && attendance?.source_in === 'BIOMETRIC' ? (
+                    <div className="flex flex-col items-center leading-none">
+                      <span>Punched</span>
+                      <span className="text-[8px] opacity-60">Biometric</span>
+                    </div>
+                  ) : 'In'}
                 </button>
                 <button
                   onClick={() => handlePunch("OUT")}
                   disabled={!canCheckOut || punching}
                   className={`btn-outline h-12 md:h-14 rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${!canCheckOut || punching ? "opacity-50" : "hover:border-slate-300"}`}
                 >
-                  {punching && pendingPunchType === 'OUT' ? <Icon name="Loader2" className="animate-spin" size={18} /> : 'Out'}
+                  {punching && pendingPunchType === 'OUT' ? (
+                    <Icon name="Loader2" className="animate-spin" size={18} />
+                  ) : !canCheckOut && attendance?.source_out === 'BIOMETRIC' ? (
+                    <div className="flex flex-col items-center leading-none">
+                      <span>Punched</span>
+                      <span className="text-[8px] opacity-60">Biometric</span>
+                    </div>
+                  ) : 'Out'}
                 </button>
               </div>
             </div>
