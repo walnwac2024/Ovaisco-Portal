@@ -226,7 +226,10 @@ function DashboardHome() {
     });
     setTodayData(prev => ({ ...prev, attendance: res.attendance }));
     loadAttendance(true);
-    setNotifyModal({ show: true, type: "success", message: "Attendance marked successfully via Biometrics!" });
+    const msg = pendingPunchType === 'OUT' 
+      ? "Check-out successful! Your attendance for today is complete. Have a great evening!"
+      : "Attendance marked successfully via Biometrics!";
+    setNotifyModal({ show: true, type: "success", message: msg });
   };
 
   const handleRegisterBiometricInternal = async () => {
@@ -265,7 +268,10 @@ function DashboardHome() {
       });
       setTodayData(prev => ({ ...prev, attendance: res.attendance }));
       loadAttendance(true);
-      setNotifyModal({ show: true, type: "success", message: "Attendance marked successfully via Face Recognition!" });
+      const msg = pendingPunchType === 'OUT' 
+        ? "Check-out successful! Your attendance for today is complete. Have a great evening!"
+        : "Attendance marked successfully via Face Recognition!";
+      setNotifyModal({ show: true, type: "success", message: msg });
     } catch (err) {
       setNotifyModal({ show: true, type: "error", message: err?.response?.data?.message || "Face recognition failed. Please try again." });
     } finally {
