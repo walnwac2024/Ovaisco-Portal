@@ -1474,7 +1474,11 @@ const syncAmtAttendance = async (req, res) => {
  */
 const getDailyAdminSummary = async (req, res) => {
   try {
+    const sessionUser = req.session?.user;
+    if (!sessionUser?.id) return res.status(401).json({ message: "Unauthenticated" });
+
     const companyId = req.company_id || 1;
+    const isAdmin = isAdminLike(sessionUser);
     
     // Get date parameter (default to today)
     let dateStr = req.query.date;
@@ -1482,17 +1486,27 @@ const getDailyAdminSummary = async (req, res) => {
       dateStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
     }
 
-    // Get active employees
-    const [empRows] = await pool.execute(
-      "SELECT id, Employee_Name as name, Employee_ID as empCode, Department as department, Designations as designation, profile_img as avatar, Office_Location as station FROM employee_records WHERE is_active = 1 AND company_id = ?",
-      [companyId]
-    );
+    // Get employees: If admin, get all. If not, only get self.
+    let empQuery = "SELECT id, Employee_Name as name, Employee_ID as empCode, Department as department, Designations as designation, profile_img as avatar, Office_Location as station FROM employee_records WHERE is_active = 1 AND company_id = ?";
+    let empParams = [companyId];
+
+    if (!isAdmin) {
+      empQuery += " AND id = ?";
+      empParams.push(sessionUser.id);
+    }
+
+    const [empRows] = await pool.execute(empQuery, empParams);
 
     // Get attendance for the date
-    const [attRows] = await pool.execute(
-      "SELECT employee_id, first_in, last_out, late_minutes, status, source_in FROM attendance_daily WHERE attendance_date = ? AND company_id = ?",
-      [dateStr, companyId]
-    );
+    let attQuery = "SELECT employee_id, first_in, last_out, late_minutes, status, source_in FROM attendance_daily WHERE attendance_date = ? AND company_id = ?";
+    let attParams = [dateStr, companyId];
+
+    if (!isAdmin) {
+      attQuery += " AND employee_id = ?";
+      attParams.push(sessionUser.id);
+    }
+
+    const [attRows] = await pool.execute(attQuery, attParams);
 
     const attendanceMap = new Map();
     attRows.forEach(a => attendanceMap.set(a.employee_id, a));

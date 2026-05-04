@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FaUsers, FaUserCheck, FaUserTimes, FaClock, FaFileExcel, FaSync, FaMapMarkerAlt, FaSearch, FaFilter, FaCircle } from "react-icons/fa";
 import api from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
+
 
 export default function AdminDailyReport() {
   const [loading, setLoading] = useState(true);
@@ -10,7 +12,14 @@ export default function AdminDailyReport() {
   });
   const [activeTab, setActiveTab] = useState("present");
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
-  const [autoRefresh, setAutoRefresh] = useState(true);
+   const [autoRefresh, setAutoRefresh] = useState(true);
+  const { user } = useAuth();
+
+  const isAdmin = useMemo(() => {
+    const roles = (Array.isArray(user?.roles) ? user.roles : []).map(r => String(r).toLowerCase());
+    return (user?.flags?.level >= 6) || roles.includes("admin") || roles.includes("super_admin") || roles.includes("hr");
+  }, [user]);
+
 
   // Search and Filter States
   const [search, setSearch] = useState("");
@@ -85,9 +94,9 @@ export default function AdminDailyReport() {
 
   // Filtered List Logic
   const filteredList = useMemo(() => {
-    let list = data.lists[activeTab] || [];
+    let list = isAdmin ? (data.lists[activeTab] || []) : (data.lists.all || []);
     
-    if (search) {
+    if (search && isAdmin) { // Only search if admin (since non-admin only has 1 record)
       const s = search.toLowerCase();
       list = list.filter(emp => 
         emp.name?.toLowerCase().includes(s) || 
@@ -95,16 +104,16 @@ export default function AdminDailyReport() {
       );
     }
 
-    if (deptFilter !== "All") {
+    if (deptFilter !== "All" && isAdmin) {
       list = list.filter(emp => emp.department === deptFilter);
     }
 
-    if (stationFilter !== "All") {
+    if (stationFilter !== "All" && isAdmin) {
       list = list.filter(emp => emp.station === stationFilter);
     }
 
     return list;
-  }, [data.lists, activeTab, search, deptFilter, stationFilter]);
+  }, [data.lists, activeTab, search, deptFilter, stationFilter, isAdmin]);
 
   const handleExport = () => {
     if (filteredList.length === 0) return alert("No data to export.");
@@ -159,7 +168,7 @@ export default function AdminDailyReport() {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-800 flex items-center gap-3">
                 <span className="w-1.5 h-8 bg-customRed rounded-full block"></span>
-                Attendance Daily Report
+                {isAdmin ? "Attendance Daily Report" : "My Daily Attendance"}
               </h1>
               {isSunday ? (
                 <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
@@ -174,7 +183,9 @@ export default function AdminDailyReport() {
               )}
             </div>
             <p className="text-sm font-medium text-slate-500 max-w-lg pl-4">
-              Real-time visualization of presence, punctuality, and performance metrics.
+              {isAdmin 
+                ? "Real-time visualization of presence, punctuality, and performance metrics for all employees."
+                : "View your daily attendance status, check-in/out times, and punctuality logs."}
             </p>
           </div>
 
@@ -217,47 +228,50 @@ export default function AdminDailyReport() {
       </div>
 
       {/* Analytics Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {cards.map((card) => (
-          <div 
-            key={card.id}
-            onClick={() => setActiveTab(card.id)}
-            className={`group relative overflow-hidden cursor-pointer p-6 rounded-[2rem] border transition-all duration-500 ${
-              activeTab === card.id 
-                ? 'bg-white ring-4 ring-slate-100/50 shadow-2xl shadow-slate-200 ' + card.border 
-                : 'bg-white/40 border-slate-100/80 hover:bg-white hover:shadow-xl hover:-translate-y-1'
-            }`}
-          >
-            {/* Background Accent */}
-            <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-10 transition-transform group-hover:scale-150 duration-700 ${card.bg}`}></div>
-            
-            <div className="flex items-center justify-between mb-6 relative z-10">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner ${card.bg} ${card.color}`}>
-                {card.icon}
+      {/* Analytics Cards Grid - Only show if Admin or if viewing self */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {cards.map((card) => (
+            <div 
+              key={card.id}
+              onClick={() => setActiveTab(card.id)}
+              className={`group relative overflow-hidden cursor-pointer p-6 rounded-[2rem] border transition-all duration-500 ${
+                activeTab === card.id 
+                  ? 'bg-white ring-4 ring-slate-100/50 shadow-2xl shadow-slate-200 ' + card.border 
+                  : 'bg-white/40 border-slate-100/80 hover:bg-white hover:shadow-xl hover:-translate-y-1'
+              }`}
+            >
+              {/* Background Accent */}
+              <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-10 transition-transform group-hover:scale-150 duration-700 ${card.bg}`}></div>
+              
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner ${card.bg} ${card.color}`}>
+                  {card.icon}
+                </div>
+                <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${activeTab === card.id ? 'bg-slate-50' : 'bg-white/50 opacity-0 group-hover:opacity-100'}`}>
+                  {activeTab === card.id ? 'Viewing' : 'View List'}
+                </div>
               </div>
-              <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${activeTab === card.id ? 'bg-slate-50' : 'bg-white/50 opacity-0 group-hover:opacity-100'}`}>
-                {activeTab === card.id ? 'Viewing' : 'View List'}
-              </div>
-            </div>
-            
-            <div className="relative z-10">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-tight">{card.label}</h3>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-4xl font-black text-slate-800 tracking-tighter">
-                  {loading ? (
-                    <div className="h-8 w-12 bg-slate-100 animate-pulse rounded-lg"></div>
-                  ) : card.value}
-                </span>
-                {!loading && card.id !== 'all' && (
-                  <span className="text-xs font-bold text-slate-300">
-                    of {summary.totalEmployees}
+              
+              <div className="relative z-10">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-tight">{card.label}</h3>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-4xl font-black text-slate-800 tracking-tighter">
+                    {loading ? (
+                      <div className="h-8 w-12 bg-slate-100 animate-pulse rounded-lg"></div>
+                    ) : card.value}
                   </span>
-                )}
+                  {!loading && card.id !== 'all' && (
+                    <span className="text-xs font-bold text-slate-300">
+                      of {summary.totalEmployees}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Detailed Data Section */}
       <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/40 border border-slate-100/80 overflow-hidden mt-8 transition-all">
@@ -268,7 +282,9 @@ export default function AdminDailyReport() {
               <div className="w-1.5 h-6 bg-slate-800 rounded-full hidden sm:block"></div>
               <div>
                 <h2 className="text-xl font-black text-slate-800 capitalize tracking-tight">
-                  {isSunday && activeTab === 'absent' ? 'Full Weekly Off List' : `${activeTab} Summary View`}
+                  {isAdmin 
+                    ? (isSunday && activeTab === 'absent' ? 'Full Weekly Off List' : `${activeTab} Summary View`)
+                    : "Attendance Log Entry"}
                 </h2>
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
                   <FaClock className="text-rose-400" />
@@ -299,46 +315,48 @@ export default function AdminDailyReport() {
             </div>
           </div>
 
-          {/* Refined Filters Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
-            {/* Search Input */}
-            <div className="relative md:col-span-2">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-              <input 
-                type="text"
-                placeholder="Search by Employee Name or ID..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-300 transition-all placeholder:text-slate-300"
-              />
-            </div>
+          {/* Refined Filters Bar - Hide for non-admins */}
+          {isAdmin && (
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
+              {/* Search Input */}
+              <div className="relative md:col-span-2">
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                <input 
+                  type="text"
+                  placeholder="Search by Employee Name or ID..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-300 transition-all placeholder:text-slate-300"
+                />
+              </div>
 
-            {/* Department Filter */}
-            <div className="relative group">
-              <FaFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-rose-400 transition-colors" />
-              <select 
-                value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
-                className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-600 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
-              >
-                <option value="All">All Departments</option>
-                {departments.filter(d => d !== "All").map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
+              {/* Department Filter */}
+              <div className="relative group">
+                <FaFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-rose-400 transition-colors" />
+                <select 
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-600 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                >
+                  <option value="All">All Departments</option>
+                  {departments.filter(d => d !== "All").map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
 
-            {/* Station Filter */}
-            <div className="relative group">
-              <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-rose-400 transition-colors" />
-              <select 
-                value={stationFilter}
-                onChange={(e) => setStationFilter(e.target.value)}
-                className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-600 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
-              >
-                <option value="All">All Stations</option>
-                {stations.filter(s => s !== "All").map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              {/* Station Filter */}
+              <div className="relative group">
+                <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-rose-400 transition-colors" />
+                <select 
+                  value={stationFilter}
+                  onChange={(e) => setStationFilter(e.target.value)}
+                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-600 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                >
+                  <option value="All">All Stations</option>
+                  {stations.filter(s => s !== "All").map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         
         {/* Premium Table Layout */}
