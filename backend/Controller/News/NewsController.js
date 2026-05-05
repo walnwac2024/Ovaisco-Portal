@@ -96,13 +96,15 @@ async function createNews(req, res) {
 
         console.log("Publishing news...");
 
-        // ✅ Real-time Push Notification to all staff
-        const { sendNotificationToAll } = require("../UserDeatils/PushController");
-        sendNotificationToAll({
-            title: `📢 ${title}`,
-            body: content ? content.substring(0, 100) + '...' : 'Click to see details',
-            data: { url: '/news' }
-        });
+        // ✅ Real-time Push Notification to all staff - only if published
+        if (shouldPublish) {
+            const { sendNotificationToAll } = require("../UserDeatils/PushController");
+            sendNotificationToAll({
+                title: `📢 ${title}`,
+                body: content ? content.substring(0, 100) + '...' : 'Click to see details',
+                data: { url: '/news' }
+            });
+        }
 
         return res.status(201).json({ message: "News created", id: newsId });
     } catch (err) {
@@ -164,13 +166,15 @@ async function updateNews(req, res) {
 
         console.log("Publishing news update...");
 
-        // ✅ Real-time Push Notification to all staff
-        const { sendNotificationToAll } = require("../UserDeatils/PushController");
-        sendNotificationToAll({
-            title: `📢 ${title}`,
-            body: content ? content.substring(0, 100) + '...' : 'Click to see details',
-            data: { url: '/news' }
-        });
+        // ✅ Real-time Push Notification to all staff - only if published
+        if (isPublishedVal) {
+            const { sendNotificationToAll } = require("../UserDeatils/PushController");
+            sendNotificationToAll({
+                title: `📢 ${title}`,
+                body: content ? content.substring(0, 100) + '...' : 'Click to see details',
+                data: { url: '/news' }
+            });
+        }
 
         return res.json({ message: "News updated" });
     } catch (err) {
