@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -5,15 +6,29 @@ export default function DashboardTabsLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();
 
-  const isAdmin = (user?.features || []).some(f => ['system_settings_view'].includes(f.toLowerCase()));
+  const { isSuperUser, isHR, isManager, isAdminLike } = useMemo(() => {
+    const roles = (Array.isArray(user?.roles) ? user.roles : []).map(r => String(r).toLowerCase());
+    const superRoles = ['admin', 'super_admin', 'developer'];
+    const hrRole = roles.includes('hr');
+    const isSuper = roles.some(r => superRoles.includes(r));
+    const isMan = (user?.flags?.level >= 6);
+    
+    return {
+      isSuperUser: isSuper,
+      isHR: hrRole,
+      isManager: isMan,
+      isAdminLike: isSuper || hrRole || isMan
+    };
+  }, [user]);
+
   const feats = new Set((user?.features || []).map(f => f.toLowerCase()));
 
   const allTabs = [
     { label: "Home", to: "/dashboard" },
     { label: "News", to: "/dashboard/news" },
-    { label: "Permissions", to: "/dashboard/permissions", show: feats.has('permissions_view') },
-    { label: "Logs", to: "/dashboard/logs", show: feats.has('logs_view') },
-    { label: "Branding", to: "/dashboard/branding", show: feats.has('branding_view') },
+    { label: "Permissions", to: "/dashboard/permissions", show: isSuperUser || feats.has('permissions_view') },
+    { label: "Logs", to: "/dashboard/logs", show: isSuperUser || feats.has('logs_view') },
+    { label: "Branding", to: "/dashboard/branding", show: isSuperUser || feats.has('branding_view') },
     { label: "Leaderboard", to: "/dashboard/leaderboard" },
     {
       label: "Office Management",
@@ -46,9 +61,9 @@ export default function DashboardTabsLayout() {
       })()
     },
     { 
-      label: "Attendance Daily Report", 
+      label: isAdminLike ? "Attendance Daily Report" : "My Daily Attendance", 
       to: "/dashboard/daily-report",
-      show: feats.has('attendance_daily_report')
+      show: true
     },
   ];
 

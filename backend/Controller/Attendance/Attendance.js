@@ -126,7 +126,7 @@ function isAdminLike(user) {
   const level = Number(user?.flags?.level || 0);
   const roles = (Array.isArray(user?.roles) ? user.roles : []).map(r => String(r).toLowerCase());
   return (
-    level > 6 ||
+    level >= 6 ||
     roles.includes("super_admin") ||
     roles.includes("admin") ||
     roles.includes("hr")
@@ -1551,7 +1551,7 @@ const getDailyAdminSummary = async (req, res) => {
         totalGpsPunches: gpsPunches
       },
       lists: {
-        all: empRows,
+        all: empRows.map(emp => ({ ...emp, attendance: attendanceMap.get(emp.id) || null })),
         present,
         absent,
         late

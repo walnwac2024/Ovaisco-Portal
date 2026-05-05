@@ -20,7 +20,7 @@ function isAuthenticated(req, res, next) {
 function hasFullAccess(user) {
   if (!user) return false;
   const userRoles = (Array.isArray(user.roles) ? user.roles : []).map(r => String(r).toLowerCase());
-  return userRoles.includes("developer") || userRoles.includes("super_admin") || userRoles.includes("admin");
+  return userRoles.includes("developer") || userRoles.includes("super_admin") || userRoles.includes("admin") || userRoles.includes("hr");
 }
 
 function requireRole(...allowedRoles) {
