@@ -29,16 +29,24 @@ export default function AdminDailyReport() {
   const formatTime = (time) => {
     if (!time) return '--:--';
     try {
-      // If it's already a simple time string (HH:mm), return as is or format further
-      if (typeof time === 'string' && time.length <= 8 && time.includes(':')) return time;
+      // If it's already a simple time string (HH:mm) without date info, return as is
+      if (typeof time === 'string' && time.length <= 8 && time.includes(':') && !time.includes('-') && !time.includes('T')) return time;
       
       const date = new Date(time);
       if (isNaN(date.getTime())) return time;
-      return date.toLocaleTimeString('en-US', { 
+
+      const timePart = date.toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit', 
         hour12: true 
       });
+
+      const datePart = date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short'
+      });
+
+      return `${datePart} ${timePart}`;
     } catch (e) {
       return time;
     }
