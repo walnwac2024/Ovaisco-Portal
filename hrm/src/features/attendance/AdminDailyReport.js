@@ -26,6 +26,25 @@ export default function AdminDailyReport() {
   const [deptFilter, setDeptFilter] = useState("All");
   const [stationFilter, setStationFilter] = useState("All");
 
+  const formatTime = (time) => {
+    if (!time) return '--:--';
+    try {
+      // If it's already a simple time string (HH:mm), return as is or format further
+      if (typeof time === 'string' && time.length <= 8 && time.includes(':')) return time;
+      
+      const date = new Date(time);
+      if (isNaN(date.getTime())) return time;
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+    } catch (e) {
+      return time;
+    }
+  };
+
+
   // Generate week days based on selectedDate
   const getWeekDays = useCallback((refDate) => {
     const now = new Date(refDate);
@@ -443,7 +462,7 @@ export default function AdminDailyReport() {
                             <div className="text-center">
                               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In</div>
                               <div className="flex flex-col items-center">
-                                <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_in_time || att.first_in || '--:--'}</div>
+                                <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{formatTime(att.check_in_time || att.first_in)}</div>
                                 {att.source_in === 'BIOMETRIC' && (
                                   <span className="flex items-center gap-0.5 mt-1 text-[8px] font-black text-indigo-500 uppercase tracking-tighter">
                                     <FaFingerprint size={8} /> Biometric {emp.biometric_id && `(${emp.biometric_id})`}
@@ -455,7 +474,7 @@ export default function AdminDailyReport() {
                             <div className="text-center">
                               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Out</div>
                               <div className="flex flex-col items-center">
-                                <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{att.check_out_time || att.last_out || '--:--'}</div>
+                                <div className="font-mono text-xs font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{formatTime(att.check_out_time || att.last_out)}</div>
                                 {att.source_out === 'BIOMETRIC' && (
                                   <span className="flex items-center gap-0.5 mt-1 text-[8px] font-black text-indigo-500 uppercase tracking-tighter">
                                     <FaFingerprint size={8} /> Biometric {emp.biometric_id && `(${emp.biometric_id})`}
