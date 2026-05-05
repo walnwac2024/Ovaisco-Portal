@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FaUsers, FaUserCheck, FaUserTimes, FaClock, FaFileExcel, FaSync, FaMapMarkerAlt, FaSearch, FaFilter, FaCircle, FaFingerprint } from "react-icons/fa";
-import api from "../../utils/api";
+import api, { BASE_URL } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
 
@@ -420,7 +420,7 @@ export default function AdminDailyReport() {
                         <div className="flex items-center gap-4">
                           <div className="relative flex-shrink-0">
                             {emp.avatar ? (
-                              <img src={emp.avatar} alt={emp.name} className="w-11 h-11 rounded-2xl object-cover shadow-sm ring-2 ring-white" />
+                              <img src={emp.avatar.startsWith('http') ? emp.avatar : `${BASE_URL}${emp.avatar.startsWith('/') ? '' : '/'}${emp.avatar}`} alt={emp.name} className="w-11 h-11 rounded-2xl object-cover shadow-sm ring-2 ring-white" />
                             ) : (
                               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs font-black text-slate-500 shadow-sm ring-2 ring-white">
                                 {emp.name?.charAt(0)}

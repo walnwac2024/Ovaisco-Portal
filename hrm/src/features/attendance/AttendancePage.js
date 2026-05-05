@@ -18,6 +18,8 @@ import AddShiftModal from './components/AddShiftModal';
 // NEW: approval UI (import concrete files, not from an index)
 import ApprovalFilters from './components/ApprovalFilters';
 import AttendanceApprovalTable from './components/AttendanceApprovalTable';
+
+import AdminDailyReport from './AdminDailyReport';
 import ApprovalViewModal from './components/ApprovalViewModal';
 import LocationAuditTable from './components/LocationAuditTable';
 import AttendanceLogsTable from './components/AttendanceLogsTable';
@@ -174,6 +176,7 @@ export default function AttendancePage() {
     const features = user?.features || [];
 
     const filtered = base.filter(item => {
+      if (item.id === 'daily-report') return (user?.roles || []).some(r => ['admin', 'super_admin', 'developer', 'hr'].includes(String(r).toLowerCase()));
       if (item.id === 'attendance-settings') return features.includes('attendance_manage_settings');
       if (item.id === 'attendance-approval') return features.includes('attendance_edit');
       if (item.id === 'location-audit') return features.includes('attendance_audit');
@@ -395,6 +398,10 @@ export default function AttendancePage() {
 
               {activeId === 'attendance-settings' && (
                 canSeeSettings ? <AttendanceSettings /> : <UnauthorizedBox />
+              )}
+              
+              {activeId === 'daily-report' && (
+                <AdminDailyReport />
               )}
             </>
           )}

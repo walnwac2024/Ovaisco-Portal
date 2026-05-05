@@ -401,7 +401,18 @@ function DashboardHome() {
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-50 border-4 border-white shadow-lg overflow-hidden flex-shrink-0 transition-transform duration-500 group-hover:scale-105">
                 {(() => {
                   const src = getAvatarUrl(dashboardData?.profile?.profile_img || user?.profile_img);
-                  if (src) return <img src={src} alt="Profile" className="w-full h-full object-cover" />;
+                  if (src) return (
+                    <img 
+                      src={src} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        e.target.parentNode.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-200 bg-slate-50"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>';
+                      }}
+                    />
+                  );
                   return <div className="w-full h-full flex items-center justify-center text-slate-200 bg-slate-50"><Icon name="User" size={40} /></div>;
                 })()}
               </div>
@@ -744,6 +755,15 @@ function DashboardHome() {
                                   src={getAvatarUrl(member.profile_img)} 
                                   alt={member.name} 
                                   className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = ""; // Clear src to stop retry
+                                    e.target.style.display = 'none';
+                                    const parent = e.target.parentNode;
+                                    if (parent) {
+                                      parent.innerHTML = '<div class="text-slate-300 w-full h-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>';
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <div className="text-slate-300"><Icon name="User" size={20} /></div>

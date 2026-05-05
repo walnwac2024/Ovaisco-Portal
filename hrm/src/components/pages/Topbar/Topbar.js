@@ -19,6 +19,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
+import { FiActivity } from "react-icons/fi";
 import ThemeToggle from "../../common/ThemeToggle";
 import api, { BASE_URL } from "../../../utils/api";
 
@@ -37,6 +38,7 @@ const TAB_META = {
   office: { to: "/dashboard/office", Icon: FaThLarge, label: "Office Management" },
   permissions: { to: "/dashboard/permissions", Icon: FaShieldAlt, label: "Permissions" },
   system_settings: { to: "/settings/system", Icon: FaCog, label: "Settings" },
+  saas: { to: "/saas", Icon: FiActivity, label: "Developer Hub" },
 };
 
 function getInitials(nameOrEmail = "User") {
@@ -440,9 +442,17 @@ export default function Topbar({ logoSrc }) {
                   aria-label="User menu"
                   type="button"
                 >
-                  <div className="relative shrink-0">
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt="User" className="h-9 w-9 rounded-xl object-cover border border-slate-100 shadow-sm" />
+                      <img 
+                        src={avatarUrl} 
+                        alt="User" 
+                        className="h-9 w-9 rounded-xl object-cover border border-slate-100 shadow-sm"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.parentNode.innerHTML = `<span class="inline-flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-customRed to-red-600 text-white text-[12px] font-black shadow-md shadow-red-500/20 uppercase">${initials}</span>`;
+                        }}
+                      />
                     ) : (
                       <span className="inline-flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-customRed to-red-600 text-white text-[12px] font-black shadow-md shadow-red-500/20 uppercase">
                         {initials}
@@ -490,6 +500,20 @@ export default function Topbar({ logoSrc }) {
                             <FaCog className="text-[14px] text-slate-400 group-hover:text-customRed" />
                           </div>
                           System Settings
+                        </Link>
+                      )}
+
+                      {(user?.roles || []).map(r => String(r).toLowerCase()).includes('developer') && (
+                        <Link
+                          to="/saas"
+                          onClick={() => setOpen(false)}
+                          className="group flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all"
+                          role="menuitem"
+                        >
+                          <div className="h-7 w-7 bg-blue-50 rounded-lg flex items-center justify-center transition-colors group-hover:bg-blue-100">
+                            <FiActivity className="text-[14px] text-blue-400 group-hover:text-blue-600" />
+                          </div>
+                          Developer Hub
                         </Link>
                       )}
                     </div>

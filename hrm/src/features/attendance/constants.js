@@ -10,6 +10,7 @@ export const ATTENDANCE_NAV = [
   { id: 'attendance-approval', label: 'Attendance Approval', status: 'working' },
   { id: 'location-audit', label: 'Attendance Audit' },
   { id: 'attendance-logs', label: 'Attendance Logs' },
+  { id: 'daily-report', label: 'Attendance Daily Report' },
   { id: 'attendance-settings', label: 'Attendance Settings', active: true },
 ];
 
