@@ -442,6 +442,7 @@ export default function Topbar({ logoSrc }) {
                   aria-label="User menu"
                   type="button"
                 >
+                  <div className="relative shrink-0">
                     {avatarUrl ? (
                       <img 
                         src={avatarUrl} 
