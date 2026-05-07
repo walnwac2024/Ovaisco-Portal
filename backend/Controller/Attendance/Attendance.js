@@ -267,7 +267,7 @@ const punch = async (req, res) => {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id) return res.status(401).json({ message: "Unauthenticated" });
 
-    const { office_id, punch_type, employee_id, note, clientTime, latitude, longitude, photo } = req.body || {};
+    const { office_id, punch_type, employee_id, note, clientTime, latitude, longitude, accuracy, photo } = req.body || {};
 
     if (!office_id) return res.status(400).json({ message: "office_id is required" });
     if (!punch_type || !["IN", "OUT"].includes(punch_type)) {
@@ -454,7 +454,9 @@ const punch = async (req, res) => {
       }
     }
 
-    // --- GPS VALIDATION ---
+    // ═══════════════════════════════════════════════════════════════
+    // --- ENHANCED GPS VALIDATION + ANTI-SPOOFING SECURITY ---
+    // ═══════════════════════════════════════════════════════════════
     const [allOffices] = await conn.execute(
       "SELECT id, name, latitude, longitude, allowed_radius_meters FROM offices WHERE is_active = 1 AND company_id = ?",
       [req.company_id || 1]
@@ -467,22 +469,150 @@ const punch = async (req, res) => {
     let distToTarget = Infinity;
     const officeLat = Number(targetOffice.latitude);
     const officeLng = Number(targetOffice.longitude);
+    const isAdmin = isAdminLike(sessionUser);
+    const allowedRadius = Number(targetOffice.allowed_radius_meters) || 200;
 
-    // ✅ SOLUTION: If office has no coordinates, BYPASS Geofence (Smart Bypass)
+    // ✅ If office has no coordinates configured, BYPASS Geofence
     if (!officeLat || !officeLng) {
       isInside = true;
-      console.log(`[Attendance] Geofence BYPASS for office: ${targetOffice.name} (No coordinates)`);
-    } else if (latitude && longitude) {
-      distToTarget = calculateDistance(latitude, longitude, officeLat, officeLng);
-      if (distToTarget <= (targetOffice.allowed_radius_meters || 200)) {
-        isInside = true;
+      console.log(`[Attendance] Geofence BYPASS for office: ${targetOffice.name} (No coordinates configured)`);
+    } else {
+
+      // ❌ CHECK 1: MANDATORY GPS for non-admin users
+      if (!isAdmin && (!latitude || !longitude)) {
+        try {
+          await conn.execute(
+            `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason, company_id)
+             VALUES (?, ?, ?, ?, ?)`,
+            [targetEmployeeId, null, null, "GPS coordinates missing - Location denied or unavailable", req.company_id || 1]
+          );
+        } catch (logErr) { console.error("Failed to log GPS rejection:", logErr); }
+
+        return res.status(403).json({
+          message: "Location access is mandatory to mark attendance. Please enable GPS/Location in your browser settings, allow location permission, and try again.",
+          code: "GPS_REQUIRED"
+        });
+      }
+
+      // ❌ CHECK 2: GPS ACCURACY VALIDATION (catches spoofing tools)
+      if (!isAdmin && latitude && longitude) {
+        const acc = Number(accuracy);
+
+        // GPS spoofers & DevTools often report accuracy as 0 or impossibly precise (<3m)
+        if (acc === 0 || (acc > 0 && acc < 3)) {
+          console.warn(`[GPS-SECURITY] Spoofing suspected for emp ${targetEmployeeId}: accuracy=${acc}m`);
+          try {
+            await conn.execute(
+              `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason, company_id)
+               VALUES (?, ?, ?, ?, ?)`,
+              [targetEmployeeId, latitude, longitude, `GPS Spoofing Suspected: Accuracy impossibly precise (${acc}m)`, req.company_id || 1]
+            );
+          } catch (logErr) { console.error("Failed to log spoof rejection:", logErr); }
+
+          return res.status(403).json({
+            message: "Security Alert: Fake GPS location detected. Using location spoofing tools is a serious policy violation. This incident has been logged and reported to HR.",
+            code: "GPS_SPOOF_DETECTED"
+          });
+        }
+
+        // GPS accuracy too poor (signal too weak to trust)
+        if (acc > 200) {
+          return res.status(403).json({
+            message: `GPS signal is too weak (accuracy: ${Math.round(acc)}m). Please move to an open area or near a window and try again. Required accuracy: under 200 meters.`,
+            code: "GPS_INACCURATE"
+          });
+        }
+
+        // If accuracy was not sent at all (null/undefined), log a warning but allow
+        // This handles older app versions that may not send accuracy
+        if (accuracy === undefined || accuracy === null) {
+          console.warn(`[GPS-SECURITY] No accuracy sent for emp ${targetEmployeeId} — consider updating client`);
+        }
+      }
+
+      // ❌ CHECK 3: EXACT COORDINATE MATCH DETECTION
+      // If user's GPS exactly matches office coordinates, it's likely DevTools spoofing
+      if (!isAdmin && latitude && longitude) {
+        const userLat = parseFloat(Number(latitude).toFixed(6));
+        const userLng = parseFloat(Number(longitude).toFixed(6));
+        const offLat = parseFloat(officeLat.toFixed(6));
+        const offLng = parseFloat(officeLng.toFixed(6));
+
+        if (userLat === offLat && userLng === offLng) {
+          console.warn(`[GPS-SECURITY] Exact coordinate match for emp ${targetEmployeeId}: [${latitude}, ${longitude}] = office [${officeLat}, ${officeLng}]`);
+          try {
+            await conn.execute(
+              `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason, company_id)
+               VALUES (?, ?, ?, ?, ?)`,
+              [targetEmployeeId, latitude, longitude, "GPS Spoofing: Coordinates exactly match office location (DevTools/Mock)", req.company_id || 1]
+            );
+          } catch (logErr) { console.error("Failed to log exact-match rejection:", logErr); }
+
+          return res.status(403).json({
+            message: "Security Alert: Your GPS coordinates appear to be manipulated. Real GPS always has natural variation. This incident has been logged and reported to HR.",
+            code: "GPS_SPOOF_DETECTED"
+          });
+        }
+      }
+
+      // ❌ CHECK 4: IMPOSSIBLE TRAVEL SPEED DETECTION
+      // Compare with last punch location to detect impossible movement
+      if (!isAdmin && latitude && longitude) {
+        try {
+          const [lastPunch] = await conn.execute(
+            `SELECT latitude, longitude, punched_at FROM attendance_punches
+             WHERE employee_id = ? AND latitude IS NOT NULL AND longitude IS NOT NULL AND company_id = ?
+             ORDER BY punched_at DESC LIMIT 1`,
+            [targetEmployeeId, req.company_id || 1]
+          );
+
+          if (lastPunch.length > 0) {
+            const prev = lastPunch[0];
+            const timeDiffMs = now.getTime() - new Date(prev.punched_at).getTime();
+            const timeDiffHours = timeDiffMs / 3600000;
+
+            // Only check if last punch was within 24 hours
+            if (timeDiffHours > 0 && timeDiffHours < 24) {
+              const distFromLast = calculateDistance(latitude, longitude, Number(prev.latitude), Number(prev.longitude));
+              const speedKmh = (distFromLast / 1000) / timeDiffHours;
+
+              // If "traveling" faster than 300km/h between punches and distance > 5km, flag it
+              if (speedKmh > 300 && distFromLast > 5000) {
+                console.warn(`[GPS-SECURITY] Impossible travel for emp ${targetEmployeeId}: ${Math.round(speedKmh)}km/h, ${Math.round(distFromLast / 1000)}km in ${timeDiffHours.toFixed(2)}h`);
+                try {
+                  await conn.execute(
+                    `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason, company_id)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [targetEmployeeId, latitude, longitude,
+                      `Impossible travel detected: ${Math.round(speedKmh)}km/h, ${Math.round(distFromLast / 1000)}km in ${(timeDiffHours * 60).toFixed(0)}min`,
+                      req.company_id || 1]
+                  );
+                } catch (logErr) { console.error("Failed to log travel anomaly:", logErr); }
+
+                return res.status(403).json({
+                  message: "Security Alert: Your location has changed impossibly fast since your last punch. This indicates GPS manipulation. This incident has been logged.",
+                  code: "GPS_TRAVEL_IMPOSSIBLE"
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[GPS-SECURITY] Travel check failed:", err);
+          // Don't block on travel check failure, just log
+        }
+      }
+
+      // ✅ NORMAL DISTANCE CALCULATION
+      if (latitude && longitude) {
+        distToTarget = calculateDistance(latitude, longitude, officeLat, officeLng);
+        if (distToTarget <= allowedRadius) {
+          isInside = true;
+        }
       }
     }
 
-    // If not admin and not inside the selected office, reject
-    const isAdmin = isAdminLike(sessionUser);
+    // ❌ FINAL: If not admin and not inside, REJECT with detailed message
     if (!isAdmin && !isInside) {
-      // Log rejection
       try {
         await conn.execute(
           `INSERT INTO attendance_rejections (employee_id, latitude, longitude, reason, company_id)
@@ -491,7 +621,9 @@ const punch = async (req, res) => {
             targetEmployeeId,
             latitude || null,
             longitude || null,
-            latitude ? `Outside radius for ${targetOffice.name}` : "Missing GPS coordinates",
+            latitude
+              ? `Outside radius for ${targetOffice.name} (Distance: ${Math.round(distToTarget)}m, Allowed: ${allowedRadius}m)`
+              : "Missing GPS coordinates",
             req.company_id || 1
           ]
         );
@@ -501,12 +633,17 @@ const punch = async (req, res) => {
 
       let msg = "";
       if (!latitude || !longitude) {
-        msg = "Location permission is required to mark attendance.";
+        msg = "Location permission is required to mark attendance. Please enable GPS in your browser settings.";
       } else {
-        msg = `You are not within the authorized radius for ${targetOffice.name}. (Distance: ${Math.round(distToTarget)}m). Please move closer to this office to mark attendance.`;
+        msg = `You are ${Math.round(distToTarget)} meters away from ${targetOffice.name}. Maximum allowed distance is ${allowedRadius} meters. Please move closer to your office to mark attendance.`;
       }
 
-      return res.status(403).json({ message: msg });
+      return res.status(403).json({ message: msg, code: "OUTSIDE_RADIUS" });
+    }
+
+    // Log successful GPS validation
+    if (latitude && longitude && !isAdmin) {
+      console.log(`[GPS-OK] Emp ${targetEmployeeId} → ${targetOffice.name}: ${Math.round(distToTarget)}m (limit: ${allowedRadius}m, accuracy: ${accuracy || 'N/A'}m)`);
     }
 
     // ------------------------------------------

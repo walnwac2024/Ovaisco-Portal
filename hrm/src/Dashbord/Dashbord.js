@@ -59,6 +59,19 @@ const getCurrentPosition = () => {
   });
 };
 
+/**
+ * Client-side Haversine distance (meters) for GPS multi-sample verification
+ */
+function calculateClientDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function badge(status) {
   const base = "inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight transition-all duration-300 border shadow-sm";
   switch (status) {
@@ -108,6 +121,7 @@ function DashboardHome() {
   const [showFaceModal, setShowFaceModal] = useState(false);
   const [pendingPunchType, setPendingPunchType] = useState('IN');
   const [showPunchOptions, setShowPunchOptions] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState(null); // Pre-fetched GPS for anti-spoofing
   const [confirmModal, setConfirmModal] = useState({ show: false, title: "", message: "", onConfirm: null });
   const [notifyModal, setNotifyModal] = useState({ show: false, type: "success", message: "" });
 
@@ -163,8 +177,48 @@ function DashboardHome() {
       setNotifyModal({ show: true, type: "error", message: "Please select an office location first." });
       return; 
     }
-    setPendingPunchType(type);
-    setShowPunchOptions(true); // Both IN and OUT now show options
+
+    // ✅ GET GPS IMMEDIATELY before showing options (prevents spoofing during flow)
+    setPunching(true);
+    setError("");
+    try {
+      const coords1 = await getCurrentPosition();
+      
+      // ✅ MULTI-SAMPLE: Take a second reading after brief delay to detect spoofing
+      await new Promise(r => setTimeout(r, 500));
+      const coords2 = await getCurrentPosition();
+
+      // If two readings are wildly different (>500m), GPS is being manipulated
+      const sampleDist = calculateClientDistance(
+        coords1.latitude, coords1.longitude,
+        coords2.latitude, coords2.longitude
+      );
+
+      if (sampleDist > 500) {
+        setNotifyModal({ 
+          show: true, type: "error", 
+          message: "GPS location is unstable or being manipulated. Please ensure you are not using any GPS spoofing tools and try again." 
+        });
+        setPunching(false);
+        return;
+      }
+
+      // Use the most accurate reading
+      const bestCoords = (coords2.accuracy <= coords1.accuracy) ? coords2 : coords1;
+      setGpsCoords(bestCoords);
+      setPendingPunchType(type);
+      setShowPunchOptions(true);
+    } catch (gpsErr) {
+      console.error("GPS Error:", gpsErr);
+      let msg = "Location access is required to mark attendance. ";
+      if (gpsErr.code === 1) msg += "You have denied location permission. Please enable it in browser settings.";
+      else if (gpsErr.code === 2) msg += "GPS position is unavailable. Please try again.";
+      else if (gpsErr.code === 3) msg += "Location request timed out. Please try again.";
+      else msg += gpsErr.message || "Please enable GPS and try again.";
+      setNotifyModal({ show: true, type: "error", message: msg });
+    } finally {
+      setPunching(false);
+    }
   };
 
   const handleBiometricPunch = async () => {
@@ -214,7 +268,12 @@ function DashboardHome() {
   };
 
   const finishBiometricPunch = async () => {
-    const coords = await getCurrentPosition();
+    // ✅ Use pre-fetched GPS coords (obtained before options were shown)
+    const coords = gpsCoords;
+    if (!coords) {
+      setNotifyModal({ show: true, type: "error", message: "GPS coordinates not available. Please try again." });
+      return;
+    }
     const res = await punchAttendance({
       office_id: Number(selectedOfficeId),
       punch_type: pendingPunchType,
@@ -225,6 +284,7 @@ function DashboardHome() {
       biometric_verified: true
     });
     setTodayData(prev => ({ ...prev, attendance: res.attendance }));
+    setGpsCoords(null); // Clear cached GPS
     loadAttendance(true);
     const msg = pendingPunchType === 'OUT' 
       ? "Check-out successful! Your attendance for today is complete. Have a great evening!"
@@ -256,7 +316,13 @@ function DashboardHome() {
     setPunching(true);
     setError("");
     try {
-      const coords = await getCurrentPosition();
+      // ✅ Use pre-fetched GPS coords (obtained before options were shown)
+      const coords = gpsCoords;
+      if (!coords) {
+        setNotifyModal({ show: true, type: "error", message: "GPS coordinates not available. Please try again." });
+        setPunching(false);
+        return;
+      }
       const res = await punchAttendance({
         office_id: Number(selectedOfficeId),
         punch_type: pendingPunchType,
@@ -267,6 +333,7 @@ function DashboardHome() {
         face_descriptor: Array.from(faceDescriptor)
       });
       setTodayData(prev => ({ ...prev, attendance: res.attendance }));
+      setGpsCoords(null); // Clear cached GPS
       loadAttendance(true);
       const msg = pendingPunchType === 'OUT' 
         ? "Check-out successful! Your attendance for today is complete. Have a great evening!"

@@ -25,27 +25,43 @@ const { isoUint8Array } = require('@simplewebauthn/server/helpers');
 
 // RP ID (Relaying Party ID) - must match the domain in the browser address bar
 const getRpId = (req) => {
-    // Rely on the Origin header which comes directly from the browser's address bar
     const origin = req.get('origin') || req.get('referer');
+    console.log(`[Biometric] Detection - Origin: ${req.get('origin')}, Referer: ${req.get('referer')}`);
+    
     if (origin) {
         try {
             const url = new URL(origin);
-            return url.hostname;
+            const hostname = url.hostname;
+            // For local development, 'localhost' is a valid RP ID
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return hostname;
+            }
+            // In production, we want the base domain (e.g., propeople.cloud)
+            const parts = hostname.split('.');
+            if (parts.length >= 2) {
+                return parts.slice(-2).join('.');
+            }
+            return hostname;
         } catch (e) {
             console.error('Failed to parse origin in getRpId:', origin);
         }
     }
-    // Fallback exactly to what we expect in production if headers are missing
-    return 'propeople.cloud';
+    return process.env.NODE_ENV === 'production' ? 'propeople.cloud' : 'localhost';
 };
 
 const rpName = 'HRM ProPeople';
 
 const getOrigin = (req) => {
-    const origin = req.get('origin') || req.get('referer');
-    if (!origin) return 'https://propeople.cloud';
-    // Remove trailing slash if exists
-    return origin.replace(/\/$/, '');
+    const originHeader = req.get('origin') || req.get('referer');
+    if (!originHeader) return 'https://propeople.cloud';
+    
+    try {
+        const url = new URL(originHeader);
+        // Returns scheme + host + port (e.g., http://localhost:3000)
+        return `${url.protocol}//${url.host}`;
+    } catch (e) {
+        return originHeader.replace(/\/$/, '');
+    }
 };
 
 /**
@@ -75,7 +91,7 @@ async function getRegistrationOptions(req, res) {
             excludeCredentials: existing.map(cred => ({
                 id: cred.credential_id,
                 type: 'public-key',
-                transports: ['internal'],
+                // Remove fixed transports during registration to be more flexible
             })),
             authenticatorSelection: {
                 // 'platform' forces Fingerprint/FaceID on the device. 
