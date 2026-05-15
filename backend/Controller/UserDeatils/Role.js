@@ -96,21 +96,45 @@ async function getDashboard(req, res) {
       const now = new Date();
       const currentDay = now.getDate();
       const currentMonthIndex = now.getMonth();
+
       if (dob instanceof Date) {
         return dob.getDate() === currentDay && dob.getMonth() === currentMonthIndex;
       }
-      const dobStr = String(dob);
-      if (dobStr.includes('-') && dobStr.length > 7 && !isNaN(Date.parse(dobStr))) {
-        const d = new Date(dobStr);
-        return d.getDate() === currentDay && d.getMonth() === currentMonthIndex;
+
+      const dobStr = String(dob).trim();
+      if (!dobStr) return false;
+
+      // 1. Try standard Date parsing
+      const parsed = new Date(dobStr);
+      if (!isNaN(parsed.getTime())) {
+        const matchesLocal = parsed.getDate() === currentDay && parsed.getMonth() === currentMonthIndex;
+        const matchesUTC = parsed.getUTCDate() === currentDay && parsed.getUTCMonth() === currentMonthIndex;
+        if (matchesLocal || matchesUTC) return true;
       }
-      const parts = dobStr.split('-');
+
+      // 2. Manual parsing
+      const parts = dobStr.split(/[-/ ]/);
       if (parts.length < 2) return false;
-      const day = parseInt(parts[0], 10);
-      const monthStr = parts[1].toLowerCase();
-      const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
-      const birthMonthIndex = months.indexOf(monthStr);
-      return day === currentDay && birthMonthIndex === currentMonthIndex;
+
+      let day, monthIndex;
+
+      // Detect YYYY-MM-DD vs DD-MM-YYYY
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        day = parseInt(parts[2], 10);
+        monthIndex = parseInt(parts[1], 10) - 1;
+      } else {
+        // DD-MM-YYYY or DD-Mon-YY
+        day = parseInt(parts[0], 10);
+        const monthPart = parts[1].toLowerCase();
+        const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+        monthIndex = months.indexOf(monthPart);
+        if (monthIndex === -1 && !isNaN(parseInt(monthPart, 10))) {
+          monthIndex = parseInt(monthPart, 10) - 1;
+        }
+      }
+
+      return day === currentDay && monthIndex === currentMonthIndex;
     };
 
     const enrichTeamWithBirthdays = (teamList) => {
@@ -133,6 +157,21 @@ async function getDashboard(req, res) {
 
     const isMyBirthday = isBirthdayToday(myProfile?.Date_of_Birth);
     const colleaguesBirthdays = await getCompanyBirthdays();
+
+    // Wishes logic
+    let todayWishesCount = 0;
+    if (isMyBirthday) {
+      const [[{ count }]] = await pool.execute(
+        `SELECT COUNT(*) as count 
+         FROM employee_timeline 
+         WHERE employee_id = ? 
+           AND event_type = 'BIRTHDAY_WISH' 
+           AND DATE(event_date) = CURDATE()`,
+        [userId]
+      );
+      todayWishesCount = count;
+    }
+
 
     // Managers — scoped to THIS company and THIS department (unless they are admin/hr/dev)
     const getManagersList = async (dept) => {
@@ -213,7 +252,9 @@ async function getDashboard(req, res) {
           managers: enrichTeamWithBirthdays(managers),
           birthdayToday: isMyBirthday,
           colleaguesBirthdays,
+          todayWishesCount,
           news
+
         }
       });
     }
@@ -244,7 +285,9 @@ async function getDashboard(req, res) {
           team: enrichTeamWithBirthdays(team),
           managers: enrichTeamWithBirthdays(managers),
           birthdayToday: isMyBirthday,
-          colleaguesBirthdays
+          colleaguesBirthdays,
+          todayWishesCount
+
         }
       });
     }
@@ -256,7 +299,9 @@ async function getDashboard(req, res) {
         widgets: {
           payrollPanel: { lastRun: null, pending: 0 },
           birthdayToday: isMyBirthday,
-          colleaguesBirthdays
+          colleaguesBirthdays,
+          todayWishesCount
+
         }
       });
     }
@@ -285,7 +330,9 @@ async function getDashboard(req, res) {
         tips: ['Complete your profile', 'Change your password regularly'],
         birthdayToday: isMyBirthday,
         colleaguesBirthdays,
+        todayWishesCount,
         team: enrichTeamWithBirthdays(team),
+
         managers: enrichTeamWithBirthdays(managers)
       }
     });

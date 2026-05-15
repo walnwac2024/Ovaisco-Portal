@@ -243,13 +243,15 @@ app.use((err, req, res, next) => {
 const port = Number(process.env.PORT || 5000);
 const host = "0.0.0.0";
 
-// Auto-migrate: add new payroll columns if missing
-const { pool } = require('./Utils/db');
-(async () => {
-  // Wait a moment for everything to settle
-  await new Promise(r => setTimeout(r, 2000));
-  try {
-    const [columns] = await pool.execute("DESCRIBE payroll_base_settings");
+    // Auto-migrate: add new payroll columns if missing
+    const { pool } = require('./Utils/db');
+    (async () => {
+      // Wait a moment for everything to settle
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        const [columns] = await pool.execute("DESCRIBE payroll_base_settings");
+
+
     const existingColumns = columns.map(c => c.Field);
 
     if (!existingColumns.includes('food_deduction')) {

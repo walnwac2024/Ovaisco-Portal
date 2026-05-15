@@ -13,7 +13,9 @@ import {
 } from "../features/leave/services/leaveService";
 import { getDashboardData } from "../features/dashboard/services/dashboardService";
 import { listNews } from "../features/news/newsService";
+import { birthdayService } from "../features/organization/services/birthdayService";
 import * as Lucide from "lucide-react";
+
 
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
@@ -346,7 +348,20 @@ function DashboardHome() {
     }
   };
 
+  const handleSendWish = async (receiverId, name) => {
+    const message = prompt(`Send a birthday wish to ${name}:`, "Happy Birthday! 🎂✨");
+    if (message === null) return; 
+
+    try {
+      await birthdayService.sendWish(receiverId, message);
+      setNotifyModal({ show: true, type: "success", message: `Your birthday wish has been sent to ${name}! 🥳` });
+    } catch (err) {
+      setNotifyModal({ show: true, type: "error", message: err || "Failed to send wish" });
+    }
+  };
+
   const getAvatarUrl = (imgPath) => {
+
     if (!imgPath) return null;
     if (imgPath.startsWith("http")) return imgPath;
     const cleanPath = imgPath.startsWith("/") ? imgPath : `/${imgPath}`;
@@ -852,10 +867,15 @@ function DashboardHome() {
                           </div>
                         </div>
                         {member.is_birthday_today && (
-                          <div className="w-6 h-6 bg-pink-50 text-pink-500 rounded-lg flex items-center justify-center shadow-sm animate-bounce" title="Birthday Today!">
-                            <Icon name="Cake" size={12} />
-                          </div>
+                          <button 
+                            onClick={() => handleSendWish(member.id, member.name)}
+                            className="w-8 h-8 bg-pink-50 text-pink-500 rounded-lg flex items-center justify-center shadow-sm hover:bg-pink-100 hover:scale-110 transition-all animate-bounce" 
+                            title="Send Birthday Wish!"
+                          >
+                            <Icon name="Cake" size={14} />
+                          </button>
                         )}
+
                         {!member.is_birthday_today && (
                           <button className="p-2 text-slate-300 hover:text-customRed hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
                             <Icon name="ChevronRight" size={14} />

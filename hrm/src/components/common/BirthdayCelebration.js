@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { birthdayService } from "../../features/organization/services/birthdayService";
+import { BASE_URL } from "../../utils/api";
 
 const birthdayQuotes = [
+
     "Wishing you a day filled with happiness and a year filled with joy!",
     "Happy birthday! I hope all your birthday wishes and dreams come true.",
     "Sending you smiles for every moment of your special day. Have a wonderful time!",
@@ -17,16 +20,35 @@ const birthdayQuotes = [
  */
 export default function BirthdayCelebration({ isBirthday, name, isSelf = false }) {
     const [quoteIndex, setQuoteIndex] = useState(0);
+    const [wishes, setWishes] = useState([]);
+    const [wishIndex, setWishIndex] = useState(0);
 
     useEffect(() => {
         if (!isBirthday) return;
         const interval = setInterval(() => {
             setQuoteIndex((prev) => (prev + 1) % birthdayQuotes.length);
         }, 5000);
+
+        if (isSelf) {
+            birthdayService.getReceivedWishes()
+                .then(data => setWishes(data))
+                .catch(err => console.error("Wishes fetch error:", err));
+        }
+
         return () => clearInterval(interval);
-    }, [isBirthday]);
+    }, [isBirthday, isSelf]);
+
+    useEffect(() => {
+        if (wishes.length > 0) {
+            const interval = setInterval(() => {
+                setWishIndex((prev) => (prev + 1) % wishes.length);
+            }, 4000);
+            return () => clearInterval(interval);
+        }
+    }, [wishes]);
 
     if (!isBirthday) return null;
+
 
     return (
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-50 via-white to-pink-50 dark:from-red-950/20 dark:via-slate-900 dark:to-pink-900/20 border border-red-200 dark:border-red-900/50 p-4 shadow-sm animate-fade-in group">
@@ -69,10 +91,37 @@ export default function BirthdayCelebration({ isBirthday, name, isSelf = false }
                     </p>
                 </div>
 
+                {/* Received Wishes Section */}
+                {isSelf && wishes.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-red-100 dark:border-red-900/30">
+                        <div className="flex items-center justify-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">Messages from Colleagues</span>
+                            <span className="bg-amber-100 text-amber-600 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{wishes.length}</span>
+                        </div>
+                        <div key={wishIndex} className="flex flex-col items-center animate-fade-in">
+                            <div className="flex items-center gap-2 mb-1">
+                                {wishes[wishIndex].sender_img ? (
+                                    <img 
+                                        src={wishes[wishIndex].sender_img.startsWith('http') ? wishes[wishIndex].sender_img : `${BASE_URL}/${wishes[wishIndex].sender_img}`} 
+                                        alt={wishes[wishIndex].sender_name}
+                                        className="w-5 h-5 rounded-full object-cover border border-amber-200"
+                                    />
+                                ) : (
+
+                                    <div className="w-5 h-5 rounded-full bg-amber-50 flex items-center justify-center text-[10px] text-amber-400 border border-amber-200">👤</div>
+                                )}
+                                <span className="text-[11px] font-bold text-slate-700">{wishes[wishIndex].sender_name}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium">"{wishes[wishIndex].message}"</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Corner Accents */}
                 <div className="absolute -top-1 -left-1 text-lg opacity-40 group-hover:scale-125 transition-transform">🎁</div>
                 <div className="absolute -top-1 -right-1 text-lg opacity-40 group-hover:scale-125 transition-transform">💖</div>
             </div>
+
 
             <style>{`
                 @keyframes float-up {

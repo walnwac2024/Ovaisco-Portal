@@ -31,6 +31,8 @@ const SystemSettings = require("../Controller/Settings/SystemSettingsController"
 const Gamification = require("../Controller/Gamification/GamificationController");
 const Office = require("../Controller/Office/OfficeController");
 const Biometrics = require("../Controller/UserDeatils/BiometricController");
+const Birthday = require("../Controller/UserDeatils/BirthdayController");
+
 // const SaaS = require("../Controller/SaaS/SaaSController");
 
 
@@ -102,6 +104,11 @@ router.post("/auth/change-password", isAuthenticated, changePassword);
 router.post("/auth/me/avatar", isAuthenticated, upload.single("image"), uploadAvatar);
 router.get("/me/menu", isAuthenticated, Role.getMenu);
 router.get("/dashboard", isAuthenticated, Role.getDashboard);
+
+// Birthday routes
+router.post("/birthdays/wish", isAuthenticated, Birthday.sendWish);
+router.get("/birthdays/wishes/received", isAuthenticated, Birthday.getWishesReceived);
+
 
 // Notification routes
 router.get("/notifications", isAuthenticated, Notifications.listMyNotifications);
