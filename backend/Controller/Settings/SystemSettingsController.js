@@ -185,15 +185,23 @@ async function listSettings(req, res) {
         await ensureTableExists(type);
 
         const tableName = SETTINGS_CONFIG[type].table;
-        let sql = `SELECT * FROM \`${tableName}\``;
+        let sql = `SELECT * FROM \`${tableName}\` WHERE 1=1`;
+        let params = [];
+
+        // Add company_id filter if the table has it
+        const [cols] = await pool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'company_id'", [tableName]);
+        if (cols.length > 0) {
+            sql += " AND company_id = ?";
+            params.push(req.company_id || 1);
+        }
 
         if (active_only === "1" || active_only === "true") {
-            sql += " WHERE is_active = 1";
+            sql += " AND is_active = 1";
         }
 
         sql += " ORDER BY name ASC";
 
-        const [rows] = await pool.query(sql);
+        const [rows] = await pool.query(sql, params);
         return res.json(rows);
     } catch (err) {
         console.error("listSettings error:", err);
@@ -231,14 +239,14 @@ async function createSetting(req, res) {
         let sql, params;
 
         if (type === "offices") {
-            sql = `INSERT INTO \`${tableName}\` (name, address, city, country, is_active, created_by) VALUES (?, ?, ?, ?, 1, ?)`;
-            params = [name.trim(), address || null, city || null, country || null, sessionUser.id];
+            sql = `INSERT INTO \`${tableName}\` (name, address, city, country, is_active, created_by, company_id) VALUES (?, ?, ?, ?, 1, ?, ?)`;
+            params = [name.trim(), address || null, city || null, country || null, sessionUser.id, req.company_id || 1];
         } else if (["departments", "designations", "employment-types"].includes(type)) {
-            sql = `INSERT INTO \`${tableName}\` (name, description, is_active, created_by) VALUES (?, ?, 1, ?)`;
-            params = [name.trim(), description || null, sessionUser.id];
+            sql = `INSERT INTO \`${tableName}\` (name, description, is_active, created_by, company_id) VALUES (?, ?, 1, ?, ?)`;
+            params = [name.trim(), description || null, sessionUser.id, req.company_id || 1];
         } else {
-            sql = `INSERT INTO \`${tableName}\` (name, is_active) VALUES (?, 1)`;
-            params = [name.trim()];
+            sql = `INSERT INTO \`${tableName}\` (name, is_active, company_id) VALUES (?, 1, ?)`;
+            params = [name.trim(), req.company_id || 1];
         }
 
         const [result] = await pool.execute(sql, params);
@@ -283,8 +291,8 @@ async function updateSetting(req, res) {
 
         if (fields.length === 0) return res.status(400).json({ message: "No fields to update" });
 
-        const sql = `UPDATE \`${tableName}\` SET ${fields.join(", ")} WHERE id = ?`;
-        params.push(id);
+        const sql = `UPDATE \`${tableName}\` SET ${fields.join(", ")} WHERE id = ? AND company_id = ?`;
+        params.push(id, req.company_id || 1);
         await pool.execute(sql, params);
 
         await recordLog({
@@ -314,8 +322,8 @@ async function deleteSetting(req, res) {
         await ensureTableExists(type);
 
         const tableName = SETTINGS_CONFIG[type].table;
-        const sql = `UPDATE \`${tableName}\` SET is_active = 0 WHERE id = ?`;
-        await pool.execute(sql, [id]);
+        const sql = `UPDATE \`${tableName}\` SET is_active = 0 WHERE id = ? AND company_id = ?`;
+        await pool.execute(sql, [id, req.company_id || 1]);
 
         await recordLog({
             actorId: sessionUser.id,

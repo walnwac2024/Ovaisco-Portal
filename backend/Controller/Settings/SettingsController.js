@@ -1,24 +1,25 @@
 const { pool } = require('../../Utils/db');
 
 // Helper to get a setting
-async function getSetting(key) {
-    const [rows] = await pool.query("SELECT setting_value FROM settings WHERE setting_key = ?", [key]);
+async function getSetting(key, companyId = 1) {
+    const [rows] = await pool.query("SELECT setting_value FROM settings WHERE setting_key = ? AND company_id = ?", [key, companyId]);
     return rows.length ? rows[0].setting_value : null;
 }
 
 // Helper to set a setting
-async function saveSetting(key, value) {
+async function saveSetting(key, value, companyId = 1) {
     await pool.query(
-        "INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?",
-        [key, value, value]
+        "INSERT INTO settings (setting_key, setting_value, company_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?",
+        [key, value, companyId, value]
     );
 }
 
 // GET /settings/branding
 async function getBranding(req, res) {
     try {
-        const colorsStr = await getSetting('brand_colors');
-        const logoStr = await getSetting('brand_logo');
+        const companyId = req.company_id || 1;
+        const colorsStr = await getSetting('brand_colors', companyId);
+        const logoStr = await getSetting('brand_logo', companyId);
 
         const colors = colorsStr ? JSON.parse(colorsStr) : { primary: '#E02D3D' };
         const logo = logoStr || null;
@@ -36,20 +37,18 @@ async function updateBranding(req, res) {
     const file = req.file; // From uploadMiddleware
 
     try {
+        const companyId = req.company_id || 1;
         if (colors) {
             let colorsToSave = colors;
             if (typeof colors === 'object') {
                 colorsToSave = JSON.stringify(colors);
             }
-            // If it's a string (from FormData), it's likely already JSON or just a raw string. 
-            // We expect JSON string if using my frontend logic.
-
-            await saveSetting('brand_colors', colorsToSave);
+            await saveSetting('brand_colors', colorsToSave, companyId);
         }
 
         if (file) {
-            const logoPath = `/uploads/${file.filename}`; // Adjusted path based on mw
-            await saveSetting('brand_logo', logoPath);
+            const logoPath = `/uploads/${file.filename}`;
+            await saveSetting('brand_logo', logoPath, companyId);
         }
 
         res.json({ message: "Branding updated successfully" });

@@ -12,24 +12,25 @@ const { pool } = require("./db");
  */
 async function recordLog({ actorId, action, category, status, details = {}, targetUserId = null }) {
     try {
-        let actorName = "Unknown";
-        let actorDepartment = "Unknown";
-
+        let actorName = "System";
+        let actorDepartment = "General";
+        let companyId = 1;
         if (actorId) {
             const [userRows] = await pool.execute(
-                "SELECT Employee_Name, Department FROM employee_records WHERE id = ? LIMIT 1",
+                "SELECT Employee_Name, Department, company_id FROM employee_records WHERE id = ? LIMIT 1",
                 [actorId]
             );
             if (userRows.length > 0) {
                 actorName = userRows[0].Employee_Name;
                 actorDepartment = userRows[0].Department;
+                companyId = userRows[0].company_id;
             }
         }
 
         await pool.execute(
             `INSERT INTO audit_logs 
-            (user_id, actor_id, actor_name, actor_department, action, category, status, details) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, actor_id, actor_name, actor_department, action, category, status, details, company_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 targetUserId,
                 actorId,
@@ -38,7 +39,8 @@ async function recordLog({ actorId, action, category, status, details = {}, targ
                 action,
                 category,
                 status,
-                JSON.stringify(details)
+                JSON.stringify(details),
+                companyId
             ]
         );
     } catch (err) {

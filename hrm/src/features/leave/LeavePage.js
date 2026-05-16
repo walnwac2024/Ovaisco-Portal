@@ -58,7 +58,7 @@ export default function LeavePage() {
             setLoading(true);
             const types = await getLeaveTypes();
             setLeaveTypes(types);
-            if (activeKey === "my-leaves") {
+            if (activeKey === "my-leaves" || activeKey === "apply-leave") {
                 const [my, bal] = await Promise.all([getMyLeaves(), getLeaveBalances()]);
                 setMyLeaves(my);
                 setBalances(bal);
@@ -74,7 +74,7 @@ export default function LeavePage() {
     };
 
     useEffect(() => {
-        if (activeKey === "my-leaves") {
+        if (activeKey === "my-leaves" || activeKey === "apply-leave") {
             getMyLeaves().then(setMyLeaves);
             getLeaveBalances().then(setBalances);
         } else if (activeKey === "leave-approvals") {

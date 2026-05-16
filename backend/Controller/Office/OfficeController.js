@@ -3,16 +3,16 @@ const { pool } = require("../../Utils/db");
 /**
  * Internal helper to send notifications
  */
-async function sendNotification(userIds, title, message, type = 'office', referenceId = null) {
+async function sendNotification(userIds, title, message, companyId, type = 'office', referenceId = null) {
     if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) return;
     
     // Ensure userIds is an array
     const ids = Array.isArray(userIds) ? [...new Set(userIds)] : [userIds];
     
     try {
-        const values = ids.map(uid => [uid, title, message, type, referenceId]);
+        const values = ids.map(uid => [uid, title, message, type, referenceId, companyId]);
         await pool.query(
-            "INSERT INTO notifications (user_id, title, message, type, reference_id) VALUES ?",
+            "INSERT INTO notifications (user_id, title, message, type, reference_id, company_id) VALUES ?",
             [values]
         );
     } catch (err) {
@@ -30,8 +30,8 @@ async function findUsersByPermission(permissionCode) {
              FROM employee_user_types eut
              JOIN user_type_permission utp ON utp.user_type_id = eut.user_type_id
              JOIN permissions p ON p.id = utp.permission_id
-             WHERE p.code = ? AND eut.is_primary = 1`,
-            [permissionCode]
+             WHERE p.code = ? AND eut.is_primary = 1 AND eut.company_id = ?`,
+            [permissionCode, req.company_id || 1]
         );
         return rows.map(r => r.employee_id);
     } catch (err) {
@@ -69,18 +69,18 @@ async function createRequisition(req, res) {
 
         const [reqResult] = await conn.execute(
             `INSERT INTO office_requisitions 
-            (employee_id, title, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_hr')`,
-            [user.id, title || null, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id || null]
+            (employee_id, title, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id, status, company_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_hr', ?)`,
+            [user.id, title || null, employee_name_manual, employee_code_manual, designation, department, office_location, line_manager_name, assigned_accounts_id || null, req.company_id || 1]
         );
 
         const requisitionId = reqResult.insertId;
 
         for (const item of items) {
             await conn.execute(
-                `INSERT INTO office_requisition_items (requisition_id, sr_no, type_of_particular, description, qty, unit_price) 
-                VALUES (?, ?, ?, ?, ?, ?)`,
-                [requisitionId, item.sr_no, item.type_of_particular, item.description, item.qty, item.unit_price || 0.00]
+                `INSERT INTO office_requisition_items (requisition_id, sr_no, type_of_particular, description, qty, unit_price, company_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [requisitionId, item.sr_no, item.type_of_particular, item.description, item.qty, item.unit_price || 0.00, req.company_id || 1]
             );
         }
 
@@ -99,6 +99,7 @@ async function createRequisition(req, res) {
             hrUsers, 
             "New Office Requisition", 
             `${requesterName} has submitted a new requisition: "${title}"`, 
+            req.company_id || 1,
             'office', 
             requisitionId
         );
@@ -127,8 +128,9 @@ async function listRequisitions(req, res) {
             SELECT r.*, e.Employee_Name as requester_name 
             FROM office_requisitions r
             JOIN employee_records e ON r.employee_id = e.id
+            WHERE r.company_id = ?
         `;
-        let params = [];
+        let params = [req.company_id || 1];
         let conditions = [];
 
         // Visibility Logic
@@ -182,7 +184,7 @@ async function listRequisitions(req, res) {
         }
 
         if (conditions.length > 0) {
-            query += " WHERE " + conditions.join(" AND ");
+            query += " AND " + conditions.join(" AND ");
         }
 
         query += " ORDER BY r.created_at DESC";
@@ -211,8 +213,8 @@ async function getRequisitionById(req, res) {
              LEFT JOIN employee_records hr ON r.hr_approved_by = hr.id
              LEFT JOIN employee_records acc ON r.accounts_approved_by = acc.id
              LEFT JOIN employee_records assigned ON r.assigned_accounts_id = assigned.id
-             WHERE r.id = ?`,
-            [id]
+             WHERE r.id = ? AND r.company_id = ?`,
+            [id, req.company_id || 1]
         );
 
         if (reqRows.length === 0) {
@@ -247,8 +249,8 @@ async function approveHR(req, res) {
         await pool.execute(
             `UPDATE office_requisitions 
              SET status = ?, hr_remarks = ?, hr_approved_by = ?, hr_approved_at = CURRENT_TIMESTAMP 
-             WHERE id = ? AND status = 'pending_hr'`,
-            [status, remarks, user.id, id]
+             WHERE id = ? AND status = 'pending_hr' AND company_id = ?`,
+            [status, remarks, user.id, id, req.company_id || 1]
         );
 
         await recordLog({
@@ -260,7 +262,7 @@ async function approveHR(req, res) {
 
         // Trigger Notifications
         if (status === 'pending_accounts') {
-            const [reqRows] = await pool.execute("SELECT assigned_accounts_id FROM office_requisitions WHERE id = ?", [id]);
+            const [reqRows] = await pool.execute("SELECT assigned_accounts_id FROM office_requisitions WHERE id = ? AND company_id = ?", [id, req.company_id || 1]);
             const assignedId = reqRows[0]?.assigned_accounts_id;
             
             const targetUsers = [];
@@ -275,16 +277,18 @@ async function approveHR(req, res) {
                 targetUsers,
                 "Requisition Pending Accounts",
                 `Office Requisition #${id} is pending your approval.`,
+                req.company_id || 1,
                 'office',
                 id
             );
         } else if (status === 'rejected') {
-            const [reqRows] = await pool.execute("SELECT employee_id, title FROM office_requisitions WHERE id = ?", [id]);
+            const [reqRows] = await pool.execute("SELECT employee_id, title FROM office_requisitions WHERE id = ? AND company_id = ?", [id, req.company_id || 1]);
             if (reqRows.length > 0) {
                 await sendNotification(
                     reqRows[0].employee_id,
                     "Requisition Rejected by HR",
                     `Your requisition "${reqRows[0].title}" was rejected by HR. Remarks: ${remarks}`,
+                    req.company_id || 1,
                     'office',
                     id
                 );
@@ -319,15 +323,15 @@ async function approveAccounts(req, res) {
                 `UPDATE office_requisitions 
                  SET status = ?, accounts_remarks = ?, accounts_approved_by = ?, accounts_approved_at = CURRENT_TIMESTAMP 
                  WHERE id = ? AND status = 'pending_accounts' 
-                 AND (assigned_accounts_id IS NULL OR assigned_accounts_id = ?)`,
-                [status, remarks, user.id, id, user.id]
+                 AND (assigned_accounts_id IS NULL OR assigned_accounts_id = ?) AND company_id = ?`,
+                [status, remarks, user.id, id, user.id, req.company_id || 1]
             );
 
             if (status === 'approved' && items && Array.isArray(items)) {
                 for (const item of items) {
                     await conn.execute(
-                        "UPDATE office_requisition_items SET qty_issued = ? WHERE id = ? AND requisition_id = ?",
-                        [item.qty_issued, item.id, id]
+                        "UPDATE office_requisition_items SET qty_issued = ? WHERE id = ? AND requisition_id = ? AND company_id = ?",
+                        [item.qty_issued, item.id, id, req.company_id || 1]
                     );
                 }
             }
@@ -341,13 +345,14 @@ async function approveAccounts(req, res) {
             });
 
             // Notify the Requester
-            const [reqRows] = await conn.execute("SELECT employee_id, title FROM office_requisitions WHERE id = ?", [id]);
+            const [reqRows] = await conn.execute("SELECT employee_id, title FROM office_requisitions WHERE id = ? AND company_id = ?", [id, req.company_id || 1]);
             if (reqRows.length > 0) {
                 const title_prefix = status === 'approved' ? 'Approved' : 'Rejected';
                 await sendNotification(
                     reqRows[0].employee_id,
                     `Requisition ${title_prefix} by Accounts`,
                     `Your requisition "${reqRows[0].title}" has been ${status} by Accounts. Remarks: ${remarks}`,
+                    req.company_id || 1,
                     'office',
                     id
                 );
@@ -379,7 +384,9 @@ async function listAccountsEmployees(req, res) {
                AND (LOWER(Department) LIKE '%accounts%' 
                  OR LOWER(Department) LIKE '%finance%'
                  OR LOWER(Department) LIKE '%finance and accounts department -hoe%')
-             ORDER BY Employee_Name ASC`
+              AND company_id = ?
+             ORDER BY Employee_Name ASC`,
+            [req.company_id || 1]
         );
         res.json(rows);
     } catch (err) {

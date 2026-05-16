@@ -76,8 +76,8 @@ const lockSalary = async (req, res) => {
                 fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
                 food_deduction, health_deduction,
                 month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves,
-                is_locked, locked_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                is_locked, locked_at, company_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), ?)
             ON DUPLICATE KEY UPDATE
                 contractual_pay = VALUES(contractual_pay),
                 transport_allowance = VALUES(transport_allowance),
@@ -105,13 +105,14 @@ const lockSalary = async (req, res) => {
             mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
             fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
             food_deduction, health_deduction,
-            month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves
+            month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves,
+            req.company_id || 1
         ]);
 
         // 2. Update employee_records
         await conn.execute(
-            "UPDATE employee_records SET monthly_salary = ?, salary_locked = 1, salary_locked_at = NOW() WHERE id = ?",
-            [monthly_salary, employee_id]
+            "UPDATE employee_records SET monthly_salary = ?, salary_locked = 1, salary_locked_at = NOW() WHERE id = ? AND company_id = ?",
+            [monthly_salary, employee_id, req.company_id || 1]
         );
 
         await conn.commit();
@@ -146,14 +147,14 @@ const unlockSalary = async (req, res) => {
 
         // 1. Update payroll_base_settings to unlock
         await conn.execute(
-            "UPDATE payroll_base_settings SET is_locked = 0 WHERE employee_id = ?",
-            [employee_id]
+            "UPDATE payroll_base_settings SET is_locked = 0 WHERE employee_id = ? AND company_id = ?",
+            [employee_id, req.company_id || 1]
         );
 
         // 2. Update employee_records to unlock
         await conn.execute(
-            "UPDATE employee_records SET salary_locked = 0 WHERE id = ?",
-            [employee_id]
+            "UPDATE employee_records SET salary_locked = 0 WHERE id = ? AND company_id = ?",
+            [employee_id, req.company_id || 1]
         );
 
         await conn.commit();
@@ -243,8 +244,8 @@ const bulkImportSalaries = async (req, res) => {
                         fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
                         food_deduction, health_deduction,
                         month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves,
-                        is_locked, locked_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                        is_locked, locked_at, company_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), ?)
                     ON DUPLICATE KEY UPDATE
                         contractual_pay = VALUES(contractual_pay),
                         transport_allowance = VALUES(transport_allowance),
@@ -272,13 +273,14 @@ const bulkImportSalaries = async (req, res) => {
                     mobile_allowance, tardiness_allowance, night_allowance, house_allowance,
                     fuel_allowance, adhoc_allowance, misc_allowance, relocation_allowance,
                     food_deduction, health_deduction,
-                    month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves
+                    month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves,
+                    req.company_id || 1
                 ]);
 
                 // Update employee_records
                 await conn.execute(
-                    "UPDATE employee_records SET monthly_salary = ?, salary_locked = 1, salary_locked_at = NOW() WHERE id = ?",
-                    [monthly_salary, employee_id]
+                    "UPDATE employee_records SET monthly_salary = ?, salary_locked = 1, salary_locked_at = NOW() WHERE id = ? AND company_id = ?",
+                    [monthly_salary, employee_id, req.company_id || 1]
                 );
 
                 results.success++;
@@ -322,8 +324,8 @@ const getSalaryDetails = async (req, res) => {
         }
 
         const [rows] = await pool.execute(
-            "SELECT * FROM payroll_base_settings WHERE employee_id = ? LIMIT 1",
-            [employeeId]
+            "SELECT * FROM payroll_base_settings WHERE employee_id = ? AND company_id = ? LIMIT 1",
+            [employeeId, req.company_id || 1]
         );
 
         return res.json(rows[0] || null);
@@ -351,7 +353,8 @@ const generatePayroll = async (req, res) => {
 
             // Fetch active employees with locked salary
             const [employees] = await conn.execute(
-                "SELECT id, monthly_salary FROM employee_records WHERE is_active = 1 AND salary_locked = 1"
+                "SELECT id, monthly_salary FROM employee_records WHERE is_active = 1 AND salary_locked = 1 AND company_id = ?",
+                [req.company_id || 1]
             );
 
             for (const emp of employees) {
@@ -361,13 +364,13 @@ const generatePayroll = async (req, res) => {
                         COUNT(CASE WHEN status IN ('ABSENT', 'UNPAID_LEAVE', 'NOT_MARKED') THEN 1 END) as leave_days,
                         COUNT(CASE WHEN status = 'LATE' THEN 1 END) as late_days
                     FROM attendance_daily 
-                    WHERE employee_id = ? AND MONTH(attendance_date) = ? AND YEAR(attendance_date) = ?
-                `, [emp.id, month, year]);
+                    WHERE employee_id = ? AND MONTH(attendance_date) = ? AND YEAR(attendance_date) = ? AND company_id = ?
+                `, [emp.id, month, year, req.company_id || 1]);
 
                 // Fetch fixed deductions from base settings
                 const [baseSettings] = await conn.execute(
-                    "SELECT food_deduction, health_deduction, month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves FROM payroll_base_settings WHERE employee_id = ? LIMIT 1",
-                    [emp.id]
+                    "SELECT food_deduction, health_deduction, month_adjustment, advance_salary, eobi, asap_allowance, efap, unpaid_leaves FROM payroll_base_settings WHERE employee_id = ? AND company_id = ? LIMIT 1",
+                    [emp.id, req.company_id || 1]
                 );
 
                 const settings = baseSettings[0] || {};
@@ -407,8 +410,8 @@ const generatePayroll = async (req, res) => {
                         employee_id, month, year, reference_number,
                         attendance_late_days, attendance_leave_days,
                         gross_salary, late_deduction, leave_deduction, total_deductions, net_salary,
-                        status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT')
+                        status, company_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)
                     ON DUPLICATE KEY UPDATE
                         attendance_late_days = VALUES(attendance_late_days),
                         attendance_leave_days = VALUES(attendance_leave_days),
@@ -421,7 +424,8 @@ const generatePayroll = async (req, res) => {
                 `, [
                     emp.id, month, year, refNum,
                     lates, leaves,
-                    salary, lateDeduction, leaveDeduction, totalDeductions, netSalary
+                    salary, lateDeduction, leaveDeduction, totalDeductions, netSalary,
+                    req.company_id || 1
                 ]);
             }
 
@@ -450,8 +454,8 @@ const finalizePayroll = async (req, res) => {
 
         const { month, year } = req.body;
         await pool.execute(
-            "UPDATE payroll_records SET status = 'FINAL', transfer_date = CURDATE() WHERE month = ? AND year = ? AND status = 'DRAFT'",
-            [month, year]
+            "UPDATE payroll_records SET status = 'FINAL', transfer_date = CURDATE() WHERE month = ? AND year = ? AND status = 'DRAFT' AND company_id = ?",
+            [month, year, req.company_id || 1]
         );
 
         return res.json({ message: `Payroll for ${month}/${year} has been finalized.` });
@@ -472,7 +476,7 @@ const applyIncrement = async (req, res) => {
 
         const { employee_id, increment_type, value, notes, effective_date } = req.body;
 
-        const [emp] = await pool.execute("SELECT monthly_salary FROM employee_records WHERE id = ?", [employee_id]);
+        const [emp] = await pool.execute("SELECT monthly_salary FROM employee_records WHERE id = ? AND company_id = ?", [employee_id, req.company_id || 1]);
         if (!emp.length) return res.status(404).json({ message: "Employee not found" });
 
         const oldSalary = Number(emp[0].monthly_salary);
@@ -489,13 +493,13 @@ const applyIncrement = async (req, res) => {
             await conn.beginTransaction();
 
             // Update main table
-            await conn.execute("UPDATE employee_records SET monthly_salary = ? WHERE id = ?", [newSalary, employee_id]);
+            await conn.execute("UPDATE employee_records SET monthly_salary = ? WHERE id = ? AND company_id = ?", [newSalary, employee_id, req.company_id || 1]);
 
             // record history
             await conn.execute(`
-                INSERT INTO increment_history (employee_id, old_salary, new_salary, increment_type, increment_value, effective_date, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [employee_id, oldSalary, newSalary, increment_type, value, effective_date || new Date(), notes]);
+                INSERT INTO increment_history (employee_id, old_salary, new_salary, increment_type, increment_value, effective_date, notes, company_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [employee_id, oldSalary, newSalary, increment_type, value, effective_date || new Date(), notes, req.company_id || 1]);
 
             await conn.commit();
             return res.json({ message: "Increment applied successfully.", new_salary: newSalary });
@@ -518,8 +522,8 @@ const getMyPayrollList = async (req, res) => {
     try {
         const user = req.session?.user;
         const [rows] = await pool.execute(
-            "SELECT id, month, year, net_salary, status, created_at FROM payroll_records WHERE employee_id = ? AND status = 'FINAL' ORDER BY year DESC, month DESC",
-            [user.id]
+            "SELECT id, month, year, net_salary, status, created_at FROM payroll_records WHERE employee_id = ? AND status = 'FINAL' AND company_id = ? ORDER BY year DESC, month DESC",
+            [user.id, req.company_id || 1]
         );
         return res.json(rows);
     } catch (error) {
@@ -543,8 +547,8 @@ const getPayrollDetail = async (req, res) => {
             FROM payroll_records pr
             JOIN employee_records e ON e.id = pr.employee_id
             LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
-            WHERE pr.id = ?
-        `, [id]);
+            WHERE pr.id = ? AND pr.company_id = ?
+        `, [id, req.company_id || 1]);
 
         if (!rows.length) return res.status(404).json({ message: "Record not found" });
 
@@ -570,8 +574,8 @@ const listAllPayroll = async (req, res) => {
             SELECT pr.*, e.Employee_Name as name, e.Employee_ID as code
             FROM payroll_records pr
             JOIN employee_records e ON e.id = pr.employee_id
-            WHERE pr.month = ? AND pr.year = ?
-        `, [month, year]);
+            WHERE pr.month = ? AND pr.year = ? AND pr.company_id = ?
+        `, [month, year, req.company_id || 1]);
 
         return res.json(rows);
     } catch (error) {
@@ -589,8 +593,8 @@ const getIncrementHistory = async (req, res) => {
         }
 
         const [rows] = await pool.execute(
-            "SELECT * FROM increment_history WHERE employee_id = ? ORDER BY created_at DESC",
-            [employeeId]
+            "SELECT * FROM increment_history WHERE employee_id = ? AND company_id = ? ORDER BY created_at DESC",
+            [employeeId, req.company_id || 1]
         );
 
         return res.json(rows);
@@ -610,8 +614,8 @@ const updatePayrollRecord = async (req, res) => {
 
         // Ensure record exists and is in DRAFT status
         const [existing] = await pool.execute(
-            "SELECT status FROM payroll_records WHERE id = ?",
-            [id]
+            "SELECT status FROM payroll_records WHERE id = ? AND company_id = ?",
+            [id, req.company_id || 1]
         );
 
         if (!existing[0]) return res.status(404).json({ message: "Record not found" });
@@ -622,8 +626,8 @@ const updatePayrollRecord = async (req, res) => {
             SET net_salary = ?, total_deductions = ?, 
                 attendance_late_days = ?, attendance_leave_days = ?,
                 updated_at = NOW()
-            WHERE id = ?
-        `, [net_salary, total_deductions, attendance_late_days, attendance_leave_days, id]);
+            WHERE id = ? AND company_id = ?
+        `, [net_salary, total_deductions, attendance_late_days, attendance_leave_days, id, req.company_id || 1]);
 
         return res.json({ message: "Payroll draft updated successfully" });
     } catch (error) {
@@ -648,9 +652,9 @@ const listAllSalaryDetails = async (req, res) => {
                 pb.month_adjustment, pb.advance_salary, pb.eobi, pb.asap_allowance, pb.efap, pb.unpaid_leaves
             FROM employee_records e
             LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
-            WHERE e.is_active = 1
+            WHERE e.is_active = 1 AND e.company_id = ?
             ORDER BY e.Employee_Name ASC
-        `);
+        `, [req.company_id || 1]);
 
         return res.json(rows);
     } catch (error) {
@@ -681,9 +685,9 @@ const exportSalaryReport = async (req, res) => {
                 e.monthly_salary as "Total Gross Salary"
             FROM employee_records e
             LEFT JOIN payroll_base_settings pb ON e.id = pb.employee_id
-            WHERE e.is_active = 1
+            WHERE e.is_active = 1 AND e.company_id = ?
             ORDER BY e.Employee_Name ASC
-        `);
+        `, [req.company_id || 1]);
 
         const workbook = xlsx.utils.book_new();
         const worksheet = xlsx.utils.json_to_sheet(rows);
@@ -716,7 +720,7 @@ const deletePayrollRecord = async (req, res) => {
         if (!existing[0]) return res.status(404).json({ message: "Record not found" });
         if (existing[0].status !== 'DRAFT') return res.status(400).json({ message: "Only drafts can be deleted" });
 
-        await pool.execute("DELETE FROM payroll_records WHERE id = ?", [id]);
+        await pool.execute("DELETE FROM payroll_records WHERE id = ? AND company_id = ?", [id, req.company_id || 1]);
 
         return res.json({ message: "Payroll record deleted successfully" });
     } catch (error) {
@@ -744,7 +748,7 @@ const applyBulkIncrement = async (req, res) => {
         await conn.beginTransaction();
 
         for (const empId of employee_ids) {
-            const [emp] = await conn.execute("SELECT monthly_salary FROM employee_records WHERE id = ?", [empId]);
+            const [emp] = await conn.execute("SELECT monthly_salary FROM employee_records WHERE id = ? AND company_id = ?", [empId, req.company_id || 1]);
             if (!emp.length) continue;
 
             const oldSalary = Number(emp[0].monthly_salary);
@@ -756,12 +760,12 @@ const applyBulkIncrement = async (req, res) => {
                 newSalary = oldSalary + (oldSalary * Number(value) / 100);
             }
 
-            await conn.execute("UPDATE employee_records SET monthly_salary = ? WHERE id = ?", [newSalary, empId]);
+            await conn.execute("UPDATE employee_records SET monthly_salary = ? WHERE id = ? AND company_id = ?", [newSalary, empId, req.company_id || 1]);
 
             await conn.execute(`
-                INSERT INTO increment_history (employee_id, old_salary, new_salary, increment_type, increment_value, effective_date, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [empId, oldSalary, newSalary, increment_type, value, effective_date || new Date(), notes]);
+                INSERT INTO increment_history (employee_id, old_salary, new_salary, increment_type, increment_value, effective_date, notes, company_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [empId, oldSalary, newSalary, increment_type, value, effective_date || new Date(), notes, req.company_id || 1]);
         }
 
         await conn.commit();

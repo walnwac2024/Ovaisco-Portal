@@ -17,10 +17,12 @@ const ensureAttendanceRulesReady = async () => {
 
 const getShifts = async (req, res) => {
   try {
+    const company_id = req.company_id;
     const [rows] = await pool.query(
       `
       SELECT id, name, start_time, end_time, effective_from, effective_to, is_active, created_at
       FROM attendance_shifts
+      WHERE company_id = ?
       ORDER BY
         CASE name
           WHEN 'RAMADAN' THEN 1
@@ -29,7 +31,8 @@ const getShifts = async (req, res) => {
           ELSE 99
         END,
         effective_from DESC
-      `
+      `,
+      [company_id]
     );
     return res.json({ shifts: rows });
   } catch (e) {
@@ -41,6 +44,7 @@ const getShifts = async (req, res) => {
 const updateShift = async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const company_id = req.company_id;
     const { start_time, end_time, effective_from, effective_to, is_active } = req.body || {};
 
     if (!id) return res.status(400).json({ message: "Invalid shift id" });
@@ -55,15 +59,15 @@ const updateShift = async (req, res) => {
           effective_from = ?,
           effective_to = ?,
           is_active = ?
-      WHERE id = ?
+      WHERE id = ? AND company_id = ?
       `,
-      [start_time, end_time, effective_from, effective_to, is_active ? 1 : 0, id]
+      [start_time, end_time, effective_from, effective_to, is_active ? 1 : 0, id, company_id]
     );
 
     const [rows] = await pool.execute(
       `SELECT id, name, start_time, end_time, effective_from, effective_to, is_active
-       FROM attendance_shifts WHERE id = ? LIMIT 1`,
-      [id]
+       FROM attendance_shifts WHERE id = ? AND company_id = ? LIMIT 1`,
+      [id, company_id]
     );
 
     return res.json({ message: "Shift updated", shift: rows[0] || null });
@@ -75,14 +79,17 @@ const updateShift = async (req, res) => {
 
 const getRules = async (req, res) => {
   try {
+    const company_id = req.company_id;
     await ensureAttendanceRulesReady();
     const [rows] = await pool.query(
       `
       SELECT id, grace_minutes, notify_employee, notify_hr_admin, block_vpn, is_active, created_at
       FROM attendance_rules
+      WHERE company_id = ?
       ORDER BY id DESC
       LIMIT 10
-      `
+      `,
+      [company_id]
     );
     return res.json({ rules: rows });
   } catch (e) {
@@ -93,6 +100,7 @@ const getRules = async (req, res) => {
 
 const updateActiveRule = async (req, res) => {
   try {
+    const company_id = req.company_id;
     const { grace_minutes, notify_employee, notify_hr_admin, block_vpn } = req.body || {};
     const g = Number(grace_minutes);
 
@@ -100,14 +108,15 @@ const updateActiveRule = async (req, res) => {
       return res.status(400).json({ message: "grace_minutes must be a number (0-240)" });
     }
 
-    await pool.query(`UPDATE attendance_rules SET is_active = 0 WHERE is_active = 1`);
+    // Deactivate only this company's rules
+    await pool.query(`UPDATE attendance_rules SET is_active = 0 WHERE is_active = 1 AND company_id = ?`, [company_id]);
 
     await pool.execute(
       `
-      INSERT INTO attendance_rules (grace_minutes, notify_employee, notify_hr_admin, block_vpn, is_active)
-      VALUES (?, ?, ?, ?, 1)
+      INSERT INTO attendance_rules (grace_minutes, notify_employee, notify_hr_admin, block_vpn, is_active, company_id)
+      VALUES (?, ?, ?, ?, 1, ?)
       `,
-      [g, notify_employee ? 1 : 0, notify_hr_admin ? 1 : 0, block_vpn ? 1 : 0]
+      [g, notify_employee ? 1 : 0, notify_hr_admin ? 1 : 0, block_vpn ? 1 : 0, company_id]
     );
 
     return res.json({ message: "Rule updated" });
@@ -150,9 +159,10 @@ const bulkAssignShift = async (req, res) => {
       [today, today]
     );
 
-    // 2. Fetch all active employees
+    // 2. Fetch active employees of THIS company only
     const [employees] = await conn.execute(
-      "SELECT id FROM employee_records WHERE is_active = 1"
+      "SELECT id FROM employee_records WHERE is_active = 1 AND company_id = ?",
+      [req.company_id]
     );
 
     // 3. Insert new assignments

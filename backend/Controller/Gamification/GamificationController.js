@@ -16,10 +16,11 @@ async function getLeaderboard(req, res) {
             FROM employee_records e
             JOIN attendance_daily ad ON e.id = ad.employee_id
             WHERE ad.attendance_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+              AND e.company_id = ?
             GROUP BY e.id, e.Employee_Name
             ORDER BY on_time_count DESC, total_late_minutes ASC
             LIMIT 10
-        `);
+        `, [req.company_id || 1]);
 
         // 2. Performance Leaderboard (Last Cycle)
         const [performance] = await pool.execute(`
@@ -30,10 +31,10 @@ async function getLeaderboard(req, res) {
                 pe.grade
             FROM employee_records e
             JOIN performance_evaluations pe ON e.id = pe.employee_id
-            WHERE pe.status = 'completed'
+            WHERE pe.status = 'completed' AND e.company_id = ?
             ORDER BY pe.total_score DESC
             LIMIT 10
-        `);
+        `, [req.company_id || 1]);
 
         return res.json({
             punctuality,
@@ -78,9 +79,10 @@ async function getEmployeeBadges(req, res) {
             SELECT b.name, b.description, b.icon, b.type, eb.awarded_at
             FROM employee_badges eb
             JOIN badges b ON eb.badge_id = b.id
-            WHERE eb.employee_id = ?
+            JOIN employee_records e ON eb.employee_id = e.id
+            WHERE eb.employee_id = ? AND e.company_id = ?
             ORDER BY eb.awarded_at DESC
-        `, [employeeId]);
+        `, [employeeId, req.company_id || 1]);
 
         return res.json(rows);
     } catch (err) {

@@ -17,9 +17,9 @@ async function listLogs(req, res) {
                 e.profile_img as actor_avatar 
             FROM audit_logs al
             LEFT JOIN employee_records e ON al.actor_id = e.id
-            WHERE 1=1
+            WHERE al.company_id = ?
         `;
-        let params = [];
+        let params = [req.company_id || 1];
 
         if (category && category !== "") {
             query += " AND al.category = ?";
@@ -49,8 +49,8 @@ async function listLogs(req, res) {
         const [rows] = await pool.query(query, params);
 
         // Get total count for pagination
-        let countQuery = "SELECT COUNT(*) as total FROM audit_logs WHERE 1=1";
-        let countParams = [];
+        let countQuery = "SELECT COUNT(*) as total FROM audit_logs WHERE company_id = ?";
+        let countParams = [req.company_id || 1];
         if (category && category !== "") { countQuery += " AND category = ?"; countParams.push(category); }
         if (department && department !== "") { countQuery += " AND actor_department = ?"; countParams.push(department); }
         if (startDate && startDate !== "") { countQuery += " AND created_at >= ?"; countParams.push(`${startDate} 00:00:00`); }
@@ -80,19 +80,19 @@ async function listLogs(req, res) {
  */
 async function listLogFilters(req, res) {
     try {
-        const [categories] = await pool.query("SELECT DISTINCT category FROM audit_logs WHERE category IS NOT NULL");
+        const [categories] = await pool.query("SELECT DISTINCT category FROM audit_logs WHERE category IS NOT NULL AND company_id = ?", [req.company_id || 1]);
 
         // Fetch departments from both audit logs AND employee records to ensure a full list
         const [departments] = await pool.query(`
             SELECT DISTINCT actor_department as dept 
             FROM audit_logs 
-            WHERE actor_department IS NOT NULL AND actor_department <> ''
+            WHERE actor_department IS NOT NULL AND actor_department <> '' AND company_id = ?
             UNION
             SELECT DISTINCT Department as dept 
             FROM employee_records 
-            WHERE Department IS NOT NULL AND Department <> ''
+            WHERE Department IS NOT NULL AND Department <> '' AND company_id = ?
             ORDER BY dept
-        `);
+        `, [req.company_id || 1, req.company_id || 1]);
 
         return res.json({
             categories: categories.map(c => c.category),
