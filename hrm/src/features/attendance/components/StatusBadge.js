@@ -36,7 +36,7 @@ export default function StatusBadge({ status = "Pending" }) {
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ring-1 ${cls}`}>
       <Icon className="h-3 w-3" />
-      {status}
+      {status.replace(/_/g, ' ')}
     </span>
   );
 }

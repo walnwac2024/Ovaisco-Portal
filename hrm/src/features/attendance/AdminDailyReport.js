@@ -421,7 +421,7 @@ export default function AdminDailyReport() {
               ) : (
                 filteredList.map((emp) => {
                   const att = emp.attendance || {};
-                  const showOff = isSunday && (!att.status || att.status === 'Absent');
+                  const showOff = isSunday && (!att.status || att.status === 'Absent' || att.status === 'OFF_DAY');
                   return (
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-all group">
                       <td className="px-8 py-4 sticky left-0 bg-white group-hover:bg-slate-50/50 z-20 transition-colors">
@@ -461,7 +461,7 @@ export default function AdminDailyReport() {
                           att.late_minutes > 0 ? 'bg-amber-50 text-amber-500 border border-amber-100' : 'bg-emerald-50 text-emerald-500 border border-emerald-100'
                         }`}>
                           <FaCircle className="text-[6px]" />
-                          {showOff ? 'WEEKLY OFF' : (att.status || (!emp.attendance ? 'Absent' : 'Present'))}
+                          {showOff ? 'OFF DAY' : (att.status || (!emp.attendance ? 'Absent' : 'Present'))}
                         </span>
                       </td>
                       <td className="px-6 py-4">

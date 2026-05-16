@@ -1037,6 +1037,8 @@ const getMonthlyReport = async (req, res) => {
           // Check for Leave
           if (isLeave(date)) {
             status = 'LEAVE';
+          } else if (date.getDay() === 0) { // Sunday
+            status = 'OFF_DAY';
           } else {
             status = 'ABSENT';
           }
@@ -1185,6 +1187,8 @@ const getMonthlyReportAll = async (req, res) => {
           if (date < today) {
             if (isLeave(emp.id, date)) {
               status = "LEAVE";
+            } else if (date.getDay() === 0) { // Sunday
+              status = "OFF_DAY";
             } else {
               status = "ABSENT";
             }
@@ -1277,15 +1281,24 @@ const getAttendanceLogs = async (req, res) => {
       [date, req.company_id || 1]
     );
 
-    // Process rows to add computed fields
-    const processedRows = rows.map(row => ({
-      ...row,
-      status: row.status || 'NOT_MARKED',
-      checkIn: row.checkIn ? new Date(row.checkIn).toLocaleTimeString('en-US', { hour12: false }) : null,
-      checkOut: row.checkOut ? new Date(row.checkOut).toLocaleTimeString('en-US', { hour12: false }) : null,
-      lateMinutes: row.lateMinutes || 0,
-      workedMinutes: row.workedMinutes || 0,
-    }));
+    const selectedDate = new Date(date);
+    const isPastSunday = selectedDate.getDay() === 0 && selectedDate < new Date().setHours(0, 0, 0, 0);
+
+    const processedRows = rows.map(row => {
+      let status = row.status || 'NOT_MARKED';
+      if (!row.status && isPastSunday) {
+        status = 'OFF_DAY';
+      }
+
+      return {
+        ...row,
+        status: status,
+        checkIn: row.checkIn ? new Date(row.checkIn).toLocaleTimeString('en-US', { hour12: false }) : null,
+        checkOut: row.checkOut ? new Date(row.checkOut).toLocaleTimeString('en-US', { hour12: false }) : null,
+        lateMinutes: row.lateMinutes || 0,
+        workedMinutes: row.workedMinutes || 0,
+      };
+    });
 
     // If Excel format requested
     if (format === 'excel') {
