@@ -22,6 +22,7 @@ import { BASE_URL } from "../utils/api";
 import TimeSyncModal from "../components/common/TimeSyncModal";
 import FaceRecognitionModal from "../features/attendance/components/FaceRecognitionModal";
 import MainLoader from "../components/common/MainLoader";
+import BirthdayCelebration from "../components/common/BirthdayCelebration";
 
 const BACKEND_URL = BASE_URL;
 
@@ -523,7 +524,7 @@ function DashboardHome() {
           </div>
           <div className="border-t border-slate-100/50 flex divide-x divide-slate-100/50 text-[10px] md:text-[11px] font-bold uppercase text-slate-400">
             <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-customRed transition-all flex items-center justify-center gap-2">
-              <Icon name="Cake" size={14} className="opacity-60" /> <span className="hidden sm:inline">0 Today</span><span className="sm:hidden">0 Bday</span>
+              <Icon name="Cake" size={14} className="opacity-60" /> <span className="hidden sm:inline">{dashboardData?.widgets?.colleaguesBirthdays?.length || 0} Today</span><span className="sm:hidden">{dashboardData?.widgets?.colleaguesBirthdays?.length || 0} Bday</span>
             </button>
             <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2">
               <Icon name="Mail" size={14} className="opacity-60" /> <span className="hidden sm:inline">Messages</span><span className="sm:hidden">Inbox</span>
@@ -672,6 +673,16 @@ function DashboardHome() {
 
       {/* MIDDLE COLUMN */}
       <section className="lg:col-span-6 space-y-6 lg:space-y-8">
+        
+        {/* Birthday Celebration */}
+        {dashboardData?.widgets?.birthdayToday && (
+          <BirthdayCelebration 
+            isBirthday={true} 
+            name={dashboardData?.profile?.name || user?.Employee_Name} 
+            isSelf={true} 
+          />
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Missing Attendance */}
           <div className="glass-card rounded-2xl lg:rounded-[2rem] shadow-premium flex flex-col min-h-[200px] md:min-h-[220px] transition-all duration-300 card-hover overflow-hidden">
