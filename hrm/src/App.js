@@ -1,10 +1,8 @@
 // src/App.js
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ProtectedRoute from "./components/pages/ProtectedRoute/ProtectedRoute";
-// thiiiiiiiiiiiiiiiiiiiii
 // Auth context
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -18,26 +16,27 @@ const Dashboard = lazy(() => import("./Dashbord/Dashbord"));
 const DashboardTabsLayout = lazy(() => import("./components/pages/DashboardTabsLayout"));
 const EmployeesPage = lazy(() => import("./features/employees/EmployeesPage"));
 const EmployeeViewPage = lazy(() => import("./features/employees/components/EmployeeViewPage"));
-const AttendancePage = lazy(() => import("./features/attendance").then(m => ({ default: m.AttendancePage })));
+const AttendancePage = lazy(() => import("./features/attendance/AttendancePage"));
 const AdminDailyReport = lazy(() => import("./features/attendance/AdminDailyReport"));
 const AttendanceSettings = lazy(() => import("./features/attendance/components/AttendanceSettings"));
-const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
-const LeavePage = lazy(() => import("./features/leave/LeavePage"));
 const PermissionsPage = lazy(() => import("./features/permissions/PermissionsPage"));
 const NewsPage = lazy(() => import("./features/news/NewsPage"));
-const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
 const LogsPage = lazy(() => import("./features/audit/LogsPage"));
 const BrandingPage = lazy(() => import("./features/settings/BrandingPage"));
+const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPage"));
+const OfficePage = lazy(() => import("./features/office/OfficePage"));
+const LeavePage = lazy(() => import("./features/leave/LeavePage"));
+const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
+const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
+const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
+const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
+const PerformancePage = lazy(() => import("./features/performance/PerformancePage"));
 const SystemSettingsPage = lazy(() => import("./features/settings/SystemSettingsPage"));
 
 const ComingSoon = lazy(() => import("./components/common/ComingSoon"));
-const OrganizationPage = lazy(() => import("./features/organization/OrganizationPage"));
-const PerformancePage = lazy(() => import("./features/performance/PerformancePage"));
-const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPage"));
-const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
 const PayrollDetailsView = lazy(() => import("./features/payroll/components/PayrollDetailsView"));
 const SalarySettings = lazy(() => import("./features/payroll/components/SalarySettings"));
-const OfficePage = lazy(() => import("./features/office/OfficePage"));
+const ToastContainer = lazy(() => import("react-toastify").then((m) => ({ default: m.ToastContainer })));
 // const SaaSPage = lazy(() => import("./features/saas/SaaSPage"));
 
 
@@ -64,6 +63,7 @@ function PublicOnly({ children }) {
 
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [showToasts, setShowToasts] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -77,21 +77,66 @@ export default function App() {
     })();
   }, []);
 
-  if (!ready) return <div className="p-6 text-gray-600">Loading…</div>;
+  useEffect(() => {
+    if (!ready) return undefined;
+
+    const loadToasts = () => setShowToasts(true);
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(loadToasts, { timeout: 2000 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+
+    const id = window.setTimeout(loadToasts, 1000);
+    return () => window.clearTimeout(id);
+  }, [ready]);
+
+  if (!ready) return <div className="p-6 text-gray-600">Loading...</div>;
 
   return (
     <Router>
       <AuthProvider>
         <ThemeProvider>
-          <ToastContainer position="top-right" autoClose={3000} />
+          {showToasts && (
+            <Suspense fallback={null}>
+              <ToastContainer position="top-right" autoClose={3000} />
+            </Suspense>
+          )}
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               {/* Public */}
               <Route
                 path="/login"
+                element={<Navigate to="/login/propeople" replace />}
+              />
+              <Route
+                path="/login/ovisco"
+                element={<Navigate to="/login/ovaisco" replace />}
+              />
+              <Route
+                path="/login/:portalCode"
                 element={
                   <PublicOnly>
                     <Login />
+                  </PublicOnly>
+                }
+              />
+              <Route
+                path="/propeople"
+                element={
+                  <PublicOnly>
+                    <Login fixedCompanyCode="propeople" />
+                  </PublicOnly>
+                }
+              />
+              <Route
+                path="/ovisco"
+                element={<Navigate to="/ovaisco" replace />}
+              />
+              <Route
+                path="/ovaisco"
+                element={
+                  <PublicOnly>
+                    <Login fixedCompanyCode="ovisco" />
                   </PublicOnly>
                 }
               />
@@ -116,6 +161,8 @@ export default function App() {
                   <Route path="branding" element={<BrandingPage />} />
                   <Route path="leaderboard" element={<LeaderboardPage />} />
                   <Route path="office/*" element={<OfficePage />} />
+                  <Route path="procurement" element={<ComingSoon title="Procurement Module" />} />
+                  <Route path="store" element={<ComingSoon title="Store Module" />} />
                   <Route path="daily-report" element={<AdminDailyReport />} />
                 </Route>
 

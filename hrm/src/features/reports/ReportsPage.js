@@ -33,11 +33,11 @@ export default function ReportsPage() {
     // mode: 'list' | 'detail'
     const [view, setView] = useState({ mode: 'list', employeeId: null, year: null, month: null });
 
-    // ✅ Sync nav when user/permissions load
+    // Sync nav when user/permissions load
     React.useEffect(() => {
         setNav(safeNav);
     }, [safeNav]);
-    console.log("safeNav is here", safeNav)
+
     const activeId = nav.find(n => n.active)?.id || (nav[0]?.id || '');
 
     const handleNavigate = (id) => {

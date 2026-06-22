@@ -21,7 +21,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
 import { FiActivity } from "react-icons/fi";
 import ThemeToggle from "../../common/ThemeToggle";
-import api, { BASE_URL } from "../../../utils/api";
+import api, { BASE_URL, getApiPortalCode } from "../../../utils/api";
 
 // Map backend keys -> route + icon + fallback label
 const TAB_META = {
@@ -54,6 +54,11 @@ function getInitials(nameOrEmail = "User") {
       .map((p) => p[0]?.toUpperCase())
       .join("") || "U"
   );
+}
+
+function getPublicPortalCode(companyCode) {
+  const code = String(companyCode || "").trim().toLowerCase();
+  return code === "ovisco" ? "ovaisco" : code;
 }
 
 export default function Topbar({ logoSrc }) {
@@ -90,6 +95,10 @@ export default function Topbar({ logoSrc }) {
       const { data } = await api.get("/notifications");
       setNotifications(data);
     } catch (e) {
+      if (e?.response?.status === 401) {
+        setNotifications([]);
+        return;
+      }
       console.error("fetchNotifications error", e);
     }
   }, [user]);
@@ -101,6 +110,7 @@ export default function Topbar({ logoSrc }) {
         prev.map((n) => (n.id === id ? { ...n, is_read: 1 } : n))
       );
     } catch (e) {
+      if (e?.response?.status === 401) return;
       console.error("markRead error", e);
     }
   };
@@ -110,6 +120,7 @@ export default function Topbar({ logoSrc }) {
       await api.patch("/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
     } catch (e) {
+      if (e?.response?.status === 401) return;
       console.error("markAllRead error", e);
     }
   };
@@ -120,6 +131,7 @@ export default function Topbar({ logoSrc }) {
       const interval = setInterval(fetchNotifications, 300000); // 5 mins
       return () => clearInterval(interval);
     }
+    setNotifications([]);
   }, [user, fetchNotifications]);
 
   useEffect(() => {
@@ -194,6 +206,12 @@ export default function Topbar({ logoSrc }) {
     : null;
 
   const handleLogout = async () => {
+    const companyCode = String(
+      user?.company_code ||
+      user?.tenant?.company_code ||
+      getApiPortalCode() ||
+      "propeople"
+    ).toLowerCase();
     try {
       await logout();
     } catch (e) {
@@ -201,7 +219,7 @@ export default function Topbar({ logoSrc }) {
     } finally {
       setOpen(false);
       setShowMobileMenu(false);
-      navigate("/login", { replace: true });
+      navigate(`/login/${getPublicPortalCode(companyCode)}`, { replace: true });
     }
   };
 
@@ -267,7 +285,10 @@ export default function Topbar({ logoSrc }) {
             <Link to="/dashboard" className="flex items-center shrink-0" aria-label="Go to dashboard">
               <img
                 src={logo}
-                alt="HRM Logo"
+                alt="WorkSphere Logo"
+                width="144"
+                height="36"
+                decoding="async"
                 className="h-8 sm:h-9 w-auto drop-shadow-sm dark:brightness-200 dark:invert dark:hue-rotate-180"
                 onError={(e) => {
                   e.target.src = fallbackLogo;
@@ -447,6 +468,9 @@ export default function Topbar({ logoSrc }) {
                       <img 
                         src={avatarUrl} 
                         alt="User" 
+                        width="36"
+                        height="36"
+                        decoding="async"
                         className="h-9 w-9 rounded-xl object-cover border border-slate-100 shadow-sm"
                         onError={(e) => {
                           e.target.onerror = null;
@@ -570,7 +594,7 @@ export default function Topbar({ logoSrc }) {
       <div className={`fixed top-0 left-0 h-full w-[300px] bg-white dark:bg-slate-900 z-[1001] shadow-[30px_0_60px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden rounded-r-[32px] overflow-hidden flex flex-col ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Header */}
         <div className="shrink-0 p-6 border-b dark:border-slate-800 border-slate-100 flex items-center justify-between bg-white dark:bg-slate-900 relative">
-          <img src={logo} alt="Logo" className="h-8 w-auto" />
+          <img src={logo} alt="Logo" width="128" height="32" decoding="async" className="h-8 w-auto" />
           <button
             onClick={() => setShowMobileMenu(false)}
             className="p-2 text-slate-400 hover:text-customRed hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"

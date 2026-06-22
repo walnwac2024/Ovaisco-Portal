@@ -45,6 +45,8 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingVault, setSavingVault] = useState(false);
+  const [creatingLeaveBalances, setCreatingLeaveBalances] = useState(false);
+  const [leaveBalanceMessage, setLeaveBalanceMessage] = useState("");
   const [vaultSuccess, setVaultSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -257,6 +259,26 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
       console.error(err);
     } finally {
       setSavingVault(false);
+    }
+  };
+
+  const handleCreateLeaveBalances = async () => {
+    if (!canEditVault) return;
+    const ok = window.confirm("Create missing leave balances for this employee for the current year?");
+    if (!ok) return;
+
+    setCreatingLeaveBalances(true);
+    setLeaveBalanceMessage("");
+    try {
+      const { data } = await api.post(`/employees/${employeeId}/leave-balances`);
+      setLeaveBalanceMessage(data?.message || "Leave balances updated.");
+    } catch (err) {
+      console.error("Create leave balances failed", err);
+      setLeaveBalanceMessage(
+        err?.response?.data?.message || err?.message || "Failed to create leave balances."
+      );
+    } finally {
+      setCreatingLeaveBalances(false);
     }
   };
 
@@ -700,6 +722,34 @@ export default function EditEmployeeModal({ employeeId, onClose }) {
                   rows={3}
                 />
               </Field>
+
+              {canEditVault && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                        Leave Access
+                      </h4>
+                      <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                        Create missing current-year leave balances so this employee can see My Leaves.
+                      </p>
+                      {leaveBalanceMessage && (
+                        <p className="mt-2 text-[11px] font-bold text-slate-700">
+                          {leaveBalanceMessage}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCreateLeaveBalances}
+                      disabled={creatingLeaveBalances}
+                      className="btn-primary h-10 px-5 rounded-xl text-[10px] uppercase tracking-widest"
+                    >
+                      {creatingLeaveBalances ? "Creating..." : "Create Balances"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* ---------------- DOCUMENTS SECTION (NEW) ---------------- */}
               <div className="pt-4">

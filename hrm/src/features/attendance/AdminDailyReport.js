@@ -303,18 +303,18 @@ export default function AdminDailyReport() {
       {/* Detailed Data Section */}
       <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/40 border border-slate-100/80 overflow-hidden mt-8 transition-all">
         {/* Advanced Toolbar */}
-        <div className="p-6 sm:p-8 bg-gradient-to-b from-slate-50/50 to-transparent border-b border-slate-100 space-y-6">
+        <div className="p-6 sm:p-8 bg-slate-50/80 border-b border-slate-100 space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-1.5 h-6 bg-slate-800 rounded-full hidden sm:block"></div>
+              <div className="w-1.5 h-6 bg-customRed rounded-full hidden sm:block"></div>
               <div>
                 <h2 className="text-xl font-black text-slate-800 capitalize tracking-tight">
                   {isAdmin 
                     ? (isSunday && activeTab === 'absent' ? 'Full Weekly Off List' : `${activeTab} Summary View`)
                     : "Attendance Log Entry"}
                 </h2>
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
-                  <FaClock className="text-rose-400" />
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">
+                  <FaClock className="text-customRed" />
                   <span>Report for {selectedDate === new Date().toLocaleDateString('en-CA') ? "Today's Cycle" : selectedDate}</span>
                 </div>
               </div>
@@ -344,26 +344,26 @@ export default function AdminDailyReport() {
 
           {/* Refined Filters Bar - Hide for non-admins */}
           {isAdmin && (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
               {/* Search Input */}
               <div className="relative md:col-span-2">
-                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-customRed" />
                 <input 
                   type="text"
                   placeholder="Search by Employee Name or ID..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-300 transition-all placeholder:text-slate-300"
+                  className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-customRed/10 focus:border-customRed/40 transition-all placeholder:text-slate-400"
                 />
               </div>
 
               {/* Department Filter */}
               <div className="relative group">
-                <FaFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-rose-400 transition-colors" />
+                <FaFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-customRed transition-colors" />
                 <select 
                   value={deptFilter}
                   onChange={(e) => setDeptFilter(e.target.value)}
-                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-600 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-customRed/10 focus:border-customRed/40 transition-all"
                 >
                   <option value="All">All Departments</option>
                   {departments.filter(d => d !== "All").map(d => <option key={d} value={d}>{d}</option>)}
@@ -372,11 +372,11 @@ export default function AdminDailyReport() {
 
               {/* Station Filter */}
               <div className="relative group">
-                <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-rose-400 transition-colors" />
+                <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-customRed transition-colors" />
                 <select 
                   value={stationFilter}
                   onChange={(e) => setStationFilter(e.target.value)}
-                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-600 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-customRed/10 focus:border-customRed/40 transition-all"
                 >
                   <option value="All">All Stations</option>
                   {stations.filter(s => s !== "All").map(s => <option key={s} value={s}>{s}</option>)}
@@ -430,16 +430,21 @@ export default function AdminDailyReport() {
                             {emp.avatar ? (
                               <img src={emp.avatar.startsWith('http') ? emp.avatar : `${BASE_URL}${emp.avatar.startsWith('/') ? '' : '/'}${emp.avatar}`} alt={emp.name} className="w-11 h-11 rounded-2xl object-cover shadow-sm ring-2 ring-white" />
                             ) : (
-                              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs font-black text-slate-500 shadow-sm ring-2 ring-white">
-                                {emp.name?.charAt(0)}
+                              <div className="w-11 h-11 rounded-2xl bg-customRed flex items-center justify-center text-xs font-black text-white shadow-sm ring-2 ring-white uppercase">
+                                {emp.name
+                                  ?.split(" ")
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((part) => part.charAt(0))
+                                  .join("")}
                               </div>
                             )}
                             <div className={`absolute -right-1 -bottom-1 w-3.5 h-3.5 rounded-full border-2 border-white ${att.status ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                           </div>
                           <div>
-                            <div className="font-black text-slate-800 tracking-tight leading-none group-hover:text-customRed transition-colors">{emp.name}</div>
+                            <div className="font-black text-slate-900 tracking-tight leading-none">{emp.name}</div>
                             <div className="flex items-center gap-2 mt-1.5">
-                              <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">#{emp.empCode || emp.id}</div>
+                              <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest">#{emp.empCode || emp.id}</div>
                               {emp.biometric_id && (
                                 <div className="text-[9px] bg-slate-50 text-slate-500 font-bold px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
                                   <FaFingerprint size={8} /> {emp.biometric_id}

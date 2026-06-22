@@ -6,6 +6,10 @@ node_modules/
 backend/.wwebjs_auth/
 backend/.wwebjs_cache/
 
+# Runtime uploads and local owner/security state
+backend/uploads/
+.owner_security/
+
 # Build outputs
 **/build/
 **/dist/

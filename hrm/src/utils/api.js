@@ -11,6 +11,28 @@ const api = axios.create({
   withCredentials: true, // ✅ send session cookie always
 });
 
+const PORTAL_STORAGE_KEY = "activePortalCode";
+
+export function getApiPortalCode() {
+  return String(sessionStorage.getItem(PORTAL_STORAGE_KEY) || "").trim().toLowerCase();
+}
+
+export function setApiPortalCode(companyCode) {
+  const nextCode = String(companyCode || "").trim().toLowerCase();
+  const currentCode = getApiPortalCode();
+
+  if (nextCode) {
+    sessionStorage.setItem(PORTAL_STORAGE_KEY, nextCode);
+  } else {
+    sessionStorage.removeItem(PORTAL_STORAGE_KEY);
+  }
+
+  if (currentCode !== nextCode) {
+    csrfToken = null;
+    csrfPromise = null;
+  }
+}
+
 // cache token in memory
 let csrfToken = null;
 // prevent multiple parallel token requests
@@ -55,6 +77,12 @@ export async function initCsrf() {
 api.interceptors.request.use(async (config) => {
   const method = (config.method || "get").toLowerCase();
   const needsToken = ["post", "put", "patch", "delete"].includes(method);
+  const portalCode = getApiPortalCode();
+
+  if (portalCode) {
+    config.headers = config.headers || {};
+    config.headers["x-portal-code"] = portalCode;
+  }
 
   if (needsToken) {
     const token = csrfToken || (await getCsrfToken());

@@ -18,7 +18,19 @@ const DOC_TYPES = [
   "Other",
 ];
 
-
+const EMPLOYEE_STATUS_OPTIONS = [
+  "Full-Time",
+  "Part-Time",
+  "Contract",
+  "Internship",
+  "Probation",
+  "Permanent",
+  "Active",
+  "Notice Period",
+  "Left",
+  "Inactive",
+  "On Hold",
+];
 
 export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
   const [activeTab, setActiveTab] = useState("employment");
@@ -132,6 +144,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
     officialEmail: "",
     personalEmail: "",
     allowPortalLogin: true,
+    allowLeaveBalances: true,
     password: "",
     userType: "",
     shiftId: "",
@@ -245,6 +258,11 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
 
       const code = created?.employeeCode || "(auto)";
       toast.success(`Employee created successfully. ID: ${code}`);
+      if (created?.leaveBalancesCreated > 0) {
+        toast.success(`Leave balances created for ${created.leaveBalancesCreated} leave type(s).`);
+      } else if (created?.leaveBalancesSkipped) {
+        toast.info("Leave balances were skipped for this employee.");
+      }
 
       // if backend generated code, show it in the form until modal closes
       if (!form.employeeCode && created?.employeeCode) {
@@ -325,7 +343,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                     dateOfBirth: "", gender: "", bloodGroup: "", religion: "", maritalStatus: "", address: "", cnic: "",
                     dateOfJoining: "", personalContact: "", officialContact: "", emergencyContact: "", emergencyRelation: "",
                     reportingTo: "", officialEmail: "", personalEmail: "", allowPortalLogin: true, password: "", userType: "", shiftId: "",
-                    profileImg: null, probation: "",
+                    allowLeaveBalances: true, profileImg: null, probation: "",
                   });
                   setDocuments([]);
                   setIsSuccess(false);
@@ -437,7 +455,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                       </Field>
                       <Field label="Status" required>
                         <SharedDropdown
-                          options={lookups.statuses.length > 0 ? lookups.statuses : ["Active", "Probation", "Left", "On Hold"]}
+                          options={lookups.statuses.length > 0 ? lookups.statuses : EMPLOYEE_STATUS_OPTIONS}
                           value={form.status}
                           onChange={(val) => updateField("status", val)}
                           placeholder="Select Status"
@@ -636,6 +654,23 @@ export default function AddEmployeeModal({ open, onClose, onCreated, onSave }) {
                     <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
                       <input type="checkbox" id="allowLogin" className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500" checked={form.allowPortalLogin} onChange={(e) => updateField("allowPortalLogin", e.target.checked)} />
                       <label htmlFor="allowLogin" className="text-xs font-bold text-emerald-800 uppercase tracking-wider cursor-pointer">Enable Portal Login for this Employee</label>
+                    </div>
+                    <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="allowLeaveBalances"
+                        className="mt-0.5 w-4 h-4 text-customRed rounded border-slate-300 focus:ring-customRed"
+                        checked={form.allowLeaveBalances}
+                        onChange={(e) => updateField("allowLeaveBalances", e.target.checked)}
+                      />
+                      <label htmlFor="allowLeaveBalances" className="cursor-pointer">
+                        <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                          Create current-year leave balances
+                        </span>
+                        <span className="block mt-1 text-[11px] text-slate-500 leading-relaxed">
+                          Adds active leave types automatically so this employee can see balances on My Leaves.
+                        </span>
+                      </label>
                     </div>
                   </section>
                 )}

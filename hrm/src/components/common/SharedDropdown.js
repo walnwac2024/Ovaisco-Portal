@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { LuChevronDown, LuSearch, LuCheck, LuX } from 'react-icons/lu';
 
 /**
@@ -25,7 +26,9 @@ export default function SharedDropdown({
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [menuStyle, setMenuStyle] = useState(null);
     const containerRef = useRef(null);
+    const menuRef = useRef(null);
     const listRef = useRef(null);
 
     // Memoize normalized options - only recalculate when options change
@@ -55,6 +58,20 @@ export default function SharedDropdown({
         setIsOpen(prev => !prev);
     }, []);
 
+    const updateMenuPosition = useCallback(() => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        setMenuStyle({
+            position: 'fixed',
+            top: rect.bottom + 8,
+            left: rect.left,
+            width: rect.width,
+            minWidth: Math.max(rect.width, 200),
+            zIndex: 9999,
+        });
+    }, []);
+
     // Memoize select handler
     const handleSelect = useCallback((val) => {
         onChange?.(val);
@@ -74,7 +91,9 @@ export default function SharedDropdown({
         if (!isOpen) return;
 
         const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
+            const clickedTrigger = containerRef.current?.contains(event.target);
+            const clickedMenu = menuRef.current?.contains(event.target);
+            if (!clickedTrigger && !clickedMenu) {
                 setIsOpen(false);
             }
         };
@@ -83,15 +102,79 @@ export default function SharedDropdown({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+
+        updateMenuPosition();
+
+        const closeOnLayoutChange = () => updateMenuPosition();
+        window.addEventListener('resize', closeOnLayoutChange);
+        window.addEventListener('scroll', closeOnLayoutChange, true);
+
+        return () => {
+            window.removeEventListener('resize', closeOnLayoutChange);
+            window.removeEventListener('scroll', closeOnLayoutChange, true);
+        };
+    }, [isOpen, updateMenuPosition]);
+
     // Focus search when opening
     useEffect(() => {
         if (isOpen && searchable) {
             setTimeout(() => {
-                const searchInput = containerRef.current?.querySelector('input');
+                const searchInput = menuRef.current?.querySelector('input');
                 searchInput?.focus();
             }, 50);
         }
     }, [isOpen, searchable]);
+
+    const dropdownMenu = isOpen && menuStyle ? (
+        <div
+            ref={menuRef}
+            className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            style={menuStyle}
+        >
+            {searchable && (
+                <div className="p-2 border-b border-slate-50">
+                    <div className="relative">
+                        <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <input
+                            type="text"
+                            className="w-full h-8 pl-9 pr-3 text-[13px] rounded-lg bg-slate-50 border-none outline-none focus:ring-1 focus:ring-customRed/20"
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className="max-h-[220px] overflow-y-auto custom-scrollbar py-1" ref={listRef}>
+                {filteredOptions.length === 0 ? (
+                    <div className="px-4 py-3 text-[13px] text-slate-400 italic text-center">
+                        No results found
+                    </div>
+                ) : (
+                    filteredOptions.map((opt) => {
+                        const isSelected = opt.value === value;
+                        return (
+                            <div
+                                key={opt.value}
+                                onClick={() => handleSelect(opt.value)}
+                                className={`
+                                    px-4 py-2.5 text-[14px] cursor-pointer flex items-center justify-between transition-colors
+                                    ${isSelected ? 'bg-customRed/5 text-customRed font-semibold' : 'text-slate-600 hover:bg-slate-50'}
+                                `}
+                            >
+                                <span className="truncate">{opt.label}</span>
+                                {isSelected && <LuCheck className="h-4 w-4 shrink-0" />}
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
+    ) : null;
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
@@ -119,54 +202,7 @@ export default function SharedDropdown({
                 </div>
             </div>
 
-            {/* Dropdown Menu */}
-            {isOpen && (
-                <div
-                    className="absolute z-[100] mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-                    style={{ minWidth: '200px' }}
-                >
-                    {searchable && (
-                        <div className="p-2 border-b border-slate-50">
-                            <div className="relative">
-                                <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                                <input
-                                    type="text"
-                                    className="w-full h-8 pl-9 pr-3 text-[13px] rounded-lg bg-slate-50 border-none outline-none focus:ring-1 focus:ring-customRed/20"
-                                    placeholder="Search..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="max-h-[220px] overflow-y-auto custom-scrollbar py-1" ref={listRef}>
-                        {filteredOptions.length === 0 ? (
-                            <div className="px-4 py-3 text-[13px] text-slate-400 italic text-center">
-                                No results found
-                            </div>
-                        ) : (
-                            filteredOptions.map((opt) => {
-                                const isSelected = opt.value === value;
-                                return (
-                                    <div
-                                        key={opt.value}
-                                        onClick={() => handleSelect(opt.value)}
-                                        className={`
-                                            px-4 py-2.5 text-[14px] cursor-pointer flex items-center justify-between transition-colors
-                                            ${isSelected ? 'bg-customRed/5 text-customRed font-semibold' : 'text-slate-600 hover:bg-slate-50'}
-                                        `}
-                                    >
-                                        <span className="truncate">{opt.label}</span>
-                                        {isSelected && <LuCheck className="h-4 w-4 shrink-0" />}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
+            {typeof document !== 'undefined' && createPortal(dropdownMenu, document.body)}
         </div>
     );
 }

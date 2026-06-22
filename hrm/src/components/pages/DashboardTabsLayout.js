@@ -60,6 +60,16 @@ export default function DashboardTabsLayout() {
           feats.has('office_req_approve_accounts');
       })()
     },
+    {
+      label: "Procurement",
+      to: "/dashboard/procurement",
+      show: isSuperUser || feats.has('procurement_module_access')
+    },
+    {
+      label: "Store",
+      to: "/dashboard/store",
+      show: isSuperUser || feats.has('store_module_access')
+    },
     { 
       label: isAdminLike ? "Attendance Daily Report" : "My Daily Attendance", 
       to: "/dashboard/daily-report",

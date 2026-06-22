@@ -24,14 +24,13 @@ const SAMPLE = [
 ];
 
 /**
- * Old stub – kept so existing code doesn’t break.
+ * Old stub - kept so existing code doesn't break.
  */
 export async function fetchEmployees(/* filters */) {
   return Promise.resolve({ items: SAMPLE, count: SAMPLE.length });
 }
 
 export async function exportEmployees(/* filters */) {
-  console.log("EXPORT with filters");
   return Promise.resolve(true);
 }
 

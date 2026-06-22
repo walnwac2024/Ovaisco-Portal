@@ -149,20 +149,20 @@ export default function PermissionsPage() {
                     </div>
 
                     {/* Stats Widget */}
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-[2rem] text-white shadow-xl">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Quick Stats</h3>
+                    <div className="bg-white p-6 rounded-[2rem] text-slate-900 shadow-lg shadow-slate-200/40 border border-slate-100">
+                        <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Quick Stats</h3>
                         <div className="space-y-4">
                             <div className="flex justify-between items-end">
-                                <span className="text-xs text-slate-400">Selected Role</span>
-                                <span className="text-sm font-black text-rose-400">{selectedType?.type || '--'}</span>
+                                <span className="text-xs font-bold text-slate-500">Selected Role</span>
+                                <span className="text-sm font-black text-customRed">{selectedType?.type || '--'}</span>
                             </div>
                             <div className="flex justify-between items-end">
-                                <span className="text-xs text-slate-400">Active Permissions</span>
-                                <span className="text-2xl font-black">{typePermissions.length}</span>
+                                <span className="text-xs font-bold text-slate-500">Active Permissions</span>
+                                <span className="text-2xl font-black text-slate-900">{typePermissions.length}</span>
                             </div>
-                            <div className="w-full bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
                                 <div 
-                                    className="h-full bg-rose-500 transition-all duration-500" 
+                                    className="h-full bg-customRed transition-all duration-500" 
                                     style={{ width: `${(typePermissions.length / (permissions.length || 1)) * 100}%` }}
                                 ></div>
                             </div>

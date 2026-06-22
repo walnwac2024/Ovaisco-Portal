@@ -199,9 +199,9 @@ export default function useEmployees() {
     load(appliedFilters);
   };
 
-  const uploadExcel = () => console.log("Upload Excel");
-  const sendCreds = () => console.log("Send Credentials");
-  const addNew = () => console.log("Add New Employee");
+  const uploadExcel = () => {};
+  const sendCreds = () => {};
+  const addNew = () => {};
 
   return {
     filters,

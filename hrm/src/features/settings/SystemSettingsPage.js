@@ -91,10 +91,9 @@ export default function SystemSettingsPage() {
     // Handle save (create or update)
     const handleSave = async (formData) => {
         if (editingItem) {
-            await updateItem(editingItem.id, formData);
-        } else {
-            await createItem(formData);
+            return await updateItem(editingItem.id, formData);
         }
+        return await createItem(formData);
     };
 
     // Handle delete with confirmation
@@ -121,7 +120,7 @@ export default function SystemSettingsPage() {
                             <h2 className="text-xl font-bold">Getting Started with Your Organization</h2>
                         </div>
                         <p className="text-blue-100 mb-4 max-w-2xl">
-                            Welcome! To get the most out of the HRM system, you should first set up your organizational structure. 
+                            Welcome! To get the most out of WorkSphere, you should first set up your organizational structure. 
                             Add your **Departments** and **Designations** so you can assign them when creating new employee profiles.
                         </p>
                         <div className="flex flex-wrap gap-4">

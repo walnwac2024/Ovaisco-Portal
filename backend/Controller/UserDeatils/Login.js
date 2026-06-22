@@ -2,7 +2,10 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../../Utils/db");
+const { findCompanyByCode } = require("../../Utils/masterDb");
+const { getTenantPool } = require("../../Utils/tenantDb");
 const { recordLog } = require("../../Utils/AuditUtils");
+const { getUploadedFileUrl } = require("../../Utils/uploadPaths");
 
 const JWT_SECRET = process.env.JWT_SECRET || "change_me";
 
@@ -16,17 +19,36 @@ const register = async (req, res) => {
 // POST /auth/login
 const login = async (req, res) => {
   try {
-    let { email, password } = req.body ?? {};
-    if (!email || !password) {
+    let { companyCode, company_code, email, password } = req.body ?? {};
+    const requestedCompanyCode = String(companyCode || company_code || "").trim().toLowerCase();
+
+    if (!requestedCompanyCode || !email || !password) {
       return res
         .status(400)
-        .json({ message: "email and password are required" });
+        .json({ message: "company code, email and password are required" });
     }
 
     email = String(email).trim();
 
+    const company = await findCompanyByCode(requestedCompanyCode);
+    if (!company || company.status !== "active") {
+      return res.status(400).json({ message: "Invalid or inactive company" });
+    }
+
+    const tenant = {
+      company_id: company.id,
+      company_name: company.company_name,
+      company_code: company.company_code,
+      db_name: company.db_name,
+      db_host: company.db_host,
+      db_port: company.db_port,
+      db_user: company.db_user,
+      db_password: company.db_password,
+    };
+    const tenantPool = getTenantPool(tenant);
+
     // 1) find employee in employee_records (only can_login=1)
-    const [empRows] = await pool.execute(
+    const [empRows] = await tenantPool.execute(
       `SELECT 
           e.id,
           e.Employee_ID,
@@ -88,7 +110,7 @@ const login = async (req, res) => {
     }
 
     // 2) primary role for this employee via employee_user_types
-    const [roleRows] = await pool.execute(
+    const [roleRows] = await tenantPool.execute(
       `SELECT ut.id,
               ut.type,
               ut.permission_level,
@@ -136,7 +158,7 @@ const login = async (req, res) => {
     }
 
     // 3) feature codes (permissions) from user_type_permission + permissions
-    const [permRows] = await pool.execute(
+    const [permRows] = await tenantPool.execute(
       `SELECT DISTINCT p.code
          FROM user_type_permission up
          JOIN permissions p ON p.id = up.permission_id
@@ -151,7 +173,7 @@ const login = async (req, res) => {
     // ✅ Developer gets ALL permissions (safe-lock prevention)
     const isDeveloper = roles.some(r => String(r).toLowerCase() === 'developer');
     if (level >= 10 || isDeveloper) {
-      const [allPerms] = await pool.execute("SELECT code FROM permissions");
+      const [allPerms] = await tenantPool.execute("SELECT code FROM permissions");
       features = [...new Set([...features, ...allPerms.map(p => p.code)])];
     }
 
@@ -160,6 +182,9 @@ const login = async (req, res) => {
     const payload = {
       id: emp.id,
       company_id: emp.company_id,
+      company_code: company.company_code,
+      company_name: company.company_name,
+      tenant,
       employeeCode: emp.Employee_ID,
       name: emp.Employee_Name,
       email: emp.Official_Email,
@@ -195,6 +220,8 @@ const login = async (req, res) => {
         {
           sub: emp.id,
           company_id: emp.company_id,
+          company_code: company.company_code,
+          tenant_db: company.db_name,
           roles,
           features,
           flags: payload.flags,
@@ -331,7 +358,7 @@ const me = async (req, res) => {
 // POST /auth/logout
 async function logout(req, res) {
   try {
-    const cookieName = "sid";
+    const cookieName = req.sessionCookieName || "sid";
     req.session.destroy((err) => {
       res.clearCookie(cookieName);
       if (err) {
@@ -419,7 +446,7 @@ async function uploadAvatar(req, res) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const relPath = `/uploads/profile-img/${req.file.filename}`;
+    const relPath = getUploadedFileUrl(req.file, 'profile-img');
 
     await pool.execute(
       `UPDATE employee_records

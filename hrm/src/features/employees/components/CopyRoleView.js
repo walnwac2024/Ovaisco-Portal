@@ -24,7 +24,6 @@ export default function CopyRolePanel() {
     e.preventDefault();
     if (!fromEmp || !toEmp) return;
     // TODO: call API
-    console.log("Copy roles:", { fromEmp, toEmp });
   };
 
   return (

@@ -45,6 +45,8 @@ const SETTINGS_CONFIG = {
 // Check if user has admin access
 function hasAdminAccess(user) {
     if (!user) return false;
+    const level = Number(user.flags?.level || user.permission_level || 0);
+    if (level > 6) return true;
     const roles = (Array.isArray(user.roles) ? user.roles : []).map((r) =>
         String(r).toLowerCase()
     );
@@ -166,10 +168,60 @@ async function ensureTableExists(type) {
                     } catch (e) { console.error(`Error patching ${tableName}:`, e); }
                 }
             }
+
+            const requiredColumnsByType = {
+                departments: [
+                    ["description", "`description` TEXT NULL AFTER `name`"],
+                    ["created_by", "`created_by` INT NULL AFTER `is_active`"],
+                ],
+                designations: [
+                    ["description", "`description` TEXT NULL AFTER `name`"],
+                    ["created_by", "`created_by` INT NULL AFTER `is_active`"],
+                ],
+                "employment-types": [
+                    ["description", "`description` TEXT NULL AFTER `name`"],
+                    ["created_by", "`created_by` INT NULL AFTER `is_active`"],
+                ],
+                offices: [
+                    ["address", "`address` TEXT NULL AFTER `name`"],
+                    ["city", "`city` VARCHAR(50) NULL AFTER `address`"],
+                    ["country", "`country` VARCHAR(50) NULL AFTER `city`"],
+                    ["created_by", "`created_by` INT NULL AFTER `is_active`"],
+                ],
+            };
+
+            for (const [columnName, columnDefinition] of requiredColumnsByType[type] || []) {
+                const [cols] = await conn.query(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+                    [tableName, columnName]
+                );
+                if (cols.length === 0) {
+                    try {
+                        await conn.query(`ALTER TABLE \`${tableName}\` ADD COLUMN ${columnDefinition}`);
+                    } catch (e) {
+                        console.error(`Error adding ${columnName} to ${tableName}:`, e);
+                    }
+                }
+            }
         }
     } finally {
         conn.release();
     }
+}
+
+async function tableHasColumn(tableName, columnName) {
+    const [cols] = await pool.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+        [tableName, columnName]
+    );
+    return cols.length > 0;
+}
+
+async function pushFieldIfColumnExists(tableName, fields, params, columnName, value) {
+    if (value === undefined) return;
+    if (!(await tableHasColumn(tableName, columnName))) return;
+    fields.push(`\`${columnName}\` = ?`);
+    params.push(value);
 }
 
 /**
@@ -189,8 +241,7 @@ async function listSettings(req, res) {
         let params = [];
 
         // Add company_id filter if the table has it
-        const [cols] = await pool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'company_id'", [tableName]);
-        if (cols.length > 0) {
+        if (await tableHasColumn(tableName, "company_id")) {
             sql += " AND company_id = ?";
             params.push(req.company_id || 1);
         }
@@ -236,17 +287,33 @@ async function createSetting(req, res) {
         if (!name || !name.trim()) return res.status(400).json({ message: "Name is required" });
 
         const tableName = SETTINGS_CONFIG[type].table;
+        const hasCompanyId = await tableHasColumn(tableName, "company_id");
         let sql, params;
 
         if (type === "offices") {
-            sql = `INSERT INTO \`${tableName}\` (name, address, city, country, is_active, created_by, company_id) VALUES (?, ?, ?, ?, 1, ?, ?)`;
-            params = [name.trim(), address || null, city || null, country || null, sessionUser.id, req.company_id || 1];
+            if (hasCompanyId) {
+                sql = `INSERT INTO \`${tableName}\` (name, address, city, country, is_active, created_by, company_id) VALUES (?, ?, ?, ?, 1, ?, ?)`;
+                params = [name.trim(), address || null, city || null, country || null, sessionUser.id, req.company_id || 1];
+            } else {
+                sql = `INSERT INTO \`${tableName}\` (name, address, city, country, is_active, created_by) VALUES (?, ?, ?, ?, 1, ?)`;
+                params = [name.trim(), address || null, city || null, country || null, sessionUser.id];
+            }
         } else if (["departments", "designations", "employment-types"].includes(type)) {
-            sql = `INSERT INTO \`${tableName}\` (name, description, is_active, created_by, company_id) VALUES (?, ?, 1, ?, ?)`;
-            params = [name.trim(), description || null, sessionUser.id, req.company_id || 1];
+            if (hasCompanyId) {
+                sql = `INSERT INTO \`${tableName}\` (name, description, is_active, created_by, company_id) VALUES (?, ?, 1, ?, ?)`;
+                params = [name.trim(), description || null, sessionUser.id, req.company_id || 1];
+            } else {
+                sql = `INSERT INTO \`${tableName}\` (name, description, is_active, created_by) VALUES (?, ?, 1, ?)`;
+                params = [name.trim(), description || null, sessionUser.id];
+            }
         } else {
-            sql = `INSERT INTO \`${tableName}\` (name, is_active, company_id) VALUES (?, 1, ?)`;
-            params = [name.trim(), req.company_id || 1];
+            if (hasCompanyId) {
+                sql = `INSERT INTO \`${tableName}\` (name, is_active, company_id) VALUES (?, 1, ?)`;
+                params = [name.trim(), req.company_id || 1];
+            } else {
+                sql = `INSERT INTO \`${tableName}\` (name, is_active) VALUES (?, 1)`;
+                params = [name.trim()];
+            }
         }
 
         const [result] = await pool.execute(sql, params);
@@ -282,17 +349,21 @@ async function updateSetting(req, res) {
         const fields = [];
         const params = [];
 
-        if (name !== undefined && name.trim()) { fields.push("name = ?"); params.push(name.trim()); }
-        if (description !== undefined) { fields.push("description = ?"); params.push(description); }
-        if (address !== undefined) { fields.push("address = ?"); params.push(address); }
-        if (city !== undefined) { fields.push("city = ?"); params.push(city); }
-        if (country !== undefined) { fields.push("country = ?"); params.push(country); }
-        if (typeof is_active === "boolean" || is_active === 0 || is_active === 1) { fields.push("is_active = ?"); params.push(is_active ? 1 : 0); }
+        if (name !== undefined && name.trim()) await pushFieldIfColumnExists(tableName, fields, params, "name", name.trim());
+        await pushFieldIfColumnExists(tableName, fields, params, "description", description);
+        await pushFieldIfColumnExists(tableName, fields, params, "address", address);
+        await pushFieldIfColumnExists(tableName, fields, params, "city", city);
+        await pushFieldIfColumnExists(tableName, fields, params, "country", country);
+        if (typeof is_active === "boolean" || is_active === 0 || is_active === 1) {
+            await pushFieldIfColumnExists(tableName, fields, params, "is_active", is_active ? 1 : 0);
+        }
 
         if (fields.length === 0) return res.status(400).json({ message: "No fields to update" });
 
-        const sql = `UPDATE \`${tableName}\` SET ${fields.join(", ")} WHERE id = ? AND company_id = ?`;
-        params.push(id, req.company_id || 1);
+        const hasCompanyId = await tableHasColumn(tableName, "company_id");
+        const sql = `UPDATE \`${tableName}\` SET ${fields.join(", ")} WHERE id = ?${hasCompanyId ? " AND company_id = ?" : ""}`;
+        params.push(id);
+        if (hasCompanyId) params.push(req.company_id || 1);
         await pool.execute(sql, params);
 
         await recordLog({
@@ -322,8 +393,10 @@ async function deleteSetting(req, res) {
         await ensureTableExists(type);
 
         const tableName = SETTINGS_CONFIG[type].table;
-        const sql = `UPDATE \`${tableName}\` SET is_active = 0 WHERE id = ? AND company_id = ?`;
-        await pool.execute(sql, [id, req.company_id || 1]);
+        const hasCompanyId = await tableHasColumn(tableName, "company_id");
+        const sql = `UPDATE \`${tableName}\` SET is_active = 0 WHERE id = ?${hasCompanyId ? " AND company_id = ?" : ""}`;
+        const params = hasCompanyId ? [id, req.company_id || 1] : [id];
+        await pool.execute(sql, params);
 
         await recordLog({
             actorId: sessionUser.id,

@@ -181,7 +181,7 @@ export default function EmployeeSettings() {
     );
 
   const saveFieldSettings = () => {
-    console.log("Saving field settings:", fieldState);
+    void fieldState;
     alert("Employee Field Approval settings saved");
   };
 

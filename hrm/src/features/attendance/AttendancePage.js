@@ -164,31 +164,40 @@ function ShiftSection({ perPage, onPerPageChange, onAddNew, onAddIrregular, rows
 
 export default function AttendancePage() {
   const { user } = useAuth();
+  const roles = useMemo(() => (
+    Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : [])
+  ).map((role) => String(role).toLowerCase()), [user]);
+  const features = useMemo(() => (
+    (user?.features || []).map((feature) => String(feature).toLowerCase())
+  ), [user]);
+  const hasSettingsRole = roles.some((role) => (
+    ['admin', 'super_admin', 'developer', 'hr'].includes(role)
+  ));
 
   // ✅ Check settings permission
   const canSeeSettings = useMemo(() => {
-    return (user?.features || []).includes('attendance_manage_settings');
-  }, [user]);
+    return hasSettingsRole ||
+      features.includes('attendance_manage_settings') ||
+      features.includes('attendance_settings');
+  }, [features, hasSettingsRole]);
 
   // ✅ Build nav based on permissions
   const safeNav = useMemo(() => {
     const base = Array.isArray(ATTENDANCE_NAV) ? ATTENDANCE_NAV : [];
-    const features = user?.features || [];
-
     const filtered = base.filter(item => {
-      if (item.id === 'daily-report') return (user?.roles || []).some(r => ['admin', 'super_admin', 'developer', 'hr'].includes(String(r).toLowerCase()));
-      if (item.id === 'attendance-settings') return features.includes('attendance_manage_settings');
-      if (item.id === 'attendance-approval') return features.includes('attendance_edit');
-      if (item.id === 'location-audit') return features.includes('attendance_audit');
-      if (item.id === 'attendance-logs') return features.includes('attendance_view_logs');
-      return features.includes('attendance_view');
+      if (item.id === 'daily-report') return hasSettingsRole;
+      if (item.id === 'attendance-settings') return canSeeSettings;
+      if (item.id === 'attendance-approval') return hasSettingsRole || features.includes('attendance_edit');
+      if (item.id === 'location-audit') return hasSettingsRole || features.includes('attendance_audit');
+      if (item.id === 'attendance-logs') return hasSettingsRole || features.includes('attendance_view_logs');
+      return hasSettingsRole || features.includes('attendance_view');
     });
 
     if (!filtered.some((i) => i.active) && filtered.length) {
       return filtered.map((i, idx) => ({ ...i, active: idx === 0 }));
     }
     return filtered;
-  }, [user]);
+  }, [canSeeSettings, features, hasSettingsRole]);
 
   const [nav, setNav] = useState(safeNav);
   const [modal, setModal] = useState(null);
@@ -359,7 +368,7 @@ export default function AttendancePage() {
                   <ApprovalFilters
                     value={approvalFilters}
                     onChange={setApprovalFilters}
-                    onApply={() => console.log('apply approval filters', approvalFilters)}
+                    onApply={() => { }}
                     onClear={() => setApprovalFilters(initialApprovalFilters)}
                   />
                   <AttendanceApprovalTable
@@ -415,7 +424,7 @@ export default function AttendancePage() {
       <AddWorkSheetModal
         open={modal === 'worksheet'}
         onClose={() => setModal(null)}
-        onSaved={(payload) => console.log('worksheet saved', payload)}
+        onSaved={() => { }}
       />
 
       <AddRemoteWorkModal

@@ -17,6 +17,18 @@ import {
     deleteLeaveApplication
 } from "./services/leaveService";
 
+const LEAVE_DAY_TYPE_OPTIONS = [
+    { value: "full", label: "Full Day" },
+    { value: "half", label: "Half Day" },
+];
+
+function formatLeaveDays(days) {
+    const value = Number(days);
+    if (value === 0.5) return "Half day";
+    if (value === 1) return "1 day";
+    return `${Number.isInteger(value) ? value : value.toFixed(1)} days`;
+}
+
 export default function LeavePage() {
     const { user } = useAuth();
     const [activeKey, setActiveKey] = useState("my-leaves");
@@ -29,6 +41,7 @@ export default function LeavePage() {
     // Leave Application Form state
     const [formData, setFormData] = useState({
         leave_type_id: "",
+        day_type: "full",
         start_date: "",
         end_date: "",
         reason: "",
@@ -90,13 +103,25 @@ export default function LeavePage() {
             await applyLeave(formData);
             toast.success("Leave applied successfully");
             setActiveKey("my-leaves");
-            setFormData({ leave_type_id: "", start_date: "", end_date: "", reason: "" });
+            setFormData({ leave_type_id: "", day_type: "full", start_date: "", end_date: "", reason: "" });
             getMyLeaves().then(setMyLeaves);
             getLeaveBalances().then(setBalances);
         } catch (e) {
             const msg = e.response?.data?.message || "Failed to apply leave";
             toast.error(msg);
         }
+    };
+
+    const updateLeaveForm = (patch) => {
+        setFormData((prev) => {
+            const next = { ...prev, ...patch };
+            if (next.day_type === "half") {
+                if (patch.start_date) next.end_date = patch.start_date;
+                if (patch.day_type === "half" && next.start_date) next.end_date = next.start_date;
+                if (!next.end_date && next.start_date) next.end_date = next.start_date;
+            }
+            return next;
+        });
     };
 
     const handleStatusUpdate = async (id, status) => {
@@ -247,7 +272,7 @@ export default function LeavePage() {
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-4 text-slate-600 font-bold">{l.total_days}</td>
+                                                    <td className="px-4 py-4 text-slate-600 font-bold">{formatLeaveDays(l.total_days)}</td>
                                                     <td className="px-4 py-4 flex items-center gap-2">
                                                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${l.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm shadow-emerald-50' :
                                                             l.status === 'rejected' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
@@ -283,12 +308,21 @@ export default function LeavePage() {
                                         <SharedDropdown
                                             label="Leave Type"
                                             value={formData.leave_type_id}
-                                            onChange={(val) => setFormData({ ...formData, leave_type_id: val })}
+                                            onChange={(val) => updateLeaveForm({ leave_type_id: val })}
                                             options={balances.map((b) => ({
                                                 value: b.leave_type_id,
                                                 label: `${b.leave_type_name} (Balance: ${Number(b.balance)} days)`
                                             }))}
                                             placeholder="Select Type"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <SharedDropdown
+                                            label="Leave Duration"
+                                            value={formData.day_type}
+                                            onChange={(val) => updateLeaveForm({ day_type: val })}
+                                            options={LEAVE_DAY_TYPE_OPTIONS}
+                                            placeholder="Select Duration"
                                         />
                                     </div>
                                     <div>
@@ -297,7 +331,7 @@ export default function LeavePage() {
                                             type="date"
                                             className="input h-11"
                                             value={formData.start_date}
-                                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                            onChange={(e) => updateLeaveForm({ start_date: e.target.value })}
                                             required
                                         />
                                     </div>
@@ -307,16 +341,22 @@ export default function LeavePage() {
                                             type="date"
                                             className="input h-11"
                                             value={formData.end_date}
-                                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                            onChange={(e) => updateLeaveForm({ end_date: e.target.value })}
+                                            disabled={formData.day_type === "half"}
                                             required
                                         />
+                                        {formData.day_type === "half" && (
+                                            <p className="mt-1 text-[11px] text-slate-400">
+                                                Half leave uses the same start date.
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="form-label uppercase text-[11px] font-bold">Reason</label>
                                         <textarea
                                             className="textarea min-h-[120px] py-3"
                                             value={formData.reason}
-                                            onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                                            onChange={(e) => updateLeaveForm({ reason: e.target.value })}
                                             required
                                             placeholder="Briefly explain the reason for leave..."
                                         ></textarea>
@@ -361,7 +401,7 @@ export default function LeavePage() {
                                                 <td className="px-4 py-4 text-slate-600 font-medium">{l.leave_type_name}</td>
                                                 <td className="px-4 py-4 text-slate-600">
                                                     <div className="font-medium text-[13px]">{new Date(l.start_date).toLocaleDateString()} - {new Date(l.end_date).toLocaleDateString()}</div>
-                                                    <div className="text-[11px] text-slate-400">{l.total_days} days</div>
+                                                    <div className="text-[11px] text-slate-400">{formatLeaveDays(l.total_days)}</div>
                                                     {l.reason && (
                                                         <div className="text-[10px] text-slate-500 mt-1 italic leading-tight border-l-2 border-slate-100 pl-2">
                                                             \"{l.reason}\"

@@ -32,11 +32,11 @@ export default function EmployeeInfoRequest({ rows: externalRows = [], compact =
   const [employee, setEmployee]=useState([])
    const featchempdata=async ()=>{
     try {
-     const response= apiService.get('/all-employee')
+     const response= await apiService.get('/all-employee')
       
       setEmployee(response.data)
     } catch (error) {
-      console.log('Error',error)
+      console.error('Failed to fetch employees', error)
     }
    }
    useEffect(()=>{

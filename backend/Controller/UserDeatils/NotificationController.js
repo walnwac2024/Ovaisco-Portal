@@ -7,6 +7,7 @@ const { pool } = require("../../Utils/db");
  */
 async function listMyNotifications(req, res) {
     const userId = req.session?.user?.id;
+    const companyId = req.company_id || req.session?.user?.company_id || 1;
     if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
     }
@@ -15,12 +16,12 @@ async function listMyNotifications(req, res) {
         const [rows] = await pool.execute(
             `SELECT id, title, message, type, is_read, created_at 
              FROM notifications 
-             WHERE user_id = ? 
+             WHERE user_id = ? AND company_id = ?
              ORDER BY 
                 CASE WHEN type = 'Leave' THEN 1 ELSE 2 END ASC,
                 created_at DESC 
              LIMIT 100`,
-            [userId]
+            [userId, companyId]
         );
         return res.json(rows);
     } catch (err) {
@@ -35,6 +36,7 @@ async function listMyNotifications(req, res) {
  */
 async function markAsRead(req, res) {
     const userId = req.session?.user?.id;
+    const companyId = req.company_id || req.session?.user?.company_id || 1;
     const { id } = req.params;
 
     if (!userId) {
@@ -43,8 +45,8 @@ async function markAsRead(req, res) {
 
     try {
         await pool.execute(
-            "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
-            [id, userId]
+            "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ? AND company_id = ?",
+            [id, userId, companyId]
         );
         return res.json({ message: "Notification marked as read" });
     } catch (err) {
@@ -59,6 +61,7 @@ async function markAsRead(req, res) {
  */
 async function markAllAsRead(req, res) {
     const userId = req.session?.user?.id;
+    const companyId = req.company_id || req.session?.user?.company_id || 1;
 
     if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -66,8 +69,8 @@ async function markAllAsRead(req, res) {
 
     try {
         await pool.execute(
-            "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
-            [userId]
+            "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND company_id = ?",
+            [userId, companyId]
         );
         return res.json({ message: "All notifications marked as read" });
     } catch (err) {

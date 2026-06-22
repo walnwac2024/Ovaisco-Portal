@@ -1,19 +1,34 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTheme } from "../../context/ThemeContext";
-import api from "../../utils/api";
+import api, { BASE_URL } from "../../utils/api";
 import { toast } from "react-toastify";
 import { FaPalette, FaImage, FaUpload, FaCheck } from "react-icons/fa";
 
 export default function BrandingPage() {
-    const { colors, logo, fetchBranding } = useTheme();
+    const { colors, logo, favicon, fetchBranding } = useTheme();
 
     // Local state for immediate feedback
     const [primaryColor, setPrimaryColor] = useState(colors?.primary || "#E02D3D");
     const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedFavicon, setSelectedFavicon] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(logo ? `http://localhost:5000${logo}` : null);
+    const [faviconPreviewUrl, setFaviconPreviewUrl] = useState(favicon ? `${BASE_URL}${favicon}` : null);
     const [uploading, setUploading] = useState(false);
 
     const fileInputRef = useRef(null);
+    const faviconInputRef = useRef(null);
+
+    useEffect(() => {
+        setPrimaryColor(colors?.primary || "#E02D3D");
+    }, [colors?.primary]);
+
+    useEffect(() => {
+        setPreviewUrl(logo ? `${BASE_URL}${logo}` : null);
+    }, [logo]);
+
+    useEffect(() => {
+        setFaviconPreviewUrl(favicon ? `${BASE_URL}${favicon}` : null);
+    }, [favicon]);
 
     const handleColorChange = (e) => {
         setPrimaryColor(e.target.value);
@@ -27,6 +42,15 @@ export default function BrandingPage() {
             setSelectedFile(file);
             const objectUrl = URL.createObjectURL(file);
             setPreviewUrl(objectUrl);
+        }
+    };
+
+    const handleFaviconChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedFavicon(file);
+            const objectUrl = URL.createObjectURL(file);
+            setFaviconPreviewUrl(objectUrl);
         }
     };
 
@@ -88,6 +112,9 @@ export default function BrandingPage() {
             if (selectedFile) {
                 formData.append("logo", selectedFile);
             }
+            if (selectedFavicon) {
+                formData.append("favicon", selectedFavicon);
+            }
 
             await api.post("/settings/branding", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
@@ -115,7 +142,7 @@ export default function BrandingPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Color Settings */}
                 <div className="card p-6">
                     <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -196,6 +223,47 @@ export default function BrandingPage() {
 
                         <p className="text-xs text-slate-400">
                             Recommended size: 200x50px. Transparent PNG looks best.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Favicon Settings */}
+                <div className="card p-6">
+                    <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <FaImage className="text-slate-400" /> Company Favicon
+                    </h2>
+
+                    <div className="space-y-4">
+                        <div className="w-full aspect-video bg-slate-100 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden group">
+                            {faviconPreviewUrl ? (
+                                <img src={faviconPreviewUrl} alt="Favicon Preview" className="h-20 w-20 object-contain p-2 rounded-xl bg-white shadow-sm" />
+                            ) : (
+                                <div className="text-center text-slate-400">
+                                    <FaImage className="mx-auto text-3xl mb-2 opacity-30" />
+                                    <p className="text-sm">No favicon uploaded</p>
+                                </div>
+                            )}
+
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button
+                                    onClick={() => faviconInputRef.current?.click()}
+                                    className="btn bg-white text-slate-900 border-none shadow-xl"
+                                >
+                                    <FaUpload className="mr-2" /> Change Favicon
+                                </button>
+                            </div>
+                        </div>
+
+                        <input
+                            type="file"
+                            ref={faviconInputRef}
+                            className="hidden"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico"
+                            onChange={handleFaviconChange}
+                        />
+
+                        <p className="text-xs text-slate-400">
+                            Recommended: square 32x32 or 64x64 PNG/ICO/SVG.
                         </p>
                     </div>
                 </div>

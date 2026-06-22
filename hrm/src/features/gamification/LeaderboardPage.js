@@ -4,7 +4,7 @@ import { ChevronLeft, Crown, ArrowUp, ArrowDown, User, Loader2, Timer, Trophy } 
 
 /**
  * LeaderboardPage - System Theme Redesign (Red/White/Dark)
- * Uses customRed and aligns with the HRM system's aesthetic.
+ * Uses customRed and aligns with the WorkSphere system's aesthetic.
  * Includes dummy data fallback for testing.
  */
 const LeaderboardPage = () => {

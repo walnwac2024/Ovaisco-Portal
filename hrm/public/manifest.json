@@ -1,7 +1,7 @@
 {
-  "short_name": "HRM",
-  "name": "Human Resource Management System",
-  "description": "Complete HRM solution for employee management, attendance, and payroll",
+  "short_name": "WorkSphere",
+  "name": "WorkSphere",
+  "description": "Unified workforce and operations platform for modern organizations",
   "icons": [
     {
       "src": "favicon.svg",

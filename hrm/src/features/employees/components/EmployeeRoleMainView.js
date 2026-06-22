@@ -82,8 +82,9 @@ export default function EmployeeRoleMainView() {
   const saveRoles = () => {
     if (!employeeId) return;
     // TODO: replace with API call
-    console.log("SAVE ROLES", { employeeId, templateKey, roles });
-    alert("Roles saved (demo). Check console payload.");
+    void templateKey;
+    void roles;
+    alert("Roles saved (demo).");
   };
 
   return (

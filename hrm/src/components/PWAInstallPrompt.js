@@ -86,7 +86,7 @@ export default function PWAInstallPrompt() {
                     </button>
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-3">
-                            <img src="%PUBLIC_URL%/hrm-logo.png" alt="HRM" className="w-12 h-12 rounded-xl shadow-sm" />
+                            <img src="%PUBLIC_URL%/hrm-logo.png" alt="WorkSphere" className="w-12 h-12 rounded-xl shadow-sm" />
                             <div>
                                 <h3 className="font-bold text-slate-900 text-sm">Install App</h3>
                                 <p className="text-xs text-slate-500">For a better experience</p>

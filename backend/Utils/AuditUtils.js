@@ -10,7 +10,7 @@ const { pool } = require("./db");
  * @param {Object} [options.details] - JSON context
  * @param {number} [options.targetUserId] - ID of the subject user (if any)
  */
-async function recordLog({ actorId, action, category, status, details = {}, targetUserId = null }) {
+async function recordLog({ actorId = null, action, category, status, details = {}, targetUserId = null }) {
     try {
         let actorName = "System";
         let actorDepartment = "General";
@@ -21,9 +21,9 @@ async function recordLog({ actorId, action, category, status, details = {}, targ
                 [actorId]
             );
             if (userRows.length > 0) {
-                actorName = userRows[0].Employee_Name;
-                actorDepartment = userRows[0].Department;
-                companyId = userRows[0].company_id;
+                actorName = userRows[0].Employee_Name || "System";
+                actorDepartment = userRows[0].Department || "General";
+                companyId = userRows[0].company_id || 1;
             }
         }
 
@@ -32,15 +32,15 @@ async function recordLog({ actorId, action, category, status, details = {}, targ
             (user_id, actor_id, actor_name, actor_department, action, category, status, details, company_id) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                targetUserId,
-                actorId,
-                actorName,
-                actorDepartment,
-                action,
-                category,
-                status,
-                JSON.stringify(details),
-                companyId
+                targetUserId ?? null,
+                actorId ?? null,
+                actorName || "System",
+                actorDepartment || "General",
+                action || "Unknown action",
+                category || "System",
+                status || "Success",
+                JSON.stringify(details || {}),
+                companyId || 1
             ]
         );
     } catch (err) {

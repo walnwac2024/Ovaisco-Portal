@@ -1,5 +1,5 @@
 // src/Dashbord/Dashbord.js
-import React, { useEffect, useMemo, useState } from "react";
+import React, { lazy, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   getAttendanceOffices,
@@ -14,21 +14,95 @@ import {
 import { getDashboardData } from "../features/dashboard/services/dashboardService";
 import { listNews } from "../features/news/newsService";
 import { birthdayService } from "../features/organization/services/birthdayService";
-import * as Lucide from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  BellOff,
+  Briefcase,
+  Cake,
+  CalendarX,
+  CheckCircle2,
+  CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FileText,
+  Fingerprint,
+  Globe,
+  Inbox,
+  Layers,
+  Loader2,
+  LogIn,
+  LogOut,
+  Mail,
+  MapPin,
+  Megaphone,
+  PlusCircle,
+  ShieldCheck,
+  Timer,
+  User,
+  UserCheck,
+  Users,
+  Users2,
+  Verified,
+  X,
+  XCircle,
+} from "lucide-react";
 
 
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "../utils/api";
 import TimeSyncModal from "../components/common/TimeSyncModal";
-import FaceRecognitionModal from "../features/attendance/components/FaceRecognitionModal";
 import MainLoader from "../components/common/MainLoader";
 import BirthdayCelebration from "../components/common/BirthdayCelebration";
 
 const BACKEND_URL = BASE_URL;
+const FaceRecognitionModal = lazy(() => import("../features/attendance/components/FaceRecognitionModal"));
 
 // Safe icon renderer to prevent "Element type is invalid" if an icon is missing
+const ICONS = {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  BellOff,
+  Briefcase,
+  Cake,
+  CalendarX,
+  CheckCircle2,
+  CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FileText,
+  Fingerprint,
+  Globe,
+  Inbox,
+  Layers,
+  Loader2,
+  LogIn,
+  LogOut,
+  Mail,
+  MapPin,
+  Megaphone,
+  PlusCircle,
+  ShieldCheck,
+  Timer,
+  User,
+  UserCheck,
+  Users,
+  Users2,
+  Verified,
+  X,
+  XCircle,
+};
+
 const Icon = ({ name, ...props }) => {
-  const LucideIcon = Lucide[name];
+  const LucideIcon = ICONS[name];
   if (!LucideIcon) return null;
   return <LucideIcon {...props} />;
 };
@@ -54,12 +128,36 @@ const getCurrentPosition = () => {
       reject(new Error("Geolocation is not supported by your browser."));
       return;
     }
+
+    if (!window.isSecureContext) {
+      const secureError = new Error("Location requires HTTPS on mobile browsers. Please open the portal with HTTPS, or use localhost only on the same device.");
+      secureError.code = "INSECURE_CONTEXT";
+      reject(secureError);
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve(pos.coords),
-      (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      (err) => {
+        if (err?.code !== 3) {
+          reject(err);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos.coords),
+          (fallbackErr) => reject(fallbackErr),
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 25000, maximumAge: 30000 }
     );
   });
+};
+
+const isIOSDevice = () => {
+  const ua = navigator.userAgent || navigator.vendor || "";
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 };
 
 /**
@@ -148,29 +246,38 @@ function DashboardHome() {
   const loadAttendance = async (silent = false) => {
     if (!silent) setLoadingAttendance(true);
     try {
-      const [offList, tData, bal, lStats, personalSumm, summData, newsList] = await Promise.all([
+      const [offList, tData, summData] = await Promise.all([
         getAttendanceOffices(),
         getTodayAttendance(),
-        getLeaveBalances(),
-        getLeaveDashboardStats(),
-        getPersonalAttendanceSummary(),
-        getDashboardData(),
-        listNews(1)
+        getDashboardData()
       ]);
+
       setOffices(offList);
       setTodayData(tData);
-      setLeaveBalances(bal);
-      setLeaveStats(lStats);
-      setAttendanceSummary(personalSumm?.summary || []);
-      setMissingAttendance(personalSumm?.missing || []);
       setDashboardData(summData);
-      setNews(newsList?.data || []);
       if (offList.length > 0 && !selectedOfficeId) setSelectedOfficeId(offList[0].id);
     } catch (err) {
       console.error("Dashboard load failed", err);
     } finally {
       setLoadingAttendance(false);
     }
+
+    Promise.allSettled([
+      getLeaveBalances(),
+      getLeaveDashboardStats(),
+      getPersonalAttendanceSummary(),
+      listNews(1)
+    ]).then(([bal, lStats, personalSumm, newsList]) => {
+      if (bal.status === "fulfilled") setLeaveBalances(bal.value);
+      if (lStats.status === "fulfilled") setLeaveStats(lStats.value);
+      if (personalSumm.status === "fulfilled") {
+        setAttendanceSummary(personalSumm.value?.summary || []);
+        setMissingAttendance(personalSumm.value?.missing || []);
+      }
+      if (newsList.status === "fulfilled") setNews(newsList.value?.data || []);
+    }).catch((err) => {
+      console.error("Dashboard background load failed", err);
+    });
   };
 
   useEffect(() => { loadAttendance(); }, []);
@@ -189,7 +296,7 @@ function DashboardHome() {
       
       // ✅ MULTI-SAMPLE: Take a second reading after brief delay to detect spoofing
       await new Promise(r => setTimeout(r, 500));
-      const coords2 = await getCurrentPosition();
+      const coords2 = isIOSDevice() ? coords1 : await getCurrentPosition();
 
       // If two readings are wildly different (>500m), GPS is being manipulated
       const sampleDist = calculateClientDistance(
@@ -214,9 +321,10 @@ function DashboardHome() {
     } catch (gpsErr) {
       console.error("GPS Error:", gpsErr);
       let msg = "Location access is required to mark attendance. ";
-      if (gpsErr.code === 1) msg += "You have denied location permission. Please enable it in browser settings.";
-      else if (gpsErr.code === 2) msg += "GPS position is unavailable. Please try again.";
-      else if (gpsErr.code === 3) msg += "Location request timed out. Please try again.";
+      if (gpsErr.code === "INSECURE_CONTEXT") msg = gpsErr.message;
+      else if (gpsErr.code === 1) msg += "On iPhone, open Settings > Safari > Location and allow access, then reload the portal.";
+      else if (gpsErr.code === 2) msg += "GPS position is unavailable. On iPhone, turn on Location Services and Safari location permission, then try near a window.";
+      else if (gpsErr.code === 3) msg += "Location request timed out. On iPhone, keep Safari open, enable Precise Location, and try again.";
       else msg += gpsErr.message || "Please enable GPS and try again.";
       setNotifyModal({ show: true, type: "error", message: msg });
     } finally {
@@ -375,12 +483,14 @@ function DashboardHome() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
-      <FaceRecognitionModal
-        isOpen={showFaceModal}
-        onClose={() => setShowFaceModal(false)}
-        onCapture={handleFaceCaptured}
-        employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
-      />
+      {showFaceModal && (
+        <FaceRecognitionModal
+          isOpen={showFaceModal}
+          onClose={() => setShowFaceModal(false)}
+          onCapture={handleFaceCaptured}
+          employeeName={dashboardData?.profile?.name || user?.Employee_Name || user?.name}
+        />
+      )}
 
       {/* Check-In Options Overlay */}
       {showPunchOptions && (
@@ -390,6 +500,7 @@ function DashboardHome() {
               <button 
                 onClick={() => setShowPunchOptions(false)}
                 className="absolute top-6 right-6 p-2 text-slate-300 hover:text-customRed transition-colors rounded-xl hover:bg-red-50"
+                aria-label="Close punch options"
               >
                 <Icon name="X" size={20} />
               </button>
@@ -488,6 +599,9 @@ function DashboardHome() {
                     <img 
                       src={src} 
                       alt="Profile" 
+                      width="80"
+                      height="80"
+                      decoding="async"
                       className="w-full h-full object-cover" 
                       onError={(e) => {
                         e.target.onerror = null;
@@ -516,17 +630,17 @@ function DashboardHome() {
                 </div>
                 {dashboardData?.profile?.biometric_id && (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-[10px] text-indigo-600 font-black rounded-full uppercase tracking-wider border border-indigo-100/50 mt-1">
-                    <Lucide.Fingerprint size={10} /> AMT ID: {dashboardData?.profile?.biometric_id}
+                    <Icon name="Fingerprint" size={10} /> AMT ID: {dashboardData?.profile?.biometric_id}
                   </div>
                 )}
               </div>
             </div>
           </div>
           <div className="border-t border-slate-100/50 flex divide-x divide-slate-100/50 text-[10px] md:text-[11px] font-bold uppercase text-slate-400">
-            <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-customRed transition-all flex items-center justify-center gap-2">
+            <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-customRed transition-all flex items-center justify-center gap-2" aria-label="View birthdays">
               <Icon name="Cake" size={14} className="opacity-60" /> <span className="hidden sm:inline">{dashboardData?.widgets?.colleaguesBirthdays?.length || 0} Today</span><span className="sm:hidden">{dashboardData?.widgets?.colleaguesBirthdays?.length || 0} Bday</span>
             </button>
-            <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2">
+            <button className="flex-1 py-4 hover:bg-slate-50/50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2" aria-label="Open messages">
               <Icon name="Mail" size={14} className="opacity-60" /> <span className="hidden sm:inline">Messages</span><span className="sm:hidden">Inbox</span>
             </button>
           </div>
@@ -541,7 +655,7 @@ function DashboardHome() {
             <div className="flex items-center gap-2">
               {(attendance?.source_in === 'BIOMETRIC' || attendance?.source_out === 'BIOMETRIC') && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[8px] font-black uppercase tracking-tighter border border-indigo-100 shadow-sm animate-pulse">
-                  <Lucide.Fingerprint size={10} /> Biometric {dashboardData?.profile?.biometric_id && `(${dashboardData?.profile?.biometric_id})`}
+                  <Icon name="Fingerprint" size={10} /> Biometric {dashboardData?.profile?.biometric_id && `(${dashboardData?.profile?.biometric_id})`}
                 </span>
               )}
               {(attendance?.source_in === 'WEB' || attendance?.source_out === 'WEB') && (
@@ -594,18 +708,26 @@ function DashboardHome() {
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg shadow-sm border border-slate-100 text-customRed group-focus-within:scale-110 transition-transform">
                   <Icon name="MapPin" size={14} />
                 </div>
-                <select
-                  value={selectedOfficeId}
-                  onChange={(e) => setSelectedOfficeId(e.target.value)}
-                  disabled={!canCheckIn && !canCheckOut}
-                  className="w-full pl-12 pr-10 py-3.5 text-[11px] font-black uppercase tracking-wider border border-slate-200/60 rounded-[1.25rem] bg-slate-50/50 focus:bg-white focus:border-customRed/30 focus:ring-4 focus:ring-customRed/5 transition-all outline-none appearance-none cursor-pointer shadow-sm"
-                >
-                  <option value="">Select Office Location</option>
-                  {offices.map((o, i) => (<option key={o.id || o.name || i} value={o.id}>{o.name}</option>))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-customRed transition-colors">
-                   <Icon name="ChevronDown" size={16} />
-                </div>
+                {offices.length <= 1 ? (
+                  <div className="w-full pl-12 pr-4 py-3.5 text-[11px] font-black uppercase tracking-wider border border-slate-200/60 rounded-[1.25rem] bg-slate-50/50 shadow-sm text-slate-800">
+                    {offices[0]?.name || "Office Location"}
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={selectedOfficeId}
+                      onChange={(e) => setSelectedOfficeId(e.target.value)}
+                      disabled={!canCheckIn && !canCheckOut}
+                      className="w-full pl-12 pr-10 py-3.5 text-[11px] font-black uppercase tracking-wider border border-slate-200/60 rounded-[1.25rem] bg-slate-50/50 focus:bg-white focus:border-customRed/30 focus:ring-4 focus:ring-customRed/5 transition-all outline-none appearance-none cursor-pointer shadow-sm"
+                    >
+                      <option value="">Select Office Location</option>
+                      {offices.map((o, i) => (<option key={o.id || o.name || i} value={o.id}>{o.name}</option>))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-customRed transition-colors">
+                      <Icon name="ChevronDown" size={16} />
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 md:gap-4">
@@ -745,7 +867,7 @@ function DashboardHome() {
           <div className="px-6 md:px-8 py-6 border-b border-slate-100/50 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white relative overflow-hidden gap-4">
              <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 opacity-30 pointer-events-none" />
              <div className="flex items-center gap-3 relative z-10">
-                <div className="p-2 md:p-2.5 bg-red-500 rounded-[1rem] md:rounded-[1.25rem] text-white shadow-lg shadow-red-500/20">
+                <div className="p-2 md:p-2.5 bg-customRed rounded-[1rem] md:rounded-[1.25rem] text-white shadow-lg shadow-customRed/20">
                   <Icon name="Activity" size={18} />
                 </div>
                 <div>
@@ -847,6 +969,10 @@ function DashboardHome() {
                                 <img 
                                   src={getAvatarUrl(member.profile_img)} 
                                   alt={member.name} 
+                                  width="40"
+                                  height="40"
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.target.onerror = null;
@@ -882,13 +1008,14 @@ function DashboardHome() {
                             onClick={() => handleSendWish(member.id, member.name)}
                             className="w-8 h-8 bg-pink-50 text-pink-500 rounded-lg flex items-center justify-center shadow-sm hover:bg-pink-100 hover:scale-110 transition-all animate-bounce" 
                             title="Send Birthday Wish!"
+                            aria-label={`Send birthday wish to ${member.name}`}
                           >
                             <Icon name="Cake" size={14} />
                           </button>
                         )}
 
                         {!member.is_birthday_today && (
-                          <button className="p-2 text-slate-300 hover:text-customRed hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                          <button className="p-2 text-slate-300 hover:text-customRed hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100" aria-label={`View ${member.name}`}>
                             <Icon name="ChevronRight" size={14} />
                           </button>
                         )}
@@ -902,7 +1029,7 @@ function DashboardHome() {
             {teamTab === "team" && (
               <div className="relative z-10 pt-4 mt-auto">
                 <button 
-                  onClick={() => navigate("/dashboard/organization")}
+                  onClick={() => navigate("/organization")}
                   className="w-full py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-customRed hover:border-customRed/20 hover:shadow-sm transition-all active:scale-95"
                 >
                   View Full Tribe
@@ -963,8 +1090,9 @@ function DashboardHome() {
                       </span>
                     ) : (
                       <button 
-                        onClick={() => navigate("/dashboard/leave")}
+                        onClick={() => navigate("/leave")}
                         className="p-1.5 text-slate-300 hover:text-customRed transition-colors"
+                        aria-label="Open leave approvals"
                       >
                         <Icon name="ChevronRight" size={14} />
                       </button>
@@ -986,7 +1114,7 @@ function DashboardHome() {
                </div>
                News
             </div>
-            <button onClick={() => navigate("/dashboard/news")} className="text-[9px] md:text-[10px] font-black text-customRed uppercase hover:bg-red-50 px-2 md:px-3 py-1 rounded-full transition-all tracking-widest">READ ALL</button>
+            <button onClick={() => navigate("/dashboard/news")} className="text-[9px] md:text-[10px] font-black text-customRed uppercase hover:bg-red-50 px-2 md:px-3 py-1 rounded-full transition-all tracking-widest" aria-label="Read all news">READ ALL</button>
           </div>
           <div className="p-8 md:p-12 relative z-10">
             <EmptyState icon="BellOff" title="Broadcasting" message="No recent updates" />

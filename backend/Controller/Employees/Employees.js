@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const path = require("path");
 const fs = require("fs");
 const xlsx = require("xlsx");
+const { getUploadedFileUrl } = require("../../Utils/uploadPaths");
 
 /**
  * Columns for employees list
@@ -90,17 +91,70 @@ function safeUnlink(absPath) {
   }
 }
 
+async function ensureActiveLeaveTypes(conn, companyId) {
+  const [activeTypes] = await conn.execute(
+    "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1 AND company_id = ?",
+    [companyId]
+  );
+
+  if (activeTypes.length) return activeTypes;
+
+  let sourceTypes = [];
+  try {
+    const [referenceTypes] = await conn.execute(
+      `SELECT name, entitlement_days
+       FROM hrm_db.leave_types
+       WHERE is_active = 1
+       ORDER BY id ASC`
+    );
+    sourceTypes = referenceTypes;
+  } catch (err) {
+    sourceTypes = [];
+  }
+
+  if (!sourceTypes.length) {
+    sourceTypes = [
+      { name: "Casual Leave", entitlement_days: 10 },
+      { name: "Sick Leave", entitlement_days: 8 },
+      { name: "Annual Leave", entitlement_days: 14 },
+    ];
+  }
+
+  for (const type of sourceTypes) {
+    const name = String(type.name || "").trim();
+    const entitlement = Number(type.entitlement_days) || 0;
+    if (!name || entitlement <= 0) continue;
+
+    const [existing] = await conn.execute(
+      "SELECT id FROM leave_types WHERE LOWER(name) = LOWER(?) AND company_id = ? LIMIT 1",
+      [name, companyId]
+    );
+
+    if (existing.length) {
+      await conn.execute(
+        "UPDATE leave_types SET entitlement_days = ?, is_active = 1 WHERE id = ? AND company_id = ?",
+        [entitlement, existing[0].id, companyId]
+      );
+    } else {
+      await conn.execute(
+        "INSERT INTO leave_types (name, entitlement_days, is_active, company_id) VALUES (?, ?, 1, ?)",
+        [name, entitlement, companyId]
+      );
+    }
+  }
+
+  const [seededTypes] = await conn.execute(
+    "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1 AND company_id = ?",
+    [companyId]
+  );
+
+  return seededTypes;
+}
+
 /* ------------------------------------------------------------------
  * CREATE EMPLOYEE  (POST /api/v1/employees)
  * ------------------------------------------------------------------ */
 async function createEmployee(req, res) {
-  // Debug Log
-  const fs = require('fs');
-  const path = require('path');
-  try {
-    fs.appendFileSync(path.join(__dirname, '..', '..', 'leave_debug.log'), `[${new Date().toISOString()}] createEmployee CALLED\n`);
-  } catch (e) { console.error("Log failed", e); }
-
   const {
     // employment
     employeeCode,
@@ -138,6 +192,7 @@ async function createEmployee(req, res) {
     password,
     userType,
     shiftId,
+    allowLeaveBalances,
   } = req.body || {};
 
   try {
@@ -236,7 +291,7 @@ async function createEmployee(req, res) {
       `;
 
       const avatarFile = req.files?.avatar?.[0];
-      const profileImgPath = avatarFile ? `/uploads/profile-img/${avatarFile.filename}` : null;
+      const profileImgPath = getUploadedFileUrl(avatarFile, 'profile-img');
 
       const params = [
         finalEmployeeCode,
@@ -312,33 +367,35 @@ async function createEmployee(req, res) {
       }
 
       // --- ✅ NEW: Auto-create Leave Balances for Current Year ---
-      try {
-        const [activeTypes] = await conn.execute(
-          "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1 AND company_id = ?",
-          [req.company_id || 1]
-        );
+      const shouldCreateLeaveBalances = !["false", "0", "no", "off"].includes(
+        String(allowLeaveBalances ?? "true").trim().toLowerCase()
+      );
+      let leaveBalancesCreated = 0;
+      let leaveBalancesSkipped = false;
+
+      if (shouldCreateLeaveBalances) {
+        const activeTypes = await ensureActiveLeaveTypes(conn, req.company_id || 1);
         const currentYear = new Date().getFullYear();
 
         for (const type of activeTypes) {
+          const [existingBalance] = await conn.execute(
+            `SELECT id FROM leave_balances
+             WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?
+             LIMIT 1`,
+            [newEmployeeId, type.id, currentYear, req.company_id || 1]
+          );
+
+          if (existingBalance.length) continue;
+
           await conn.execute(
             `INSERT INTO leave_balances (employee_id, leave_type_id, year, entitlement, balance, used, company_id, created_at, updated_at) 
              VALUES (?, ?, ?, ?, ?, 0, ?, NOW(), NOW())`,
             [newEmployeeId, type.id, currentYear, type.entitlement_days, type.entitlement_days, req.company_id || 1]
           );
+          leaveBalancesCreated += 1;
         }
-
-        // Log success for debugging
-        const fs = require('fs');
-        const path = require('path');
-        fs.appendFileSync(path.join(__dirname, '..', '..', 'leave_debug.log'),
-          `[${new Date().toISOString()}] Created balances for EmpID ${newEmployeeId}\n`);
-
-      } catch (leaveErr) {
-        console.error("createEmployee: could not create leave balances", leaveErr);
-        const fs = require('fs');
-        const path = require('path');
-        fs.appendFileSync(path.join(__dirname, '..', '..', 'leave_debug.log'),
-          `[${new Date().toISOString()}] ERROR creating balances for EmpID ${newEmployeeId}: ${leaveErr.message}\n`);
+      } else {
+        leaveBalancesSkipped = true;
       }
 
       await conn.commit();
@@ -362,6 +419,8 @@ async function createEmployee(req, res) {
         id: emp.id,
         employeeCode: emp.Employee_ID,
         name: emp.Employee_Name,
+        leaveBalancesCreated,
+        leaveBalancesSkipped,
       });
     } catch (err) {
       if (conn) await conn.rollback();
@@ -759,6 +818,78 @@ async function updateEmployee(req, res) {
 }
 
 /* ------------------------------------------------------------------
+ * CREATE MISSING LEAVE BALANCES (POST /api/v1/employees/:id/leave-balances)
+ * ------------------------------------------------------------------ */
+async function createEmployeeLeaveBalances(req, res) {
+  const { id } = req.params;
+  const companyId = req.company_id || 1;
+  const currentYear = Number(req.body?.year) || new Date().getFullYear();
+
+  try {
+    const sessionUser = req.session?.user;
+    if (!hasFullAccess(sessionUser)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const [[employee]] = await pool.execute(
+      "SELECT id FROM employee_records WHERE id = ? AND company_id = ? LIMIT 1",
+      [id, companyId]
+    );
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const activeTypes = await ensureActiveLeaveTypes(pool, companyId);
+
+    if (!activeTypes.length) {
+      return res.status(400).json({
+        message: "No active leave types found. Add leave types first, then create balances.",
+        created: 0,
+        existing: 0,
+        year: currentYear,
+      });
+    }
+
+    let created = 0;
+    let existing = 0;
+
+    for (const type of activeTypes) {
+      const [existingBalance] = await pool.execute(
+        `SELECT id FROM leave_balances
+         WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?
+         LIMIT 1`,
+        [id, type.id, currentYear, companyId]
+      );
+
+      if (existingBalance.length) {
+        existing += 1;
+        continue;
+      }
+
+      await pool.execute(
+        `INSERT INTO leave_balances (employee_id, leave_type_id, year, entitlement, balance, used, company_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 0, ?, NOW(), NOW())`,
+        [id, type.id, currentYear, type.entitlement_days, type.entitlement_days, companyId]
+      );
+      created += 1;
+    }
+
+    return res.json({
+      message: created
+        ? `Created ${created} leave balance(s).`
+        : "Leave balances already exist for this year.",
+      created,
+      existing,
+      year: currentYear,
+    });
+  } catch (err) {
+    console.error("createEmployeeLeaveBalances error:", err);
+    return res.status(500).json({ message: "Failed to create leave balances" });
+  }
+}
+
+/* ------------------------------------------------------------------
  * UPDATE EMPLOYEE LOGIN (PUT /api/v1/employees/:id/login)
  * ------------------------------------------------------------------ */
 async function updateEmployeeLogin(req, res) {
@@ -968,7 +1099,7 @@ async function addEmployeeDocuments(req, res) {
         const expiresAt = expires_at[i] || null;
 
         // stored path for static serving
-        const relPath = `/uploads/documents/${file.filename}`;
+        const relPath = getUploadedFileUrl(file, 'documents');
 
         await conn.execute(
           `
@@ -1231,7 +1362,7 @@ async function replaceEmployeeDocumentFile(req, res) {
     }
 
     const old = rows[0];
-    const newRelPath = `/uploads/documents/${file.filename}`;
+    const newRelPath = getUploadedFileUrl(file, 'documents');
 
     await conn.execute(
       `
@@ -1454,28 +1585,60 @@ async function lookupDesignations(req, res) {
 }
 
 async function lookupStatuses(req, res) {
-  try {
-    // Try new system tables first
-    const [rows] = await pool.execute("SELECT name AS value FROM system_employment_types WHERE is_active = 1 ORDER BY name ASC");
-    if (rows.length > 0) return res.json(rows.map(r => r.value));
+  const defaultStatuses = ["Full-Time", "Part-Time", "Contract", "Internship", "Probation", "Permanent", "Active", "Notice Period", "Left", "Inactive", "On Hold"];
 
-    // Fallback
+  const uniqueStatuses = (groups) => {
+    const seen = new Set();
+    return groups
+      .flat()
+      .map((value) => (value || "").toString().trim())
+      .filter((value) => {
+        const key = value.toLowerCase();
+        if (!value || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  };
+
+  try {
+    const [tenantRows] = await pool.execute(
+      "SELECT name AS value FROM system_employment_types WHERE is_active = 1 ORDER BY name ASC"
+    );
+
+    let proPeopleRows = [];
+    try {
+      const [rows] = await pool.execute(
+        "SELECT name AS value FROM hrm_db.system_employment_types WHERE is_active = 1 ORDER BY name ASC"
+      );
+      proPeopleRows = rows;
+    } catch (referenceErr) {
+      proPeopleRows = [];
+    }
+
     const [legacy] = await pool.execute(`
-      SELECT DISTINCT Status AS value
+      SELECT DISTINCT TRIM(Status) AS value
       FROM employee_records
-      WHERE Status IS NOT NULL AND Status <> ''
-      ORDER BY Status
+      WHERE Status IS NOT NULL AND TRIM(Status) <> ''
+      ORDER BY value
     `);
-    res.json(legacy.map((r) => r.value));
+
+    const statuses = uniqueStatuses([
+      tenantRows.map((r) => r.value),
+      proPeopleRows.map((r) => r.value),
+      legacy.map((r) => r.value),
+      defaultStatuses,
+    ]);
+
+    res.json(statuses);
   } catch (err) {
     try {
       const [legacy] = await pool.execute(`
-        SELECT DISTINCT Status AS value
+        SELECT DISTINCT TRIM(Status) AS value
         FROM employee_records
-        WHERE Status IS NOT NULL AND Status <> ''
-        ORDER BY Status
+        WHERE Status IS NOT NULL AND TRIM(Status) <> ''
+        ORDER BY value
       `);
-      return res.json(legacy.map((r) => r.value));
+      return res.json(uniqueStatuses([legacy.map((r) => r.value), defaultStatuses]));
     } catch (e) {
       console.error("lookupStatuses error:", err);
       res.status(500).json({ message: "Server error" });
@@ -1488,7 +1651,7 @@ async function updateEmployeeAvatar(req, res) {
     const { id } = req.params;
     if (!req.file) return res.status(400).json({ message: "No image uploaded" });
 
-    const relPath = `/uploads/profile-img/${req.file.filename}`;
+    const relPath = getUploadedFileUrl(req.file, 'profile-img');
 
     await pool.execute(
       "UPDATE employee_records SET profile_img = ? WHERE id = ? AND company_id = ? LIMIT 1",
@@ -1525,6 +1688,7 @@ module.exports = {
   lookupStatuses,
   lookupRoleTemplates,
   updateEmployee,
+  createEmployeeLeaveBalances,
   updateEmployeeLogin,
   updateEmployeeStatus,
   lookupUserTypes,

@@ -1,6 +1,7 @@
 const { pool } = require("../../Utils/db");
 const fs = require('fs');
 const path = require('path');
+const { getUploadedFileUrl } = require("../../Utils/uploadPaths");
 
 /**
  * GET /api/v1/news
@@ -59,7 +60,7 @@ async function listNews(req, res) {
 async function createNews(req, res) {
     const { title, content, is_published, post_type = 'text' } = req.body;
     const authorId = req.session?.user?.id;
-    const imageUrl = req.file ? `/uploads/news/${req.file.filename}` : null;
+    const imageUrl = getUploadedFileUrl(req.file, 'news');
 
     console.log("Create News Debug:", {
         title,
@@ -123,7 +124,7 @@ async function createNews(req, res) {
 async function updateNews(req, res) {
     const { id } = req.params;
     const { title, content, is_published, removeImage, post_type } = req.body;
-    const newImageUrl = req.file ? `/uploads/news/${req.file.filename}` : null;
+    const newImageUrl = getUploadedFileUrl(req.file, 'news');
 
     try {
         const [existing] = await pool.execute("SELECT is_published, image_url, post_type FROM news WHERE id = ?", [id]);

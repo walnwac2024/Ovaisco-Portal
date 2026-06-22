@@ -1,44 +1,56 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { getTenantUploadDir, getUploadedFileUrl } = require('../Utils/uploadPaths');
 
-// Ensure uploads directories exist
-const newsUploadsDir = path.join(__dirname, '../uploads/news');
-const profileUploadsDir = path.join(__dirname, '../uploads/profile-img');
-const chatUploadsDir = path.join(__dirname, '../uploads/chat');
 const rootUploadsDir = path.join(__dirname, '../uploads');
 
-[newsUploadsDir, profileUploadsDir, chatUploadsDir, rootUploadsDir].forEach(dir => {
+[
+    rootUploadsDir,
+    path.join(rootUploadsDir, 'shared'),
+].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
 });
 
+function getUploadCategory(req, file) {
+    const isNews = req.originalUrl.includes('/news');
+    const isAvatar = req.originalUrl.includes('/avatar') || file.fieldname === 'avatar';
+    const isChat = req.originalUrl.includes('/chat') || req.originalUrl.includes('/messages');
+    const isBranding = req.originalUrl.includes('/settings/branding') || file.fieldname === 'logo' || file.fieldname === 'favicon';
+
+    if (isNews) return 'news';
+    if (isAvatar) return 'profile-img';
+    if (isChat) return 'chat';
+    if (isBranding) return 'logo';
+    if (file.fieldname === 'documents') return 'documents';
+    return 'misc';
+}
+
 // Configure storage
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const isNews = req.originalUrl.includes('/news');
-        const isAvatar = req.originalUrl.includes('/avatar') || file.fieldname === 'avatar';
-        const isChat = req.originalUrl.includes('/chat') || req.originalUrl.includes('/messages');
-
-        let dest = rootUploadsDir;
-        if (isNews) dest = newsUploadsDir;
-        else if (isAvatar) dest = profileUploadsDir;
-        else if (isChat) dest = chatUploadsDir;
-
+        const dest = getTenantUploadDir(req, getUploadCategory(req, file));
+        file.relativeUrl = getUploadedFileUrl({ path: path.join(dest, file.originalname) });
         cb(null, dest);
     },
     filename: function (req, file, cb) {
         const isNews = req.originalUrl.includes('/news');
         const isAvatar = req.originalUrl.includes('/avatar') || file.fieldname === 'avatar';
         const isChat = req.originalUrl.includes('/chat') || req.originalUrl.includes('/messages');
+        const isBranding = req.originalUrl.includes('/settings/branding') || file.fieldname === 'logo' || file.fieldname === 'favicon';
 
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         let prefix = '';
         if (isNews) prefix = 'news-';
         else if (isChat) prefix = 'chat-';
+        else if (isBranding) prefix = `${file.fieldname}-`;
+        else if (isAvatar) prefix = 'avatar-';
 
-        cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
+        const filename = prefix + uniqueSuffix + path.extname(file.originalname);
+        file.relativeUrl = getUploadedFileUrl({ path: path.join(getTenantUploadDir(req, getUploadCategory(req, file)), filename) });
+        cb(null, filename);
     }
 });
 
@@ -68,9 +80,9 @@ const fileFilter = (req, file, cb) => {
     }
 
     // 2. Default restricted image filter for 'avatar' or 'image' fields (e.g. News)
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp|ico|svg/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'image/svg+xml' || file.mimetype === 'image/x-icon' || file.mimetype === 'image/vnd.microsoft.icon';
 
     if (mimetype && extname) {
         return cb(null, true);

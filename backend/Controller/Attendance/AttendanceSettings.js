@@ -15,9 +15,55 @@ const ensureAttendanceRulesReady = async () => {
   }
 };
 
+const defaultShifts = [
+  ["SUMMER", "10:00:00", "19:00:00", "2026-03-31", "2026-10-30", "#3b82f6"],
+  ["WINTER", "10:30:00", "18:30:00", "2026-10-29", "2027-03-28", "#3b82f6"],
+  ["RAMADAN", "10:30:00", "16:00:00", "2026-02-18", "2026-03-23", "#3b82f6"],
+];
+
+const ensureDefaultShifts = async (company_id) => {
+  try {
+    await pool.query(
+      `
+      INSERT INTO attendance_shifts (name, start_time, end_time, effective_from, effective_to, color, company_id, is_active)
+      SELECT ref.name, ref.start_time, ref.end_time, ref.effective_from, ref.effective_to, COALESCE(ref.color, '#3b82f6'), ?, ref.is_active
+      FROM hrm_db.attendance_shifts ref
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM attendance_shifts local
+        WHERE local.company_id = ?
+          AND UPPER(TRIM(local.name)) = UPPER(TRIM(ref.name))
+      )
+      `,
+      [company_id, company_id]
+    );
+    return;
+  } catch (err) {
+    // If the Pro People reference DB is unavailable, use the known baseline shifts.
+  }
+
+  for (const [name, start, end, from, to, color] of defaultShifts) {
+    await pool.execute(
+      `
+      INSERT INTO attendance_shifts (name, start_time, end_time, effective_from, effective_to, color, company_id, is_active)
+      SELECT ?, ?, ?, ?, ?, ?, ?, 1
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM attendance_shifts
+        WHERE company_id = ?
+          AND UPPER(TRIM(name)) = UPPER(TRIM(?))
+      )
+      `,
+      [name, start, end, from, to, color, company_id, company_id, name]
+    );
+  }
+};
+
 const getShifts = async (req, res) => {
   try {
     const company_id = req.company_id;
+    await ensureDefaultShifts(company_id);
+
     const [rows] = await pool.query(
       `
       SELECT id, name, start_time, end_time, effective_from, effective_to, is_active, created_at

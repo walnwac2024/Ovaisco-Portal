@@ -2,6 +2,12 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import MainLoader from "../../common/MainLoader";
+import { getApiPortalCode } from "../../../utils/api";
+
+const getPublicPortalCode = (code) => {
+  const normalized = String(code || "").trim().toLowerCase();
+  return normalized === "ovisco" ? "ovaisco" : normalized;
+};
 
 /**
  * ProtectedRoute
@@ -21,12 +27,14 @@ import MainLoader from "../../common/MainLoader";
  */
 export default function ProtectedRoute({
   children,
-  redirectTo = "/login",
+  redirectTo,
   requireRoles, // optional: e.g., ['admin', 'super_admin']
   requireFeatures, // optional: e.g., ['system_settings_view']
 }) {
   const { loading, isAuthenticated, user } = useAuth();
   const location = useLocation();
+  const portalCode = getPublicPortalCode(getApiPortalCode()) || "propeople";
+  const loginRedirect = redirectTo || `/login/${portalCode}`;
 
   // Don’t render protected UI until we know the session state
   if (loading) return <MainLoader />;
@@ -35,7 +43,7 @@ export default function ProtectedRoute({
   if (!isAuthenticated) {
     return (
       <Navigate
-        to={redirectTo}
+        to={loginRedirect}
         replace
         state={{ from: location }} // so you can return after login if desired
       />

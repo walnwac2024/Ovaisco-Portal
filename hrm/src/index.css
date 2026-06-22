@@ -565,6 +565,49 @@
   background-color: rgba(31, 41, 55, 0.5) !important;
 }
 
+.dark .bg-white\/70,
+.dark .glass-card {
+  background-color: rgba(17, 24, 39, 0.94) !important;
+  border-color: rgba(51, 65, 85, 0.9) !important;
+}
+
+.dark .glass-card {
+  color: var(--text-primary);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.95) !important;
+}
+
+.dark .glass-card .bg-slate-50\/10,
+.dark .glass-card .bg-slate-50\/20,
+.dark .glass-card .bg-slate-50\/30,
+.dark .glass-card .bg-slate-50\/50 {
+  background-color: rgba(15, 23, 42, 0.82) !important;
+}
+
+.dark .glass-card [class~="text-slate-300"],
+.dark .glass-card [class~="text-slate-400"],
+.dark .glass-card [class~="text-slate-500"] {
+  color: #CBD5E1 !important;
+  opacity: 1 !important;
+}
+
+.dark .glass-card [class~="text-slate-600"],
+.dark .glass-card [class~="text-slate-700"],
+.dark .glass-card [class~="text-slate-800"],
+.dark .glass-card [class~="text-slate-900"] {
+  color: #F8FAFC !important;
+}
+
+.dark .glass-card .divide-slate-100\/50 > :not([hidden]) ~ :not([hidden]),
+.dark .glass-card .border-slate-100\/50 {
+  border-color: rgba(51, 65, 85, 0.72) !important;
+}
+
+.dark .glass-card .shadow-slate-200,
+.dark .glass-card .shadow-slate-200\/30,
+.dark .glass-card .shadow-slate-200\/50 {
+  box-shadow: 0 18px 28px -18px rgba(0, 0, 0, 0.75) !important;
+}
+
 /* Handle Gradients in Dark Mode */
 .dark .from-white,
 .dark .from-rose-50,
@@ -587,6 +630,103 @@
 .dark .to-rose-50,
 .dark .to-pink-50 {
   --tw-gradient-to: var(--bg-body) !important;
+}
+
+/* Tenant branding overrides: keep company color flat and consistent. */
+:root {
+  --brand-primary: var(--color-primary, #E02D3D);
+  --brand-primary-rgb: var(--color-primary-rgb, 224 45 61);
+}
+
+.btn-primary,
+.btn-success,
+.bg-customRed,
+.hover\:bg-customRed\/90:hover,
+.peer-checked\:bg-customRed:checked ~ *,
+.checked\:bg-customRed:checked {
+  background-color: var(--brand-primary) !important;
+  background-image: none !important;
+}
+
+.bg-gradient-to-r,
+.bg-gradient-to-br,
+.bg-gradient-to-b,
+.from-customRed,
+.to-red-600,
+.to-red-500,
+.to-orange-500,
+.from-red-500,
+.from-red-600,
+.from-orange-500 {
+  --tw-gradient-from: var(--brand-primary) !important;
+  --tw-gradient-to: var(--brand-primary) !important;
+  --tw-gradient-stops: var(--brand-primary), var(--brand-primary) !important;
+  background-image: none !important;
+  background-color: var(--brand-primary) !important;
+}
+
+.text-customRed,
+.hover\:text-customRed:hover,
+.group-hover\:text-customRed,
+.text-red-500,
+.text-red-600,
+.text-rose-500,
+.text-rose-600,
+.text-orange-500,
+.text-orange-600,
+.text-indigo-500,
+.text-indigo-600 {
+  color: var(--brand-primary) !important;
+}
+
+.border-customRed,
+.focus\:border-customRed:focus,
+.hover\:border-customRed\/20:hover,
+.hover\:border-customRed\/30:hover,
+.border-red-100,
+.border-rose-100,
+.border-orange-100 {
+  border-color: rgb(var(--brand-primary-rgb) / 0.35) !important;
+}
+
+.bg-customRed\/5,
+.bg-customRed\/10,
+.hover\:bg-customRed\/10:hover,
+.bg-red-50,
+.bg-rose-50,
+.bg-orange-50,
+.bg-indigo-50 {
+  background-color: rgb(var(--brand-primary-rgb) / 0.10) !important;
+  background-image: none !important;
+}
+
+.shadow-customRed\/20,
+.shadow-customRed\/30,
+.shadow-red-500\/10,
+.shadow-red-500\/15,
+.shadow-red-500\/20,
+.shadow-red-500\/30 {
+  box-shadow: 0 8px 20px -8px rgb(var(--brand-primary-rgb) / 0.35) !important;
+}
+
+button svg,
+a svg,
+.page svg,
+nav svg {
+  color: currentColor;
+}
+
+svg.text-slate-300,
+svg.text-slate-400,
+svg.text-slate-500,
+svg.text-gray-400,
+svg.text-gray-500,
+i.text-slate-300,
+i.text-slate-400,
+i.text-slate-500,
+i.text-gray-400,
+i.text-gray-500 {
+  color: var(--brand-primary) !important;
 }
 
 /* Text Colors - Ensure High Contrast */

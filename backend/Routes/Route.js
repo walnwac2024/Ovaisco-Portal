@@ -4,8 +4,8 @@ const router = express.Router();
 
 router.get("/debug-ping", (req, res) => res.json({ message: "pong" }));
 const path = require("path");
-const fs = require("fs");
 const multer = require("multer");
+const { getTenantUploadDir, getUploadedFileUrl } = require("../Utils/uploadPaths");
 
 // Controllers
 const {
@@ -24,6 +24,7 @@ const Performance = require("./PerformanceRoutes");
 const News = require("../Controller/News/NewsController");
 const Notifications = require("../Controller/UserDeatils/NotificationController");
 const Chat = require("../Controller/UserDeatils/ChatController");
+const Assistant = require("../Controller/Assistant/AssistantController");
 const Audit = require("../Controller/Audit/AuditController");
 const Timeline = require("../Controller/Employees/TimelineController");
 const Settings = require("../Controller/Settings/SettingsController");
@@ -42,6 +43,7 @@ const {
     getEmployeeById,
     createEmployee,
     updateEmployee,
+    createEmployeeLeaveBalances,
     updateEmployeeLogin,
     updateEmployeeStatus,
     addEmployeeDocuments,
@@ -76,15 +78,18 @@ const {
 // Middleware
 const { isAuthenticated, requireRole, requireFeatures, requireFeaturesOrSelf } = require("../middlewares/middleware");
 
-// Multer storage for documents
-const docsDir = path.join(__dirname, "..", "uploads", "documents");
-if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
-
 const docsStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, docsDir),
+    destination: (req, file, cb) => {
+        const docsDir = getTenantUploadDir(req, "documents");
+        cb(null, docsDir);
+    },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+        const filename = file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname);
+        file.relativeUrl = getUploadedFileUrl({
+            path: path.join(getTenantUploadDir(req, "documents"), filename),
+        });
+        cb(null, filename);
     }
 });
 const docsUpload = multer({
@@ -125,6 +130,9 @@ router.get("/chat/unread-counts", isAuthenticated, Chat.getUnreadCounts);
 router.get("/chat/unread", isAuthenticated, Chat.getUnreadCounts);
 router.post("/chat/read/:roomId", isAuthenticated, Chat.markAsRead);
 
+// AI Assistant routes: read-only in phase 1
+router.post("/assistant/chat", isAuthenticated, Assistant.chat);
+
 const Push = require("../Controller/UserDeatils/PushController");
 
 // Permission routes
@@ -143,7 +151,13 @@ router.get("/audit/filters", isAuthenticated, requireRole("super_admin", "admin"
 
 // Settings routes
 router.get("/settings/branding", Settings.getBranding);
-router.post("/settings/branding", isAuthenticated, requireFeatures("branding_manage"), upload.single("logo"), Settings.updateBranding);
+router.post(
+    "/settings/branding",
+    isAuthenticated,
+    requireFeatures("branding_manage"),
+    upload.fields([{ name: "logo", maxCount: 1 }, { name: "favicon", maxCount: 1 }]),
+    Settings.updateBranding
+);
 
 // System Settings routes (Dropdown Management)
 router.get("/settings/:type", isAuthenticated, SystemSettings.listSettings);
@@ -180,6 +194,7 @@ router.get("/employees/:id", isAuthenticated, getEmployeeById);
 // Existing routes...
 router.post("/employees", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.fields([{ name: "avatar", maxCount: 1 }, { name: "documents" }]), createEmployee);
 router.patch("/employees/:id", isAuthenticated, updateEmployee);
+router.post("/employees/:id/leave-balances", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), createEmployeeLeaveBalances);
 router.put("/employees/:id/login", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployeeLogin);
 router.patch("/employees/:id/status", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployeeStatus);
 router.delete("/employees/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), deleteEmployee);

@@ -91,7 +91,7 @@ export default function EmployeeApprovals() {
     open: false,
     action: /** @type {"approve" | "reject" | null} */ (null),
     ids: /** @type {number[]} */ ([]),
-    title: "",          // header like "Approve Request – (PO-1900) Arsalan Ali"
+    title: "",          // header like "Approve Request - (PO-1900) Arsalan Ali"
     fromDetails: null,  // when opened from details, store that row to enable Back
   });
 
@@ -123,14 +123,16 @@ export default function EmployeeApprovals() {
     openModal({
       action,
       ids: [row.id],
-      title: `${cap(action)} Request – (${row.requester.code}) ${row.requester.name}`,
+      title: `${cap(action)} Request - (${row.requester.code}) ${row.requester.name}`,
       fromDetails: row,
     });
   };
 
   /* confirm path */
   const confirmAction = ({ action, ids, comment }) => {
-    console.log("CONFIRM", { action, ids, comment });
+    void action;
+    void ids;
+    void comment;
     // TODO: call your API and refresh state. For now we just clear selection.
     setSelectedIds(new Set());
   };

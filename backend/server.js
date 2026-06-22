@@ -16,23 +16,43 @@ const app = express();
 const http = require("http");
 const { Server } = require("socket.io");
 const server = http.createServer(app);
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+  "http://propeople.cloud",
+  "https://propeople.cloud",
+  "http://www.propeople.cloud",
+  "https://www.propeople.cloud",
+  "http://api.propeople.cloud",
+  "https://api.propeople.cloud",
+  "http://ovaisco.cloud",
+  "https://ovaisco.cloud",
+  "http://www.ovaisco.cloud",
+  "https://www.ovaisco.cloud",
+  "http://api.ovaisco.cloud",
+  "https://api.ovaisco.cloud",
+];
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  return allowedOrigins.includes(origin);
+}
+
+function corsOrigin(origin, callback) {
+  if (isAllowedOrigin(origin)) {
+    callback(null, true);
+  } else {
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    callback(new Error("Not allowed by CORS"));
+  }
+}
+
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      // Allow localhost 3000 and propeople.cloud
-      const allowed = [
-        "http://localhost:3000",
-        "http://propeople.cloud",
-        "https://propeople.cloud",
-        "http://api.propeople.cloud",
-        "https://api.propeople.cloud"
-      ];
-      if (!origin || allowed.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: corsOrigin,
     credentials: true
   }
 });
@@ -81,24 +101,8 @@ app.use(
   })
 );
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://propeople.cloud",
-  "https://propeople.cloud",
-  "http://api.propeople.cloud",
-  "https://api.propeople.cloud"
-];
-
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: corsOrigin,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
@@ -108,6 +112,7 @@ const corsOptions = {
     "Accept",
     "Authorization",
     "x-csrf-token",
+    "x-portal-code",
   ],
 };
 
@@ -137,9 +142,27 @@ const sessionStore = new MySQLStoreFactory({
   },
 });
 
-app.use(
-  session({
-    name: "sid",
+function sanitizePortalCode(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function getRequestPortalCode(req) {
+  return sanitizePortalCode(
+    req.get("x-portal-code") ||
+    req.body?.companyCode ||
+    req.body?.company_code ||
+    req.query?.companyCode ||
+    req.query?.company_code ||
+    ""
+  );
+}
+
+function createSessionMiddleware(name) {
+  return session({
+    name,
     secret: process.env.SESSION_SECRET || "change_this_secret",
     resave: false,
     saveUninitialized: true,
@@ -151,8 +174,40 @@ app.use(
       maxAge: 1000 * 60 * 60 * 24 * 7,
       domain: isProd ? ".propeople.cloud" : undefined,
     },
-  })
-);
+  });
+}
+
+const sessionMiddlewares = new Map([
+  ["", createSessionMiddleware("sid")],
+  ["propeople", createSessionMiddleware("sid_propeople")],
+  ["ovisco", createSessionMiddleware("sid_ovisco")],
+]);
+
+app.use((req, res, next) => {
+  const portalCode = getRequestPortalCode(req);
+  const cookieName = portalCode ? `sid_${portalCode}` : "sid";
+  req.portalCode = portalCode;
+  req.sessionCookieName = cookieName;
+
+  if (!sessionMiddlewares.has(portalCode)) {
+    sessionMiddlewares.set(portalCode, createSessionMiddleware(cookieName));
+  }
+
+  return sessionMiddlewares.get(portalCode)(req, res, next);
+});
+
+const { runWithTenant } = require("./Utils/tenantDb");
+
+app.use((req, res, next) => {
+  const tenant = req.session?.user?.tenant;
+  if (!tenant?.db_name) return next();
+
+  try {
+    return runWithTenant(tenant, next);
+  } catch (err) {
+    return next(err);
+  }
+});
 
 const csrfProtection = csurf({ cookie: false });
 
@@ -182,6 +237,7 @@ app.use("/api/v1", (req, res, next) => {
   const pathForCsrf = req.originalUrl || req.url;
   const isExempt =
     (req.method === "PATCH" && pathForCsrf.includes("/notifications/") && pathForCsrf.endsWith("/read")) ||
+    (req.method === "POST" && pathForCsrf.includes("/chat/read/")) ||
     pathForCsrf.includes("/attendance/punch") ||
     pathForCsrf.includes("/attendance/amt-sync") ||
     pathForCsrf.includes("/payroll/lock-salary") ||
@@ -199,12 +255,24 @@ app.use("/api/v1", (req, res, next) => {
 app.use("/api/v1", routes);
 
 const buildPath = path.join(__dirname, "../hrm/build");
-app.use(express.static(buildPath));
+app.use(express.static(buildPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html")) {
+      res.setHeader("Cache-Control", "no-cache");
+      return;
+    }
+
+    if (/\.(?:js|css|png|jpg|jpeg|webp|avif|svg|ico|woff2?)$/i.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
+}));
 
 app.use((req, res) => {
   if (req.path.startsWith("/api/v1")) {
     return res.status(404).json({ message: "API endpoint not found" });
   }
+  res.setHeader("Cache-Control", "no-cache");
   res.sendFile(path.join(buildPath, "index.html"), (err) => {
     if (err) {
       res.status(404).send("HRM Build not found.");

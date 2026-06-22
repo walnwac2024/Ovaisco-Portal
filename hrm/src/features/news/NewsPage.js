@@ -51,8 +51,7 @@ export default function NewsPage() {
             }
         };
 
-        socket.on("news_reaction_updated", (data) => {
-            console.log("Reaction update received via socket:", data);
+        socket.on("news_reaction_updated", () => {
             fetchLatestReactions();
         });
 

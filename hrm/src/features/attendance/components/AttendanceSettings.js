@@ -227,23 +227,26 @@ export default function AttendanceSettings() {
           </div>
 
           {/* BULK ASSIGN */}
-          <div className="rounded-2xl border border-slate-100 p-6 bg-slate-50/30">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="text-[13px] font-bold text-slate-700 uppercase tracking-wider">Bulk Shift Assignment</div>
+          <div className="rounded-2xl border border-slate-100 p-4 sm:p-6 bg-slate-50/30">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-5">
+              <div className="min-w-0">
+                <div className="text-[12px] sm:text-[13px] font-bold text-slate-700 uppercase tracking-wider">Bulk Shift Assignment</div>
+                <p className="mt-1 text-[10px] sm:text-[11px] font-medium text-slate-400">
+                  Apply one active shift to every active employee.
+                </p>
               </div>
               <button
                 onClick={handleBulkAssign}
                 disabled={savingBulk || loading || !bulkShiftId}
-                className="btn-primary shadow-red-500/20 whitespace-normal h-auto py-2 text-center"
+                className="btn-primary h-11 px-4 sm:px-5 shadow-red-500/20 whitespace-nowrap text-center w-full sm:w-auto justify-center disabled:opacity-60"
               >
                 {savingBulk ? "Processing..." : "Assign to ALL"}
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              <div className="w-full sm:max-w-xs">
-                <label className="form-label">Select Shift to Apply Everywhere</label>
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,360px)_1fr] gap-3 lg:gap-5 lg:items-end">
+              <div className="w-full min-w-0">
+                <label className="form-label text-[10px] sm:text-[11px] tracking-[0.18em]">Select Shift to Apply Everywhere</label>
                 <SharedDropdown
                   value={bulkShiftId}
                   onChange={(val) => setBulkShiftId(val)}
@@ -253,18 +256,18 @@ export default function AttendanceSettings() {
                   }))}
                   placeholder="-- Choose Shift --"
                   searchable={true}
-                  className="input"
+                  className="w-full"
                 />
               </div>
-              <p className="text-[11px] font-medium text-slate-500 italic pb-2">
+              <p className="text-[11px] font-medium text-slate-500 italic leading-relaxed lg:pb-2">
                 This will automatically update the shift assignment for all active employees starting from today.
               </p>
             </div>
 
             {bulkMessage && (
-              <div className="mt-4 text-xs font-bold text-slate-600 border border-slate-100 bg-white rounded-xl p-3 flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-slate-400 animate-pulse" />
-                {bulkMessage}
+              <div className="mt-4 text-xs font-bold text-slate-600 border border-slate-100 bg-white rounded-xl p-3 flex items-start sm:items-center gap-3">
+                <div className="mt-1 sm:mt-0 h-2 w-2 rounded-full bg-slate-400 animate-pulse shrink-0" />
+                <span className="leading-relaxed">{bulkMessage}</span>
               </div>
             )}
           </div>

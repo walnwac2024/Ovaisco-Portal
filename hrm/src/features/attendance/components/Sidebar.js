@@ -113,7 +113,7 @@ export default function AttendanceSidebar({ items = [], onNavigate, title = "ATT
 
     if (it.id.includes('settings')) {
       icon = icons.settings;
-      permission = "attendance_settings";
+      permission = "attendance_manage_settings";
     }
 
     return {

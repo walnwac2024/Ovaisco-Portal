@@ -107,7 +107,7 @@ export default function LogsPage() {
                             </div>
                             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Audit <span className="text-customRed">Logs</span></h1>
                         </div>
-                        <p className="text-slate-500 font-medium max-w-lg">Track every system pulse and authority action across the HRM ecosystem.</p>
+                        <p className="text-slate-500 font-medium max-w-lg">Track every system pulse and authority action across the WorkSphere ecosystem.</p>
                     </div>
 
                     <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">

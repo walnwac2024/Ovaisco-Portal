@@ -45,9 +45,14 @@ export default function AddEditModal({ isOpen, onClose, onSave, item, type }) {
         }
 
         setSaving(true);
-        await onSave(formData);
-        setSaving(false);
-        onClose();
+        try {
+            const result = await onSave(formData);
+            if (result?.success !== false) {
+                onClose();
+            }
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (!isOpen) return null;

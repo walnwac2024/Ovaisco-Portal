@@ -1,14 +1,16 @@
-import React, { useEffect } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Topbar from "../Topbar/Topbar";
 import { useAuth } from "../../../context/AuthContext";
 import { usePushNotifications } from "../../../hooks/usePushNotifications";
-import ChatPopup from "../../common/ChatPopup";
 import api from "../../../utils/api";
 import PWAInstallPrompt from "../../PWAInstallPrompt";
 
+const ChatPopup = lazy(() => import("../../common/ChatPopup"));
+
 export default function Layout() {
   const { user } = useAuth();
+  const [showChat, setShowChat] = useState(false);
   usePushNotifications(user);
 
   // Heartbeat to keep online status active
@@ -31,6 +33,19 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return undefined;
+    const loadChat = () => setShowChat(true);
+
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(loadChat, { timeout: 3500 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+
+    const id = window.setTimeout(loadChat, 2500);
+    return () => window.clearTimeout(id);
+  }, [user]);
+
   // Build a safe display name no matter how user is shaped
   // Support both { user: {...} } (old) and {...} (new) shapes
   const u = user?.user ? user.user : user;
@@ -46,7 +61,11 @@ export default function Layout() {
       <main className="page">
         <Outlet />
       </main>
-      <ChatPopup />
+      {showChat && (
+        <Suspense fallback={null}>
+          <ChatPopup />
+        </Suspense>
+      )}
       <PWAInstallPrompt />
     </>
   );

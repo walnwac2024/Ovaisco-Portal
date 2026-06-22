@@ -16,11 +16,11 @@
 // module.exports = { pool };
 
 
-// Utils/db.js
 require('dotenv').config();
 const mysql = require('mysql2/promise');
+const { AsyncLocalStorage } = require('async_hooks');
 
-const pool = mysql.createPool({
+const defaultPool = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 3306),
   user: process.env.DB_USER,
@@ -31,5 +31,24 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-module.exports = { pool };
+const tenantStorage = new AsyncLocalStorage();
+
+function getActivePool() {
+  const store = tenantStorage.getStore();
+  return store?.pool || defaultPool;
+}
+
+const pool = new Proxy({}, {
+  get(_target, prop) {
+    const activePool = getActivePool();
+    const value = activePool[prop];
+    return typeof value === 'function' ? value.bind(activePool) : value;
+  }
+});
+
+function runWithDbPool(dbPool, callback) {
+  return tenantStorage.run({ pool: dbPool }, callback);
+}
+
+module.exports = { pool, defaultPool, runWithDbPool };
 

@@ -101,7 +101,7 @@ function EmployeesTable({
                             className="mt-0.5 h-10 w-10 rounded-full object-cover border border-slate-100 shadow-sm"
                           />
                         ) : (
-                          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-[12px] font-bold text-slate-600 uppercase">
+                          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-customRed text-[12px] font-black text-white uppercase shadow-sm">
                             {initials}
                           </div>
                         )}

@@ -54,13 +54,6 @@ export default function NewsModal({ isOpen, onClose, onSave, initialData = null 
         e.preventDefault();
         setSaving(true);
         try {
-            console.log("Submitting News Form:", {
-                title: formData.title,
-                post_type: formData.post_type,
-                hasFile: !!imageFile,
-                fileName: imageFile?.name
-            });
-
             const submitData = new FormData();
             submitData.append('title', formData.title);
             submitData.append('content', formData.content);

@@ -2,6 +2,15 @@ const { pool } = require("../../Utils/db");
 const { hasFullAccess } = require("../../middlewares/middleware");
 const { recordLog } = require("../../Utils/AuditUtils");
 
+async function resolveEmployeeCompanyId(employeeId, fallbackCompanyId) {
+    const [[employee]] = await pool.execute(
+        "SELECT company_id FROM employee_records WHERE id = ? LIMIT 1",
+        [employeeId]
+    );
+
+    return employee?.company_id || fallbackCompanyId || 1;
+}
+
 /**
  * GET /leaves/types
  */
@@ -24,21 +33,38 @@ const applyLeave = async (req, res) => {
         const user = req.session?.user;
         if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
 
-        const { leave_type_id, start_date, end_date, reason } = req.body || {};
+        const { leave_type_id, start_date, end_date, reason, day_type } = req.body || {};
 
         if (!leave_type_id || !start_date || !end_date) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
+        const companyId = await resolveEmployeeCompanyId(user.id, req.company_id || 1);
+        const isHalfDay = String(day_type || "").trim().toLowerCase() === "half";
         const start = new Date(start_date);
         const end = new Date(end_date);
-        const diffTime = Math.abs(end - start);
-        const total_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return res.status(400).json({ message: "Invalid leave dates." });
+        }
+
+        if (end < start) {
+            return res.status(400).json({ message: "End date cannot be before start date." });
+        }
+
+        if (isHalfDay && start_date !== end_date) {
+            return res.status(400).json({ message: "Half leave must be for a single date." });
+        }
+
+        const diffTime = end - start;
+        const total_days = isHalfDay
+            ? 0.5
+            : Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
         // ✅ Check Leave Balance
         const [balanceRows] = await conn.execute(
             "SELECT balance FROM leave_balances WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?",
-            [user.id, leave_type_id, new Date().getFullYear(), req.company_id || 1]
+            [user.id, leave_type_id, new Date().getFullYear(), companyId]
         );
 
         if (balanceRows.length === 0) {
@@ -58,15 +84,15 @@ const applyLeave = async (req, res) => {
         const [result] = await conn.execute(
             `INSERT INTO leave_applications (employee_id, leave_type_id, start_date, end_date, total_days, reason, status, company_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [user.id, leave_type_id, start_date, end_date, total_days, reason, status, req.company_id || 1]
+            [user.id, leave_type_id, start_date, end_date, total_days, reason, status, companyId]
         );
 
         const applicationId = result.insertId;
 
         // 2. Routing: Find Department Manager
-        const [empRows] = await conn.execute("SELECT Department, Reporting FROM employee_records WHERE id = ? AND company_id = ?", [user.id, req.company_id || 1]);
+        const [empRows] = await conn.execute("SELECT Department, Reporting FROM employee_records WHERE id = ? AND company_id = ?", [user.id, companyId]);
         const dept = empRows[0]?.Department;
-        const [dmRows] = await conn.execute("SELECT manager_id FROM department_managers WHERE department_name = ? AND company_id = ?", [dept, req.company_id || 1]);
+        const [dmRows] = await conn.execute("SELECT manager_id FROM department_managers WHERE department_name = ? AND company_id = ?", [dept, companyId]);
 
         let approverId = dmRows[0]?.manager_id || null;
 
@@ -79,7 +105,7 @@ const applyLeave = async (req, res) => {
                  FROM employee_user_types eut
                  JOIN users_types ut ON eut.user_type_id = ut.id
                  WHERE ut.permission_level >= 10 AND eut.employee_id != ? AND eut.company_id = ?
-                 LIMIT 1`, [user.id, req.company_id || 1]
+                 LIMIT 1`, [user.id, companyId]
             );
             approverId = adminRows[0]?.employee_id || null;
         }
@@ -88,7 +114,7 @@ const applyLeave = async (req, res) => {
         await conn.execute(
             `INSERT INTO approvals (approvable_type, approvable_id, requested_by, approver_id, status, company_id)
              VALUES ('Leave', ?, ?, ?, ?, ?)`,
-            [applicationId, user.id, approverId, status, req.company_id || 1]
+            [applicationId, user.id, approverId, status, companyId]
         );
 
         // 4. If auto-approved, deduct balance immediately
@@ -97,7 +123,7 @@ const applyLeave = async (req, res) => {
                 `UPDATE leave_balances 
                  SET used = used + ?, balance = balance - ?, updated_at = CURRENT_TIMESTAMP 
                  WHERE employee_id = ? AND leave_type_id = ? AND year = ? AND company_id = ?`,
-                [total_days, total_days, user.id, leave_type_id, new Date().getFullYear(), req.company_id || 1]
+                [total_days, total_days, user.id, leave_type_id, new Date().getFullYear(), companyId]
             );
         }
 
@@ -117,7 +143,7 @@ const applyLeave = async (req, res) => {
                         "New Leave Request",
                         `${user.name} has requested leave for ${total_days} days.`,
                         applicationId,
-                        req.company_id || 1
+                        companyId
                     ]
                 );
 
@@ -135,7 +161,7 @@ const applyLeave = async (req, res) => {
                 FROM employee_user_types eut
                 JOIN users_types ut ON eut.user_type_id = ut.id
                 WHERE ut.permission_level >= 10 AND eut.employee_id != ? AND eut.employee_id != ? AND eut.company_id = ?
-            `, [user.id, approverId || 0, req.company_id || 1]);
+            `, [user.id, approverId || 0, companyId]);
 
             const adminValues = admins.map(a => [
                 a.employee_id,
@@ -143,7 +169,7 @@ const applyLeave = async (req, res) => {
                 `${user.name} has requested leave for ${total_days} days.`,
                 "Leave",
                 applicationId,
-                req.company_id || 1,
+                companyId,
                 new Date()
             ]);
 
@@ -509,15 +535,29 @@ const getLeaveBalances = async (req, res) => {
         const user = req.session?.user;
         if (!user?.id) return res.status(401).json({ message: "Unauthenticated" });
 
+        const currentYear = new Date().getFullYear();
+        const companyId = await resolveEmployeeCompanyId(user.id, req.company_id || 1);
+
         const [rows] = await pool.execute(
             `SELECT lb.*, lt.name as leave_type_name
              FROM leave_balances lb
              JOIN leave_types lt ON lb.leave_type_id = lt.id
              WHERE lb.employee_id = ? AND lb.year = ? AND lb.company_id = ?`,
-            [user.id, new Date().getFullYear(), req.company_id || 1]
+            [user.id, currentYear, companyId]
         );
 
-        return res.json({ balances: rows });
+        if (rows.length) return res.json({ balances: rows });
+
+        const [fallbackRows] = await pool.execute(
+            `SELECT lb.*, lt.name as leave_type_name
+             FROM leave_balances lb
+             JOIN leave_types lt ON lb.leave_type_id = lt.id
+             WHERE lb.employee_id = ? AND lb.year = ?
+             ORDER BY lb.company_id = ? DESC, lb.id ASC`,
+            [user.id, currentYear, companyId]
+        );
+
+        return res.json({ balances: fallbackRows });
     } catch (e) {
         console.error("getLeaveBalances error:", e);
         return res.status(500).json({ message: "Failed to load leave balances" });

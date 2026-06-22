@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import api, { initCsrf } from "../utils/api";
+import api, { getApiPortalCode, initCsrf, setApiPortalCode } from "../utils/api";
 
 const AuthContext = createContext(null);
 
@@ -27,6 +27,14 @@ function normalizeUser(raw) {
   };
 }
 
+function getPortalCodeFromUser(user) {
+  return String(user?.company_code || getApiPortalCode() || "").trim().toLowerCase();
+}
+
+function portalStorageKey(base, portalCode) {
+  return `${base}:${portalCode || "default"}`;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [tabs, setTabs] = useState([]);
@@ -36,12 +44,12 @@ export function AuthProvider({ children }) {
   const idleTimerRef = useRef(null);
   const warnTimerRef = useRef(null);
   const bcRef = useRef(null);
+  const lastActivityWriteRef = useRef(0);
 
   const loadSession = async () => {
     try {
       await initCsrf();
       const meRes = await api.get("/auth/me");
-      console.log("the meRes:",meRes)
       const meUser = normalizeUser(meRes.data?.user || null);
       setUser(meUser);
 
@@ -65,10 +73,12 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = async (email, password, remember) => {
+  const login = async (companyCode, email, password, remember) => {
+    setApiPortalCode(companyCode);
     await initCsrf();
 
     const { data } = await api.post("/auth/login", {
+      companyCode,
       email,
       password,
       remember,
@@ -76,6 +86,9 @@ export function AuthProvider({ children }) {
 
     const loggedInUser = normalizeUser(data?.user || null);
     setUser(loggedInUser);
+    if (loggedInUser?.company_code) {
+      setApiPortalCode(loggedInUser.company_code);
+    }
 
     if (loggedInUser) {
       const menuRes = await api.get("/me/menu");
@@ -90,6 +103,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    const portalCode = getPortalCodeFromUser(user);
     try {
       await initCsrf();
       await api.post("/auth/logout");
@@ -101,10 +115,11 @@ export function AuthProvider({ children }) {
     setUser(null);
     setTabs([]);
 
-    localStorage.setItem("idle:forceLogout", String(Date.now()));
+    localStorage.setItem(portalStorageKey("idle:forceLogout", portalCode), String(Date.now()));
     try {
-      bcRef.current?.postMessage({ type: "forceLogout" });
+      bcRef.current?.postMessage({ type: "forceLogout", portalCode });
     } catch { }
+
   };
 
   const refresh = async () => {
@@ -127,10 +142,17 @@ export function AuthProvider({ children }) {
     setUser(normalizeUser(u));
   };
 
-  const resetIdleTimers = () => {
-    localStorage.setItem("idle:lastActivity", String(Date.now()));
+  const resetIdleTimers = (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastActivityWriteRef.current < 30000) {
+      return;
+    }
+    lastActivityWriteRef.current = now;
+
+    const portalCode = getPortalCodeFromUser(user);
+    localStorage.setItem(portalStorageKey("idle:lastActivity", portalCode), String(now));
     try {
-      bcRef.current?.postMessage({ type: "activity", ts: Date.now() });
+      bcRef.current?.postMessage({ type: "activity", ts: now, portalCode });
     } catch { }
 
     clearTimeout(idleTimerRef.current);
@@ -188,14 +210,18 @@ export function AuthProvider({ children }) {
     try {
       bcRef.current = new BroadcastChannel("idle-channel");
       bcRef.current.onmessage = (e) => {
+        const messagePortal = String(e?.data?.portalCode || "").toLowerCase();
+        const currentPortal = getPortalCodeFromUser(user);
+        if (messagePortal !== currentPortal) return;
         if (e?.data?.type === "activity") resetIdleTimers();
         if (e?.data?.type === "forceLogout") logout();
       };
     } catch { }
 
     const onStorage = (e) => {
-      if (e.key === "idle:lastActivity") resetIdleTimers();
-      if (e.key === "idle:forceLogout") logout();
+      const currentPortal = getPortalCodeFromUser(user);
+      if (e.key === portalStorageKey("idle:lastActivity", currentPortal)) resetIdleTimers();
+      if (e.key === portalStorageKey("idle:forceLogout", currentPortal)) logout();
     };
 
     window.addEventListener("storage", onStorage);
@@ -257,9 +283,9 @@ function IdleWarningModal({ onStay, onLogout }) {
   return (
     <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
       <div className="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl">
-        <h3 className="text-lg font-semibold mb-2">You’ve been inactive</h3>
+        <h3 className="text-lg font-semibold mb-2">You've been inactive</h3>
         <p className="text-sm text-gray-600 mb-4">
-          You’ll be signed out for security in about a minute. Stay signed in?
+          You'll be signed out for security in about a minute. Stay signed in?
         </p>
         <div className="flex gap-2 justify-end">
           <button onClick={onLogout} className="px-3 py-2 rounded-md border">

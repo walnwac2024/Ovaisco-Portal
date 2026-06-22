@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import api from "../utils/api";
+import { BASE_URL } from "../utils/api";
+import { useAuth } from "./AuthContext";
 
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
+    const { user } = useAuth();
     const [colors, setColors] = useState({ primary: "#E02D3D" }); // Default Red
     const [logo, setLogo] = useState(null);
+    const [favicon, setFavicon] = useState(null);
     const [loading, setLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(() => {
         const saved = localStorage.getItem("darkMode");
@@ -18,6 +22,7 @@ export function ThemeProvider({ children }) {
             if (data) {
                 if (data.colors) setColors(data.colors);
                 if (data.logo) setLogo(data.logo);
+                if (data.favicon) setFavicon(data.favicon);
             }
         } catch (err) {
             console.warn("Failed to fetch branding settings", err);
@@ -35,8 +40,15 @@ export function ThemeProvider({ children }) {
     };
 
     useEffect(() => {
-        fetchBranding();
-    }, []);
+        if (user) {
+            fetchBranding();
+        } else {
+            setColors({ primary: "#E02D3D" });
+            setLogo(null);
+            setFavicon(null);
+            setLoading(false);
+        }
+    }, [user?.company_code]);
 
     // Apply Theme Class
     useEffect(() => {
@@ -60,8 +72,20 @@ export function ThemeProvider({ children }) {
         }
     }, [colors]);
 
+    useEffect(() => {
+        const href = favicon ? `${BASE_URL}${favicon}` : `${process.env.PUBLIC_URL || ""}/favicon.svg`;
+        const iconLinks = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']");
+
+        iconLinks.forEach((link) => {
+            link.setAttribute("href", href);
+            if (favicon?.endsWith(".svg")) link.setAttribute("type", "image/svg+xml");
+            else if (favicon?.endsWith(".ico")) link.setAttribute("type", "image/x-icon");
+            else link.setAttribute("type", "image/png");
+        });
+    }, [favicon]);
+
     return (
-        <ThemeContext.Provider value={{ colors, logo, fetchBranding, loading, darkMode, toggleDarkMode }}>
+        <ThemeContext.Provider value={{ colors, logo, favicon, fetchBranding, loading, darkMode, toggleDarkMode }}>
             {children}
         </ThemeContext.Provider>
     );

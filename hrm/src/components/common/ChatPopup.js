@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaComments, FaTimes, FaPaperPlane, FaChevronDown, FaChevronUp, FaUserShield, FaUsers, FaPaperclip, FaFileAlt, FaImage, FaMicrophone, FaStop, FaTrash, FaFilePdf, FaFileWord, FaFileExcel, FaFilePowerpoint, FaFileArchive, FaFileVideo, FaDownload } from "react-icons/fa";
+import { FaComments, FaTimes, FaPaperPlane, FaChevronDown, FaChevronUp, FaUserShield, FaUsers, FaPaperclip, FaFileAlt, FaMicrophone, FaStop, FaTrash, FaFilePdf, FaFileWord, FaFileExcel, FaFilePowerpoint, FaFileArchive, FaFileVideo, FaDownload, FaRobot } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import api, { BASE_URL } from "../../utils/api";
-import { flushSync } from "react-dom";
 import { toast } from "react-toastify";
 import socket from "../../utils/socket";
 import VoiceNotePlayer from "./VoiceNotePlayer";
+import AIAssistantPanel from "./AIAssistantPanel";
 
 export default function ChatPopup() {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [minimized, setMinimized] = useState(false);
-    const [activeTab, setActiveTab] = useState("dept"); // 'dept' or 'auth'
+    const [activeTab, setActiveTab] = useState("dept"); // 'dept', 'auth', or 'ai'
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState("");
     const [rooms, setRooms] = useState([]); // For Admins/HR
@@ -76,13 +76,16 @@ export default function ChatPopup() {
     const handleMarkAsRead = async (roomId) => {
         if (!roomId || !isOpen || minimized) return;
         try {
-            await api.post(`/chat/read/${roomId}`);
+            await api.post(`/chat/read/${encodeURIComponent(roomId)}`);
         } catch (err) {
-            console.error("handleMarkAsRead error", err);
+            if (err?.response?.status !== 403) {
+                console.error("handleMarkAsRead error", err);
+            }
         }
     };
 
     const fetchMessages = async () => {
+        if (activeTab === "ai") return;
         if (!selectedRoomId) return;
         try {
             const { data } = await api.get(`/chat/messages/${selectedRoomId}`);
@@ -109,6 +112,7 @@ export default function ChatPopup() {
     };
 
     const fetchUnreadCounts = async () => {
+        if (activeTab === "ai") return;
         if (isOpen && !minimized) return;
 
         const roomIdsList = [deptRoomId];
@@ -146,12 +150,13 @@ export default function ChatPopup() {
             const interval = setInterval(fetchUnreadCounts, 30000);
             return () => clearInterval(interval);
         }
-    }, [selectedRoomId, isOpen, minimized, deptRoomId, authRoomId]);
+    }, [selectedRoomId, isOpen, minimized, deptRoomId, authRoomId, activeTab]);
 
     useEffect(() => {
         if (!socket) return;
 
         socket.on("chat_message", (newMsg) => {
+            if (activeTab === "ai") return;
             if (newMsg.room_id === selectedRoomId) {
                 setMessages(prev => [...prev, newMsg]);
                 if (isOpen && !minimized) {
@@ -163,6 +168,7 @@ export default function ChatPopup() {
         });
 
         socket.on("chat_read", (data) => {
+            if (activeTab === "ai") return;
             if (data.roomId === selectedRoomId) {
                 fetchMessages();
             }
@@ -172,7 +178,7 @@ export default function ChatPopup() {
             socket.off("chat_message");
             socket.off("chat_read");
         };
-    }, [selectedRoomId, isOpen, minimized]);
+    }, [selectedRoomId, isOpen, minimized, activeTab]);
 
     useEffect(() => {
         if (isAdmin && unreadCount > prevUnreadRef.current) {
@@ -345,10 +351,11 @@ export default function ChatPopup() {
     };
 
     return (
-        <div className="fixed bottom-2 right-2 sm:bottom-4 sm:right-4 z-[900] max-w-[calc(100vw-1rem)] sm:max-w-none">
+        <div className="fixed inset-x-2 bottom-2 sm:inset-x-auto sm:bottom-4 sm:right-4 z-[80] sm:z-[900] max-w-[calc(100vw-1rem)] sm:max-w-none">
             {!isOpen ? (
                 <button
                     onClick={() => setIsOpen(true)}
+                    aria-label="Open chat"
                     className="relative bg-customRed text-white p-3 sm:p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center gap-2"
                 >
                     <FaComments size={20} className="sm:w-6 sm:h-6" />
@@ -360,16 +367,18 @@ export default function ChatPopup() {
                     )}
                 </button>
             ) : (
-                <div className={`bg-white rounded-xl shadow-2xl border flex flex-col transition-all duration-300 ${minimized
-                        ? 'h-12 w-64 sm:w-80'
-                        : 'h-[500px] w-[calc(100vw-1rem)] sm:h-[550px] sm:w-96 md:w-[420px] lg:w-[450px]'
+                <div className={`bg-white rounded-xl shadow-2xl border flex flex-col transition-all duration-300 overflow-hidden ${minimized
+                        ? 'h-12 w-full sm:w-80'
+                        : 'h-[min(560px,calc(100dvh-1rem))] w-full sm:h-[550px] sm:w-96 md:w-[420px] lg:w-[450px]'
                     }`}>
                     {/* Header */}
-                    <div className="bg-customRed text-white p-3 rounded-t-xl flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-2 truncate">
-                            <FaComments />
-                            <span className="font-bold text-sm truncate">
-                                {activeTab === 'dept'
+                    <div className="bg-customRed text-white px-3 py-3 rounded-t-xl flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2 truncate min-w-0">
+                            <FaComments className="shrink-0" />
+                            <span className="font-bold text-xs sm:text-sm truncate">
+                                {activeTab === 'ai'
+                                    ? 'WorkSphere Company Bot'
+                                    : activeTab === 'dept'
                                     ? `Dept: ${deptName === 'General' ? 'Company Chat' : deptName}`
                                     : (isAdmin && selectedRoomId
                                         ? (() => {
@@ -380,11 +389,19 @@ export default function ChatPopup() {
                                 }
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setMinimized(!minimized)}>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                                onClick={() => setMinimized(!minimized)}
+                                className="p-1.5 rounded-lg hover:bg-white/10"
+                                aria-label={minimized ? "Expand chat" : "Minimize chat"}
+                            >
                                 {minimized ? <FaChevronUp /> : <FaChevronDown />}
                             </button>
-                            <button onClick={() => setIsOpen(false)}>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="p-1.5 rounded-lg hover:bg-white/10"
+                                aria-label="Close chat"
+                            >
                                 <FaTimes />
                             </button>
                         </div>
@@ -393,23 +410,34 @@ export default function ChatPopup() {
                     {!minimized && (
                         <>
                             {/* Tabs */}
-                            <div className="flex border-b text-xs font-semibold uppercase">
+                            <div className="flex border-b text-[11px] sm:text-xs font-semibold uppercase shrink-0">
                                 <button
                                     onClick={() => { setActiveTab("dept"); setSelectedRoomId(deptRoomId); }}
                                     className={`flex-1 py-2 flex items-center justify-center gap-1 ${activeTab === "dept" ? "text-customRed border-b-2 border-customRed" : "text-gray-500"}`}
+                                    aria-label="Open department chat"
                                 >
                                     <FaUsers /> Dept
                                 </button>
                                 <button
                                     onClick={() => { setActiveTab("auth"); setSelectedRoomId(isAdmin ? "" : authRoomId); }}
                                     className={`flex-1 py-2 flex items-center justify-center gap-1 ${activeTab === "auth" ? "text-customRed border-b-2 border-customRed" : "text-gray-500"}`}
+                                    aria-label="Open authority chat"
                                 >
                                     <FaUserShield /> Authority
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("ai")}
+                                    className={`flex-1 py-2 flex items-center justify-center gap-1 ${activeTab === "ai" ? "text-customRed border-b-2 border-customRed" : "text-gray-500"}`}
+                                    aria-label="Open company bot"
+                                >
+                                    <FaRobot /> Bot
                                 </button>
                             </div>
 
                             {/* Authority Room List for Admins */}
-                            {isAdmin && activeTab === "auth" && !selectedRoomId ? (
+                            {activeTab === "ai" ? (
+                                <AIAssistantPanel user={user} />
+                            ) : isAdmin && activeTab === "auth" && !selectedRoomId ? (
                                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                                     <h4 className="text-[10px] font-bold text-gray-400 uppercase px-2">Support Threads</h4>
                                     {rooms.length === 0 ? (
@@ -422,7 +450,7 @@ export default function ChatPopup() {
                                                 className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg text-left border border-transparent hover:border-gray-200 transition-all"
                                             >
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0">
-                                                    {r.profile_img ? <img src={r.profile_img} className="w-full h-full rounded-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">{r.user_name?.[0]}</div>}
+                                                    {r.profile_img ? <img src={r.profile_img} width="32" height="32" decoding="async" className="w-full h-full rounded-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">{r.user_name?.[0]}</div>}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
                                                     <div className="text-xs font-bold truncate">{r.user_name}</div>
@@ -435,9 +463,9 @@ export default function ChatPopup() {
                             ) : (
                                 <>
                                     {/* Message Area */}
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50" ref={scrollRef}>
+                                    <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 bg-gray-50/50" ref={scrollRef}>
                                         {isAdmin && activeTab === 'auth' && selectedRoomId && (
-                                            <button onClick={() => setSelectedRoomId("")} className="text-[10px] text-customRed mb-2 hover:underline">← Back to threads</button>
+                                            <button onClick={() => setSelectedRoomId("")} className="text-[10px] text-customRed mb-2 hover:underline" aria-label="Back to support threads">← Back to threads</button>
                                         )}
                                         {messages.length === 0 ? (
                                             <div className="text-center text-xs text-gray-400 mt-10">Start the conversation...</div>
@@ -446,7 +474,7 @@ export default function ChatPopup() {
                                                 const isMe = Number(m.sender_id) === Number(user.id);
                                                 return (
                                                     <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                                                        <div className={`max-w-[80%] rounded-2xl p-2.5 shadow-sm text-xs ${isMe ? "bg-customRed text-white rounded-tr-none" : "bg-white text-gray-800 rounded-tl-none border"}`}>
+                                                        <div className={`max-w-[86%] sm:max-w-[80%] rounded-2xl p-2.5 shadow-sm text-xs ${isMe ? "bg-customRed text-white rounded-tr-none" : "bg-white text-gray-800 rounded-tl-none border"}`}>
                                                             {!isMe && <div className="font-bold text-[9px] mb-1 opacity-70">{m.sender_name}</div>}
                                                             <div className="whitespace-pre-wrap break-words">{m.message}</div>
 
@@ -458,6 +486,10 @@ export default function ChatPopup() {
                                                                             <img
                                                                                 src={getFileUrl(m.file_url)}
                                                                                 alt={m.file_name}
+                                                                                width="240"
+                                                                                height="180"
+                                                                                loading="lazy"
+                                                                                decoding="async"
                                                                                 className="max-w-full rounded-lg border border-white/10 hover:opacity-90 transition-opacity"
                                                                             />
                                                                         </a>
@@ -537,7 +569,7 @@ export default function ChatPopup() {
                                     </div>
 
                                     {/* Input */}
-                                    <form onSubmit={handleSend} className="p-3 border-t shrink-0 flex flex-col gap-2">
+                                    <form onSubmit={handleSend} className="p-2.5 sm:p-3 border-t shrink-0 flex flex-col gap-2 bg-white">
                                         {/* File / Recording Preview */}
                                         {selectedFile && (
                                             <div className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 p-3 rounded-2xl border border-gray-200 animate-in slide-in-from-bottom-2 shadow-sm">
@@ -548,7 +580,7 @@ export default function ChatPopup() {
                                                         </div>
                                                     ) : filePreview ? (
                                                         <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-sm">
-                                                            <img src={filePreview} className="w-full h-full object-cover" alt="" />
+                                                            <img src={filePreview} width="40" height="40" decoding="async" className="w-full h-full object-cover" alt="" />
                                                         </div>
                                                     ) : (
                                                         <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -569,13 +601,14 @@ export default function ChatPopup() {
                                                     onClick={clearFile}
                                                     className="ml-2 w-8 h-8 rounded-full bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm"
                                                     title="Remove"
+                                                    aria-label="Remove selected file"
                                                 >
                                                     <FaTimes size={14} />
                                                 </button>
                                             </div>
                                         )}
 
-                                        <div className="flex gap-2 items-center">
+                                        <div className="flex gap-1.5 sm:gap-2 items-center min-w-0">
                                             {isRecording ? (
                                                 <div className="flex-1 flex items-center gap-3 bg-red-50 p-3 rounded-2xl border-2 border-red-300 animate-in slide-in-from-bottom-2">
                                                     {/* Animated Recording Indicator */}
@@ -609,6 +642,7 @@ export default function ChatPopup() {
                                                             onClick={discardRecording}
                                                             className="text-gray-400 hover:text-red-600 p-2 transition-colors"
                                                             title="Discard"
+                                                            aria-label="Discard recording"
                                                         >
                                                             <FaTrash size={14} />
                                                         </button>
@@ -617,6 +651,7 @@ export default function ChatPopup() {
                                                             onClick={stopRecording}
                                                             className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors shadow-lg"
                                                             title="Stop Recording"
+                                                            aria-label="Stop recording"
                                                         >
                                                             <FaStop size={14} />
                                                         </button>
@@ -627,16 +662,18 @@ export default function ChatPopup() {
                                                     <button
                                                         type="button"
                                                         onClick={() => fileInputRef.current?.click()}
-                                                        className="text-gray-400 hover:text-customRed p-2 transition-colors"
+                                                        className="text-gray-400 hover:text-customRed p-1.5 sm:p-2 transition-colors shrink-0"
                                                         title="Attach File"
+                                                        aria-label="Attach file"
                                                     >
                                                         <FaPaperclip size={18} />
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={startRecording}
-                                                        className="text-gray-400 hover:text-customRed p-2 transition-colors"
+                                                        className="text-gray-400 hover:text-customRed p-1.5 sm:p-2 transition-colors shrink-0"
                                                         title="Record Voice Note"
+                                                        aria-label="Record voice note"
                                                     >
                                                         <FaMicrophone size={18} />
                                                     </button>
@@ -651,12 +688,13 @@ export default function ChatPopup() {
                                                         onChange={(e) => setText(e.target.value)}
                                                         placeholder="Type a message..."
                                                         autoComplete="off"
-                                                        className="flex-1 text-xs border rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-customRed"
+                                                        className="flex-1 min-w-0 text-xs border rounded-full px-3 sm:px-4 py-2 focus:outline-none focus:ring-1 focus:ring-customRed"
                                                     />
                                                     <button
                                                         type="submit"
                                                         disabled={(!text.trim() && !selectedFile) || isSending}
                                                         className="bg-customRed text-white p-2 rounded-full hover:scale-105 disabled:opacity-50 transition-all shadow-md flex items-center justify-center w-8 h-8 shrink-0"
+                                                        aria-label="Send message"
                                                     >
                                                         <FaPaperPlane className="w-3.5 h-3.5" />
                                                     </button>

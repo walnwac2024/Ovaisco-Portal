@@ -1,5 +1,6 @@
 // backend/Controller/UserDeatils/ChatController.js
 const { pool } = require("../../Utils/db");
+const { getUploadedFileUrl } = require("../../Utils/uploadPaths");
 
 /**
  * GET /api/v1/chat/messages/:roomId
@@ -95,7 +96,7 @@ async function sendMessage(req, res) {
         let fileName = null;
 
         if (file) {
-            fileUrl = `/uploads/chat/${file.filename}`;
+            fileUrl = getUploadedFileUrl(file, 'chat');
             fileType = file.mimetype;
             fileName = file.originalname;
         }

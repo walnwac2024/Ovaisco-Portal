@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, ExternalLink, User, Clock, Building } from 'lucide-react';
+import { MapPin, ExternalLink, Clock, Building } from 'lucide-react';
 import { getAuditLocations } from '../services/attendanceService';
 import { io } from 'socket.io-client';
 import { BASE_URL } from '../../../utils/api';
@@ -24,14 +24,13 @@ const LocationAuditTable = () => {
 
         fetchAuditData();
 
-        // ✅ Real-time Updates
+        // Real-time updates
         const socket = io(BASE_URL, {
             withCredentials: true,
             transports: ['websocket', 'polling']
         });
 
         socket.on('punch-recorded', (newPunch) => {
-            console.log('New real-time punch received:', newPunch);
             setPunches(prev => {
                 // Check if already in list to avoid duplicates
                 if (prev.some(p => p.id === newPunch.id)) return prev;
@@ -91,7 +90,7 @@ const LocationAuditTable = () => {
                                 <tr key={punch.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                            <div className="w-8 h-8 rounded-full bg-customRed flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm">
                                                 {punch.name?.charAt(0)}
                                             </div>
                                             <div>

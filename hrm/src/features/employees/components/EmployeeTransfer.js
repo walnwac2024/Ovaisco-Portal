@@ -270,9 +270,8 @@ export default function EmployeeTransfer() {
       <EmployeeTransferModal
         open={openForm}
         onClose={() => setOpenForm(false)}
-        onSubmit={(payload) => {
+        onSubmit={() => {
           // TODO: call API here
-          console.log("Transfer request payload:", payload);
           alert("Transfer request submitted!");
           setOpenForm(false);
         }}
