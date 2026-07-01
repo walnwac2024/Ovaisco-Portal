@@ -35,6 +35,7 @@ function buildTabs(roleName, features) {
   add('timesheet', 'Timesheet', 'timesheet_view');
   add('leave', 'Leave', 'leave_view');
   add('attendance', 'Attendance', 'attendance_view');
+  tabs.push({ key: 'complaints', label: 'Complaints' });
   add('performance', 'Performance', 'performance_view');
   add('payroll', 'Payroll', 'payroll_view_own');
   add('reports', 'Reports', 'reports_view');

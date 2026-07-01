@@ -31,6 +31,7 @@ const Settings = require("../Controller/Settings/SettingsController");
 const SystemSettings = require("../Controller/Settings/SystemSettingsController");
 const Gamification = require("../Controller/Gamification/GamificationController");
 const Office = require("../Controller/Office/OfficeController");
+const Complaints = require("../Controller/Complaints/ComplaintController");
 const Biometrics = require("../Controller/UserDeatils/BiometricController");
 const Birthday = require("../Controller/UserDeatils/BirthdayController");
 
@@ -76,7 +77,7 @@ const {
 } = require("../Controller/UserDeatils/PermissionController");
 
 // Middleware
-const { isAuthenticated, requireRole, requireFeatures, requireFeaturesOrSelf } = require("../middlewares/middleware");
+const { isAuthenticated, requireRole, requireFeatures, requireRoleOrAnyFeature, requireFeaturesOrSelf } = require("../middlewares/middleware");
 
 const docsStorage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -119,6 +120,12 @@ router.get("/birthdays/wishes/received", isAuthenticated, Birthday.getWishesRece
 router.get("/notifications", isAuthenticated, Notifications.listMyNotifications);
 router.patch("/notifications/:id/read", isAuthenticated, Notifications.markAsRead);
 router.patch("/notifications/read-all", isAuthenticated, Notifications.markAllAsRead);
+
+// Complaint ticket routes
+router.get("/complaints", isAuthenticated, Complaints.listComplaints);
+router.post("/complaints", isAuthenticated, Complaints.createComplaint);
+router.get("/complaints/:id", isAuthenticated, Complaints.getComplaintById);
+router.patch("/complaints/:id/status", isAuthenticated, Complaints.updateComplaintStatus);
 
 // Chat routes
 router.get("/chat/rooms", isAuthenticated, Chat.getAuthorityRooms);
@@ -194,7 +201,15 @@ router.get("/employees/:id", isAuthenticated, getEmployeeById);
 // Existing routes...
 router.post("/employees", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), upload.fields([{ name: "avatar", maxCount: 1 }, { name: "documents" }]), createEmployee);
 router.patch("/employees/:id", isAuthenticated, updateEmployee);
-router.post("/employees/:id/leave-balances", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), createEmployeeLeaveBalances);
+router.post(
+    "/employees/:id/leave-balances",
+    isAuthenticated,
+    requireRoleOrAnyFeature(
+        ["super_admin", "admin", "hr", "developer"],
+        ["employee_edit", "employee_settings", "leave_settings"]
+    ),
+    createEmployeeLeaveBalances
+);
 router.put("/employees/:id/login", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployeeLogin);
 router.patch("/employees/:id/status", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), updateEmployeeStatus);
 router.delete("/employees/:id", isAuthenticated, requireRole("super_admin", "admin", "hr", "developer"), deleteEmployee);

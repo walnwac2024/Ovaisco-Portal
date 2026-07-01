@@ -16,6 +16,7 @@ import {
   FaClock,
   FaSignOutAlt,
   FaShieldAlt,
+  FaTicketAlt,
 } from "react-icons/fa";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
@@ -32,6 +33,7 @@ const TAB_META = {
   timesheet: { to: "/timesheet", Icon: FaCalendarAlt, label: "Timesheet", isComingSoon: true },
   leave: { to: "/leave", Icon: FaCalendarCheck, label: "Leave" },
   attendance: { to: "/attendance", Icon: FaClock, label: "Attendance" },
+  complaints: { to: "/complaints", Icon: FaTicketAlt, label: "Complaints" },
   performance: { to: "/performance", Icon: FaChartLine, label: "Performance", isComingSoon: true },
   payroll: { to: "/payroll", Icon: FaThLarge, label: "Payroll" },
   reports: { to: "/reports", Icon: FaChartBar, label: "Reports" },
@@ -70,7 +72,7 @@ export default function Topbar({ logoSrc }) {
   // ✅ Notification State
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'leave', 'attendance'
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'leave', 'attendance', 'complaint'
   const notifyRef = useRef(null);
 
   // Filter notifications based on active tab
@@ -78,6 +80,7 @@ export default function Topbar({ logoSrc }) {
     if (activeTab === 'all') return true;
     if (activeTab === 'leave') return n.type === 'Leave';
     if (activeTab === 'attendance') return n.type === 'attendance'; // Assuming 'attendance' is the type key
+    if (activeTab === 'complaint') return n.type === 'Complaint';
     return true;
   });
 
@@ -128,7 +131,7 @@ export default function Topbar({ logoSrc }) {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 300000); // 5 mins
+      const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
     setNotifications([]);
@@ -370,9 +373,11 @@ export default function Topbar({ logoSrc }) {
 
                   {/* Tabs */}
                   <div className="flex items-center px-1 py-1 border-b dark:border-slate-700 bg-white dark:bg-slate-800 gap-1">
-                    {['all', 'leave', 'attendance'].map((tab) => {
+                    {['all', 'leave', 'attendance', 'complaint'].map((tab) => {
                       const isActive = activeTab === tab;
-                      const label = tab === 'leave' ? 'Leaves' : (tab === 'attendance' ? 'Attendance' : 'All');
+                      const label = tab === 'leave'
+                        ? 'Leaves'
+                        : (tab === 'attendance' ? 'Attendance' : (tab === 'complaint' ? 'Complaints' : 'All'));
                       return (
                         <button
                           key={tab}
@@ -401,6 +406,7 @@ export default function Topbar({ logoSrc }) {
                       filteredNotifications.map((n) => {
                         // Distinct style for Leave notifications
                         const isLeave = n.type === 'Leave';
+                        const isComplaint = n.type === 'Complaint';
                         const isUnread = !n.is_read;
 
                         return (
@@ -411,6 +417,12 @@ export default function Topbar({ logoSrc }) {
 
                               if (isLeave) {
                                 navigate('/leave', { state: { activeTab: 'leave-approvals' } });
+                                setShowNotifications(false);
+                                return;
+                              }
+
+                              if (isComplaint) {
+                                navigate('/complaints');
                                 setShowNotifications(false);
                                 return;
                               }

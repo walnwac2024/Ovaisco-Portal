@@ -252,11 +252,11 @@ export default function EmployeesPage() {
 
         {/* Results Card */}
         <div className="card">
-          <div className="card-header">
+          <div className="card-header flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
               Showing {rows.length} of {total} employees
             </div>
-            <div className="w-full max-w-xs">
+            <div className="w-full md:max-w-sm">
               <input
                 type="text"
                 placeholder="Search name, code, department..."
@@ -287,14 +287,14 @@ export default function EmployeesPage() {
             onDeleteEmployee={handleDeleteEmployee}
           />
 
-          <div className="px-4 py-3 flex items-center justify-between text-sm pagination-safe">
-            <div>
+          <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm pagination-safe">
+            <div className="font-medium text-slate-700">
               Page {total === 0 ? 0 : page} of {totalPages}
             </div>
-            <div className="space-x-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:space-x-2 sm:gap-0">
               <button
                 type="button"
-                className="btn-outline"
+                className="btn-outline w-full sm:w-auto"
                 onClick={() => setPage(Math.max(1, page - 1))}
                 disabled={page <= 1}
               >
@@ -302,7 +302,7 @@ export default function EmployeesPage() {
               </button>
               <button
                 type="button"
-                className="btn-outline"
+                className="btn-outline w-full sm:w-auto"
                 onClick={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
               >

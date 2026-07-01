@@ -11,6 +11,16 @@ async function resolveEmployeeCompanyId(employeeId, fallbackCompanyId) {
     return employee?.company_id || fallbackCompanyId || 1;
 }
 
+function normalizeLeaveDuration(dayType) {
+    const value = String(dayType || "full").trim().toLowerCase();
+    if (["full", "half", "short"].includes(value)) return value;
+    return "full";
+}
+
+function isShortLeaveName(name) {
+    return String(name || "").trim().toLowerCase().replace(/\s+/g, " ") === "short leave";
+}
+
 /**
  * GET /leaves/types
  */
@@ -40,7 +50,9 @@ const applyLeave = async (req, res) => {
         }
 
         const companyId = await resolveEmployeeCompanyId(user.id, req.company_id || 1);
-        const isHalfDay = String(day_type || "").trim().toLowerCase() === "half";
+        const durationType = normalizeLeaveDuration(day_type);
+        const isHalfDay = durationType === "half";
+        const isShortLeave = durationType === "short";
         const start = new Date(start_date);
         const end = new Date(end_date);
 
@@ -56,10 +68,33 @@ const applyLeave = async (req, res) => {
             return res.status(400).json({ message: "Half leave must be for a single date." });
         }
 
+        if (isShortLeave && start_date !== end_date) {
+            return res.status(400).json({ message: "Short leave must be for a single date." });
+        }
+
         const diffTime = end - start;
-        const total_days = isHalfDay
+        const total_days = isShortLeave
+            ? 0.25
+            : isHalfDay
             ? 0.5
             : Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        const [[leaveType]] = await conn.execute(
+            "SELECT id, name FROM leave_types WHERE id = ? AND is_active = 1 AND company_id = ? LIMIT 1",
+            [leave_type_id, companyId]
+        );
+
+        if (!leaveType) {
+            return res.status(400).json({ message: "Invalid leave type for this portal." });
+        }
+
+        if (isShortLeave && !isShortLeaveName(leaveType.name)) {
+            return res.status(400).json({ message: "Please select the Short Leave type for short leave." });
+        }
+
+        if (!isShortLeave && isShortLeaveName(leaveType.name)) {
+            return res.status(400).json({ message: "Short Leave type can only be used with Short Leave duration." });
+        }
 
         // ✅ Check Leave Balance
         const [balanceRows] = await conn.execute(
@@ -231,9 +266,9 @@ const getMyLeaves = async (req, res) => {
             `SELECT la.*, lt.name as leave_type_name, app.comment as rejection_reason, 
                     er.Employee_Name as approver_name
              FROM leave_applications la
-             JOIN leave_types lt ON la.leave_type_id = lt.id
-             LEFT JOIN approvals app ON app.approvable_type = 'Leave' AND app.approvable_id = la.id
-             LEFT JOIN employee_records er ON app.approver_id = er.id
+             JOIN leave_types lt ON la.leave_type_id = lt.id AND lt.company_id = la.company_id
+             LEFT JOIN approvals app ON app.approvable_type = 'Leave' AND app.approvable_id = la.id AND app.company_id = la.company_id
+             LEFT JOIN employee_records er ON app.approver_id = er.id AND er.company_id = la.company_id
              WHERE la.employee_id = ? AND la.company_id = ?
              ORDER BY la.created_at DESC`,
             [user.id, req.company_id || 1]
@@ -261,10 +296,10 @@ const getAllLeaves = async (req, res) => {
                    app.approver_id, app_er.Employee_Name as handled_by,
                    la.reason
             FROM leave_applications la
-            JOIN leave_types lt ON la.leave_type_id = lt.id
-            JOIN employee_records er ON la.employee_id = er.id
-            LEFT JOIN approvals app ON app.approvable_type = 'Leave' AND app.approvable_id = la.id
-            LEFT JOIN employee_records app_er ON app.approver_id = app_er.id
+            JOIN leave_types lt ON la.leave_type_id = lt.id AND lt.company_id = la.company_id
+            JOIN employee_records er ON la.employee_id = er.id AND er.company_id = la.company_id
+            LEFT JOIN approvals app ON app.approvable_type = 'Leave' AND app.approvable_id = la.id AND app.company_id = la.company_id
+            LEFT JOIN employee_records app_er ON app.approver_id = app_er.id AND app_er.company_id = la.company_id
             WHERE la.company_id = ?
         `;
 
@@ -541,23 +576,12 @@ const getLeaveBalances = async (req, res) => {
         const [rows] = await pool.execute(
             `SELECT lb.*, lt.name as leave_type_name
              FROM leave_balances lb
-             JOIN leave_types lt ON lb.leave_type_id = lt.id
+             JOIN leave_types lt ON lb.leave_type_id = lt.id AND lt.company_id = lb.company_id
              WHERE lb.employee_id = ? AND lb.year = ? AND lb.company_id = ?`,
             [user.id, currentYear, companyId]
         );
 
-        if (rows.length) return res.json({ balances: rows });
-
-        const [fallbackRows] = await pool.execute(
-            `SELECT lb.*, lt.name as leave_type_name
-             FROM leave_balances lb
-             JOIN leave_types lt ON lb.leave_type_id = lt.id
-             WHERE lb.employee_id = ? AND lb.year = ?
-             ORDER BY lb.company_id = ? DESC, lb.id ASC`,
-            [user.id, currentYear, companyId]
-        );
-
-        return res.json({ balances: fallbackRows });
+        return res.json({ balances: rows });
     } catch (e) {
         console.error("getLeaveBalances error:", e);
         return res.status(500).json({ message: "Failed to load leave balances" });
@@ -576,7 +600,7 @@ const getLeaveDashboardStats = async (req, res) => {
         const [myRequestsList] = await pool.execute(
             `SELECT la.id, la.start_date, la.end_date, la.status, lt.name as leave_type
              FROM leave_applications la
-             JOIN leave_types lt ON la.leave_type_id = lt.id
+             JOIN leave_types lt ON la.leave_type_id = lt.id AND lt.company_id = la.company_id
              WHERE la.employee_id = ? AND la.company_id = ?
              ORDER BY la.id DESC LIMIT 5`,
             [user.id, req.company_id || 1]
@@ -586,9 +610,9 @@ const getLeaveDashboardStats = async (req, res) => {
         const [myApprovalsList] = await pool.execute(
             `SELECT a.id, la.start_date, la.end_date, lt.name as leave_type, e.Employee_Name as applicant_name
              FROM approvals a
-             JOIN leave_applications la ON a.approvable_id = la.id AND a.approvable_type = 'Leave'
-             JOIN leave_types lt ON la.leave_type_id = lt.id
-             JOIN employee_records e ON la.employee_id = e.id
+             JOIN leave_applications la ON a.approvable_id = la.id AND a.approvable_type = 'Leave' AND la.company_id = a.company_id
+             JOIN leave_types lt ON la.leave_type_id = lt.id AND lt.company_id = la.company_id
+             JOIN employee_records e ON la.employee_id = e.id AND e.company_id = la.company_id
              WHERE a.approver_id = ? AND a.status = 'pending' AND a.company_id = ?
              ORDER BY a.id DESC LIMIT 5`,
             [user.id, req.company_id || 1]

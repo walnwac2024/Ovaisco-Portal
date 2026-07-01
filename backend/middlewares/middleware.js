@@ -72,6 +72,30 @@ function requireFeatures(...neededCodes) {
   };
 }
 
+function requireRoleOrAnyFeature(allowedRoles = [], allowedFeatures = []) {
+  return (req, res, next) => {
+    const user = req.session?.user;
+    if (!user) return res.status(401).json({ message: "Unauthenticated" });
+    if (hasFullAccess(user)) return next();
+
+    const userRoles = (Array.isArray(user.roles) ? user.roles : []).map((role) =>
+      String(role).toLowerCase()
+    );
+    const roleOk = allowedRoles.some((role) =>
+      userRoles.includes(String(role).toLowerCase())
+    );
+    if (roleOk) return next();
+
+    const feats = new Set((user.features || []).map((feature) => String(feature).toLowerCase()));
+    const featureOk = allowedFeatures.some((feature) =>
+      feats.has(String(feature).toLowerCase())
+    );
+    if (featureOk) return next();
+
+    return res.status(403).json({ message: "Forbidden (insufficient role or feature)" });
+  };
+}
+
 function requireFeaturesOrSelf(featureCode, idParam = "id") {
   return (req, res, next) => {
     const user = req.session?.user;
@@ -92,6 +116,7 @@ module.exports = {
   isAuthenticated,
   requireRole,
   requireFeatures,
+  requireRoleOrAnyFeature,
   requireFeaturesOrSelf,
   hasFullAccess,
 };

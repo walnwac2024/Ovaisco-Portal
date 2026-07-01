@@ -33,6 +33,7 @@ async function provisionCompany() {
             ["Annual", 15, "#4CAF50"],
             ["Sick", 20, "#F44336"],
             ["Casual", 10, "#2196F3"],
+            ["Short Leave", 2, "#F59E0B"],
             ["Maternity", 90, "#E91E63"],
             ["Paternity", 10, "#9C27B0"],
             ["Unpaid", 0, "#9E9E9E"]

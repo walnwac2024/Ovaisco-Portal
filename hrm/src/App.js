@@ -26,6 +26,7 @@ const BrandingPage = lazy(() => import("./features/settings/BrandingPage"));
 const LeaderboardPage = lazy(() => import("./features/gamification/LeaderboardPage"));
 const OfficePage = lazy(() => import("./features/office/OfficePage"));
 const LeavePage = lazy(() => import("./features/leave/LeavePage"));
+const ComplaintPage = lazy(() => import("./features/complaints/ComplaintPage"));
 const PayrollPage = lazy(() => import("./features/payroll/PayrollPage"));
 const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
 const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
@@ -181,6 +182,7 @@ export default function App() {
                 <Route path="/recruitment" element={<ComingSoon title="Recruitment" />} />
                 <Route path="/timesheet" element={<ComingSoon title="Timesheet" />} />
                 <Route path="/leave" element={<LeavePage />} />
+                <Route path="/complaints" element={<ComplaintPage />} />
                 <Route path="/performance" element={<PerformancePage />} />
                 {/* Minimal Payroll Routes */}
                 <Route path="/payroll" element={<PayrollPage />} />

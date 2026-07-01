@@ -91,56 +91,48 @@ function safeUnlink(absPath) {
   }
 }
 
+const DEFAULT_LEAVE_TYPES = [
+  { name: "Casual Leave", entitlement_days: 10 },
+  { name: "Sick Leave", entitlement_days: 8 },
+  { name: "Annual Leave", entitlement_days: 14 },
+  { name: "Short Leave", entitlement_days: 2 },
+];
+
+async function ensureDefaultLeaveType(conn, companyId, type) {
+  const name = String(type.name || "").trim();
+  const entitlement = Number(type.entitlement_days) || 0;
+  if (!name || entitlement <= 0) return;
+
+  const [existing] = await conn.execute(
+    "SELECT id FROM leave_types WHERE LOWER(name) = LOWER(?) AND company_id = ? LIMIT 1",
+    [name, companyId]
+  );
+
+  if (existing.length) {
+    await conn.execute(
+      "UPDATE leave_types SET entitlement_days = ?, is_active = 1 WHERE id = ? AND company_id = ?",
+      [entitlement, existing[0].id, companyId]
+    );
+  } else {
+    await conn.execute(
+      "INSERT INTO leave_types (name, entitlement_days, is_active, company_id) VALUES (?, ?, 1, ?)",
+      [name, entitlement, companyId]
+    );
+  }
+}
+
 async function ensureActiveLeaveTypes(conn, companyId) {
   const [activeTypes] = await conn.execute(
     "SELECT id, entitlement_days FROM leave_types WHERE is_active = 1 AND company_id = ?",
     [companyId]
   );
 
-  if (activeTypes.length) return activeTypes;
-
-  let sourceTypes = [];
-  try {
-    const [referenceTypes] = await conn.execute(
-      `SELECT name, entitlement_days
-       FROM hrm_db.leave_types
-       WHERE is_active = 1
-       ORDER BY id ASC`
-    );
-    sourceTypes = referenceTypes;
-  } catch (err) {
-    sourceTypes = [];
-  }
-
-  if (!sourceTypes.length) {
-    sourceTypes = [
-      { name: "Casual Leave", entitlement_days: 10 },
-      { name: "Sick Leave", entitlement_days: 8 },
-      { name: "Annual Leave", entitlement_days: 14 },
-    ];
-  }
-
-  for (const type of sourceTypes) {
-    const name = String(type.name || "").trim();
-    const entitlement = Number(type.entitlement_days) || 0;
-    if (!name || entitlement <= 0) continue;
-
-    const [existing] = await conn.execute(
-      "SELECT id FROM leave_types WHERE LOWER(name) = LOWER(?) AND company_id = ? LIMIT 1",
-      [name, companyId]
-    );
-
-    if (existing.length) {
-      await conn.execute(
-        "UPDATE leave_types SET entitlement_days = ?, is_active = 1 WHERE id = ? AND company_id = ?",
-        [entitlement, existing[0].id, companyId]
-      );
-    } else {
-      await conn.execute(
-        "INSERT INTO leave_types (name, entitlement_days, is_active, company_id) VALUES (?, ?, 1, ?)",
-        [name, entitlement, companyId]
-      );
+  if (!activeTypes.length) {
+    for (const type of DEFAULT_LEAVE_TYPES) {
+      await ensureDefaultLeaveType(conn, companyId, type);
     }
+  } else {
+    await ensureDefaultLeaveType(conn, companyId, { name: "Short Leave", entitlement_days: 2 });
   }
 
   const [seededTypes] = await conn.execute(

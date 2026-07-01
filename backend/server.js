@@ -238,6 +238,7 @@ app.use("/api/v1", (req, res, next) => {
   const isExempt =
     (req.method === "PATCH" && pathForCsrf.includes("/notifications/") && pathForCsrf.endsWith("/read")) ||
     (req.method === "POST" && pathForCsrf.includes("/chat/read/")) ||
+    (req.method === "POST" && pathForCsrf.includes("/assistant/chat")) ||
     pathForCsrf.includes("/attendance/punch") ||
     pathForCsrf.includes("/attendance/amt-sync") ||
     pathForCsrf.includes("/payroll/lock-salary") ||
@@ -345,6 +346,8 @@ const host = "0.0.0.0";
       { module: 'Attendance', action: 'View All Attendance', code: 'attendance_view_all' },
       { module: 'Attendance', action: 'Manage Settings', code: 'attendance_manage_settings' },
       { module: 'Attendance', action: 'Attendance Audit', code: 'attendance_audit' },
+      { module: 'Complaints', action: 'View Company Complaints', code: 'complaint_view_all' },
+      { module: 'Complaints', action: 'Manage Complaints', code: 'complaint_manage' },
       { module: 'Audit', action: 'View Logs', code: 'audit_view' },
       { module: 'WhatsApp', action: 'Manage Integration', code: 'whatsapp_manage' },
       { module: 'Permissions', action: 'Manage Roles', code: 'permissions_edit' }

@@ -20,10 +20,25 @@ import {
 const LEAVE_DAY_TYPE_OPTIONS = [
     { value: "full", label: "Full Day" },
     { value: "half", label: "Half Day" },
+    { value: "short", label: "Short Leave" },
 ];
+
+function isShortLeaveName(name) {
+    return String(name || "").trim().toLowerCase().replace(/\s+/g, " ") === "short leave";
+}
+
+function formatBalanceDays(days) {
+    const value = Number(days);
+    if (!Number.isFinite(value)) return "0 days";
+    if (value === 0.25) return "Short leave";
+    if (value === 0.5) return "Half day";
+    if (value === 1) return "1 day";
+    return `${Number.isInteger(value) ? value : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")} days`;
+}
 
 function formatLeaveDays(days) {
     const value = Number(days);
+    if (value === 0.25) return "Short leave";
     if (value === 0.5) return "Half day";
     if (value === 1) return "1 day";
     return `${Number.isInteger(value) ? value : value.toFixed(1)} days`;
@@ -120,6 +135,27 @@ export default function LeavePage() {
                 if (patch.day_type === "half" && next.start_date) next.end_date = next.start_date;
                 if (!next.end_date && next.start_date) next.end_date = next.start_date;
             }
+            if (next.day_type === "short") {
+                if (patch.start_date) next.end_date = patch.start_date;
+                if (patch.day_type === "short" && next.start_date) next.end_date = next.start_date;
+                if (!next.end_date && next.start_date) next.end_date = next.start_date;
+
+                const shortBalance = balances.find((b) => isShortLeaveName(b.leave_type_name));
+                if (shortBalance) next.leave_type_id = shortBalance.leave_type_id;
+            }
+            if (patch.day_type && patch.day_type !== "short") {
+                const selected = balances.find((b) => String(b.leave_type_id) === String(next.leave_type_id));
+                if (selected && isShortLeaveName(selected.leave_type_name)) next.leave_type_id = "";
+            }
+            if (patch.leave_type_id) {
+                const selected = balances.find((b) => String(b.leave_type_id) === String(patch.leave_type_id));
+                if (selected && isShortLeaveName(selected.leave_type_name)) {
+                    next.day_type = "short";
+                    if (next.start_date) next.end_date = next.start_date;
+                } else if (next.day_type === "short") {
+                    next.day_type = "full";
+                }
+            }
             return next;
         });
     };
@@ -186,6 +222,13 @@ export default function LeavePage() {
         }
     };
 
+    const hasShortLeaveBalance = balances.some((b) => isShortLeaveName(b.leave_type_name));
+    const leaveTypeOptions = balances
+        .map((b) => ({
+            value: b.leave_type_id,
+            label: `${b.leave_type_name} (Balance: ${formatBalanceDays(b.balance)})`
+        }));
+
     return (
         <div className="flex flex-col lg:flex-row gap-6">
             <LeaveSidebar
@@ -228,12 +271,12 @@ export default function LeavePage() {
                                                 <span className="text-xs text-slate-500 font-medium">Days Total</span>
                                             </div>
                                             <div className="text-xs text-slate-600 mt-1">
-                                                <span className="font-semibold text-emerald-600">{Number(b.balance)}</span> available
+                                                <span className="font-semibold text-emerald-600">{formatBalanceDays(b.balance)}</span> available
                                             </div>
                                             <div className="mt-2 h-1 w-full bg-slate-50 rounded-full overflow-hidden">
                                                 <div
                                                     className={`h-full transition-all duration-500 ${Number(b.balance) < 2 ? 'bg-rose-400' : 'bg-emerald-400'}`}
-                                                    style={{ width: `${(Number(b.balance) / Number(b.entitlement)) * 100}%` }}
+                                                    style={{ width: `${Number(b.entitlement) > 0 ? (Number(b.balance) / Number(b.entitlement)) * 100 : 0}%` }}
                                                 ></div>
                                             </div>
                                         </div>
@@ -309,12 +352,14 @@ export default function LeavePage() {
                                             label="Leave Type"
                                             value={formData.leave_type_id}
                                             onChange={(val) => updateLeaveForm({ leave_type_id: val })}
-                                            options={balances.map((b) => ({
-                                                value: b.leave_type_id,
-                                                label: `${b.leave_type_name} (Balance: ${Number(b.balance)} days)`
-                                            }))}
+                                            options={leaveTypeOptions}
                                             placeholder="Select Type"
                                         />
+                                        {formData.day_type === "short" && !hasShortLeaveBalance && (
+                                            <p className="mt-2 text-[11px] font-semibold text-rose-500">
+                                                Short Leave balance is not available for your current year. Ask HR to create missing balances.
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="md:col-span-2">
                                         <SharedDropdown
@@ -342,12 +387,12 @@ export default function LeavePage() {
                                             className="input h-11"
                                             value={formData.end_date}
                                             onChange={(e) => updateLeaveForm({ end_date: e.target.value })}
-                                            disabled={formData.day_type === "half"}
+                                            disabled={formData.day_type === "half" || formData.day_type === "short"}
                                             required
                                         />
-                                        {formData.day_type === "half" && (
+                                        {(formData.day_type === "half" || formData.day_type === "short") && (
                                             <p className="mt-1 text-[11px] text-slate-400">
-                                                Half leave uses the same start date.
+                                                {formData.day_type === "short" ? "Short leave uses the same start date." : "Half leave uses the same start date."}
                                             </p>
                                         )}
                                     </div>
